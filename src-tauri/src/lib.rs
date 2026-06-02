@@ -27,7 +27,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::feed::fetch_feed,
-            commands::extract::extract_article,
+            commands::extract::fetch_article_html,
+            commands::tts::synthesize_speech,
             crawler::refresh_feeds_now,
         ])
         .run(tauri::generate_context!())

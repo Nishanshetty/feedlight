@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Readability } from "@mozilla/readability";
 
 type Props = {
   url: string;
@@ -285,13 +286,30 @@ export default function ArticlePane({ url, title, onClose }: Props) {
   useEffect(() => {
     if (isYT) return;
     setResult({ state: "loading" });
-    invoke<{ title: string; content: string; byline: string | null; site_name: string | null }>(
-      "extract_article", { url }
-    ).then((data) => {
-      setResult({ state: "ok", title: data.title, byline: data.byline, siteName: data.site_name, content: data.content });
-    }).catch((err) => {
-      setResult({ state: "error", message: String(err) });
-    });
+    invoke<string>("fetch_article_html", { url })
+      .then((html) => {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        // Set base URL so relative links resolve correctly
+        const base = doc.createElement("base");
+        base.href = url;
+        doc.head.appendChild(base);
+
+        const article = new Readability(doc).parse();
+        if (!article) {
+          setResult({ state: "error", message: "Could not extract article content" });
+          return;
+        }
+        setResult({
+          state: "ok",
+          title: article.title || article.excerpt || "",
+          byline: article.byline ?? null,
+          siteName: article.siteName ?? null,
+          content: article.content ?? "",
+        });
+      })
+      .catch((err) => {
+        setResult({ state: "error", message: String(err) });
+      });
   }, [url, isYT]);
 
   // ── TTS handlers ────────────────────────────────────────────────────────────
