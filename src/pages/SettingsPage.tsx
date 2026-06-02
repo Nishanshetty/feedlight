@@ -1,13 +1,108 @@
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import {
+  getYouTubeApiKey, setYouTubeApiKey,
+  getGcpTtsCredentials, setGcpTtsCredentials,
+} from "../lib/settings";
+
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+function SettingField({
+  label, description, value, onChange, onSave, placeholder, type = "text", saveState,
+}: {
+  label: string; description: string; value: string; onChange: (v: string) => void;
+  onSave: () => void; placeholder: string; type?: string; saveState: SaveState;
+}) {
+  return (
+    <div className="border border-outline-variant/40 p-5 space-y-3">
+      <div>
+        <p className="text-sm font-headline font-semibold text-on-surface">{label}</p>
+        <p className="text-xs font-body text-on-surface-variant mt-0.5">{description}</p>
+      </div>
+      <div className="flex gap-2">
+        {type === "textarea" ? (
+          <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={4}
+            className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary resize-y" />
+        ) : (
+          <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+            className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary" />
+        )}
+        <button onClick={onSave} disabled={saveState === "saving"}
+          className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
+          {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : saveState === "error" ? "Error" : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
+  const [ytKey, setYtKey] = useState("");
+  const [ytSave, setYtSave] = useState<SaveState>("idle");
+  const [ttsCredentials, setTtsCredentials] = useState("");
+  const [ttsSave, setTtsSave] = useState<SaveState>("idle");
+
+  useEffect(() => {
+    getYouTubeApiKey().then(setYtKey).catch(console.error);
+    getGcpTtsCredentials().then(setTtsCredentials).catch(console.error);
+  }, []);
+
+  async function saveYtKey() {
+    setYtSave("saving");
+    try { await setYouTubeApiKey(ytKey); setYtSave("saved"); setTimeout(() => setYtSave("idle"), 2000); }
+    catch { setYtSave("error"); }
+  }
+
+  async function saveTtsCredentials() {
+    setTtsSave("saving");
+    try { await setGcpTtsCredentials(ttsCredentials); setTtsSave("saved"); setTimeout(() => setTtsSave("idle"), 2000); }
+    catch { setTtsSave("error"); }
+  }
+
   return (
-    <div className="flex flex-1 items-center justify-center flex-col gap-4">
-      <h2 className="text-xl font-headline font-bold text-primary">Settings</h2>
-      <p className="text-sm text-on-surface-variant">API keys and preferences will live here.</p>
-      <Link to="/" className="text-xs underline text-on-surface-variant hover:text-primary">
-        ← Back
-      </Link>
+    <div className="flex h-full flex-col bg-background">
+      <header className="flex h-14 shrink-0 items-center gap-4 border-b border-outline-variant/40 bg-background/80 backdrop-blur-xl px-6">
+        <Link to="/" aria-label="Back to reader"
+          className="rounded p-1.5 text-on-surface-variant transition-colors hover:text-primary">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 19l-7-7 7-7" />
+          </svg>
+        </Link>
+        <span className="font-headline text-lg font-bold tracking-[0.2em] text-primary uppercase">Settings</span>
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="mx-auto max-w-2xl space-y-8">
+
+          <section className="space-y-3">
+            <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">YouTube</h2>
+            <SettingField
+              label="YouTube Data API Key"
+              description="Required to subscribe to YouTube @handle channels. Get a key from Google Cloud Console."
+              value={ytKey} onChange={setYtKey} onSave={saveYtKey}
+              placeholder="AIzaSy..." saveState={ytSave} />
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Text to Speech</h2>
+            <SettingField
+              label="Google Cloud TTS Credentials"
+              description="Paste the contents of your GCP service account JSON file. Used for the article read-aloud feature."
+              value={ttsCredentials} onChange={setTtsCredentials} onSave={saveTtsCredentials}
+              placeholder='{ "type": "service_account", ... }' type="textarea" saveState={ttsSave} />
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">AI (coming soon)</h2>
+            <div className="border border-outline-variant/20 p-5">
+              <p className="text-xs font-body text-on-surface-variant">
+                AI summarization and smart filtering will be configurable here in a future release.
+              </p>
+            </div>
+          </section>
+
+        </div>
+      </div>
     </div>
   );
 }
