@@ -1,3 +1,5 @@
+mod commands;
+
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -17,7 +19,10 @@ pub fn run() {
                 .add_migrations("sqlite:focal.db", migrations)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![
+            commands::feed::fetch_feed,
+            commands::extract::extract_article,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Focal");
 }
