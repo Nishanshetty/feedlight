@@ -1,3 +1,4 @@
+use dom_query::Document;
 use scraper::{Html, Selector};
 use serde::Serialize;
 
@@ -32,40 +33,56 @@ fn meta_content(doc: &Html, value: &str) -> Option<String> {
 /// Returns the trimmed text content of the first element matching the selector.
 fn first_text(doc: &Html, selector: &str) -> Option<String> {
     let sel = Selector::parse(selector).ok()?;
-    let text = doc
-        .select(&sel)
-        .next()?
-        .text()
-        .collect::<String>();
+    let text = doc.select(&sel).next()?.text().collect::<String>();
     let trimmed = text.trim().to_string();
     if trimmed.is_empty() { None } else { Some(trimmed) }
 }
 
-/// Walks a priority list of candidate selectors and returns the inner HTML of the
-/// first element that contains at least 200 characters of markup.
-fn extract_main_content(doc: &Html) -> String {
+/// Uses dom_query to strip noise elements then extract the main readable content.
+fn extract_main_content(html: &str) -> String {
+    let doc = Document::from(html);
+
+    // Remove everything that isn't article text
+    doc.select(
+        "script, style, noscript, iframe, \
+         nav, header, footer, aside, form, \
+         [role='navigation'], [role='banner'], [role='complementary'], \
+         .nav, .navigation, .menu, .sidebar, .widget, \
+         .advertisement, .ads, .ad, .promo, \
+         .related, .related-posts, .recommended, \
+         .comments, .comment-section, #comments, \
+         .social, .share, .sharing, \
+         .newsletter, .subscribe, .signup, \
+         figure > figcaption"
+    ).remove();
+
+    // Try content candidates in priority order
     let candidates = [
         "article",
+        "[itemprop='articleBody']",
+        ".post-content",
+        ".article-body",
+        ".article-content",
+        ".entry-content",
+        ".story-body",
+        ".content-body",
         "main",
         "[role='main']",
-        "#article",
         "#content",
-        ".article-body",
-        ".post-content",
-        ".entry-content",
         ".content",
         "body",
     ];
+
     for candidate in candidates {
-        if let Ok(sel) = Selector::parse(candidate) {
-            if let Some(el) = doc.select(&sel).next() {
-                let html = el.inner_html();
-                if html.len() >= 200 {
-                    return html;
-                }
+        let sel = doc.select(candidate);
+        if !sel.is_empty() {
+            let content = sel.first().inner_html().to_string();
+            if content.len() >= 200 {
+                return content;
             }
         }
     }
+
     String::new()
 }
 
@@ -96,24 +113,18 @@ pub async fn extract_article(url: String) -> Result<ArticleResult, String> {
         .await
         .map_err(|e| format!("Failed to read article body: {e}"))?;
 
-    let doc = Html::parse_document(&html);
-
-    let title = meta_content(&doc, "og:title")
-        .or_else(|| first_text(&doc, "title"))
-        .or_else(|| first_text(&doc, "h1"))
+    // Use scraper for meta extraction (lightweight, read-only)
+    let scraper_doc = Html::parse_document(&html);
+    let title = meta_content(&scraper_doc, "og:title")
+        .or_else(|| first_text(&scraper_doc, "title"))
+        .or_else(|| first_text(&scraper_doc, "h1"))
         .unwrap_or_default();
+    let byline = meta_content(&scraper_doc, "author")
+        .or_else(|| meta_content(&scraper_doc, "article:author"));
+    let site_name = meta_content(&scraper_doc, "og:site_name");
 
-    let byline = meta_content(&doc, "author")
-        .or_else(|| meta_content(&doc, "article:author"));
+    // Use dom_query for content extraction (supports DOM mutation / noise removal)
+    let content = extract_main_content(&html);
 
-    let site_name = meta_content(&doc, "og:site_name");
-
-    let content = extract_main_content(&doc);
-
-    Ok(ArticleResult {
-        title,
-        content,
-        byline,
-        site_name,
-    })
+    Ok(ArticleResult { title, content, byline, site_name })
 }
