@@ -1,7 +1,106 @@
-# Tauri + React + Typescript
+# Focal
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+> **Because focus matters.**
 
-## Recommended IDE Setup
+A local-first RSS reader for macOS. No accounts, no servers, no subscriptions — your feeds live on your machine.
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+<!-- TODO: add screenshot once first build is ready -->
+<!-- ![Focal screenshot](docs/screenshot.png) -->
+
+---
+
+## Features
+
+- **Local-first** — all data stored in SQLite on your Mac; works fully offline
+- **RSS & Atom** — subscribe to any RSS/Atom feed; paste a site URL and Focal auto-discovers the feed
+- **YouTube channels** — subscribe to channels by URL (`/channel/`, `/user/`, or `@handle` with API key)
+- **Article reader** — distraction-free reading pane powered by Mozilla Readability (same engine as Firefox Reader View)
+- **Text to Speech** — paragraph-by-paragraph read-aloud via Google Cloud TTS (Neural2 voice)
+- **Background refresh** — feeds refresh automatically every 15 minutes in Rust; no browser tab needed
+- **OPML import/export** — migrate from Feedly, Inoreader, or any other reader instantly
+- **Feed analytics** — identify noisy, ignored, and dead feeds to declutter your reading list
+- **Keyboard shortcuts** — `j/k` navigate, `o/Enter` open, `m` toggle read, `s` star, `Shift+A` mark all read
+- **Reader customisation** — Light / Sepia / Slate / Dark themes, font family, font size, column width, line spacing
+
+---
+
+## Download
+
+Pre-built macOS universal binaries (arm64 + x86_64) are available on the [Releases](../../releases) page.
+
+---
+
+## Build from source
+
+### Prerequisites
+
+| Tool | Version |
+|------|---------|
+| [Rust](https://rustup.rs) | 1.80+ (stable) |
+| Node.js | 18+ |
+| Xcode Command Line Tools | Any recent version |
+
+### Steps
+
+```bash
+git clone https://github.com/nishanshetty/focal.git
+cd focal
+npm install
+npm run tauri dev        # development build with hot-reload
+npm run tauri build      # production .dmg + .app
+```
+
+The production build outputs to `src-tauri/target/release/bundle/`.
+
+---
+
+## Configuring API keys
+
+Open **Settings** (gear icon in the top bar) to configure optional integrations:
+
+| Setting | Where to get it | Used for |
+|---------|----------------|---------|
+| **YouTube Data API key** | [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → YouTube Data API v3 | Subscribing to `@handle` YouTube channels |
+| **Google Cloud TTS credentials** | GCP Console → IAM → Service Accounts → create key (JSON) | Article read-aloud feature |
+
+Credentials are stored locally in the app data directory via `tauri-plugin-store` — they never leave your machine.
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|-------|-----------|
+| Shell | [Tauri 2](https://tauri.app) (Rust) |
+| Frontend | React 18 + TypeScript + Tailwind CSS |
+| Router | TanStack Router |
+| Database | SQLite via `tauri-plugin-sql` + `sqlx` |
+| Feed parsing | [`feed-rs`](https://crates.io/crates/feed-rs) |
+| Article extraction | [`@mozilla/readability`](https://github.com/mozilla/readability) |
+| HTTP | `reqwest` (Rust) |
+| TTS auth | `jsonwebtoken` (RS256 JWT for Google OAuth2) |
+| Settings | `tauri-plugin-store` |
+
+---
+
+## Project structure
+
+```
+src/                  # React / TypeScript frontend
+  components/         # UI components
+  lib/                # db.ts, settings.ts, analytics.ts, hooks
+  pages/              # TanStack Router pages
+  types/              # TypeScript types
+src-tauri/            # Rust / Tauri backend
+  src/
+    commands/         # fetch_feed, fetch_article_html, tts, resolve_youtube_handle
+    crawler.rs        # background feed refresh loop
+    lib.rs            # Tauri app setup
+  migrations/         # SQLite schema
+```
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 Nishan Shetty
