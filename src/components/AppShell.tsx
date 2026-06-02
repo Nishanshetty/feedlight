@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import ShortcutsModal from "./ShortcutsModal";
 import { useKeyboardShortcuts } from "../lib/hooks/use-keyboard-shortcuts";
 import { Link } from "@tanstack/react-router";
@@ -6,10 +7,10 @@ import { Link } from "@tanstack/react-router";
 type Props = {
   sidebar: React.ReactNode;
   main: React.ReactNode;
-  onRefresh: () => Promise<{ newItems: number; total: number }>;
+  onRefreshComplete: () => void;
 };
 
-export default function AppShell({ sidebar, main, onRefresh }: Props) {
+export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -28,12 +29,13 @@ export default function AppShell({ sidebar, main, onRefresh }: Props) {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const result = await onRefresh();
+      const result = await invoke<{ new_items: number; feeds_checked: number }>("refresh_feeds_now");
       showToast(
-        result.newItems > 0
-          ? `${result.newItems} new item${result.newItems !== 1 ? "s" : ""} fetched across ${result.total} feeds`
-          : `${result.total} feeds checked — already up to date`
+        result.new_items > 0
+          ? `${result.new_items} item${result.new_items !== 1 ? "s" : ""} fetched across ${result.feeds_checked} feeds`
+          : `${result.feeds_checked} feeds checked — already up to date`
       );
+      onRefreshComplete();
     } catch {
       showToast("Refresh failed — check your connection");
     } finally {

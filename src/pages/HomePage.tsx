@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSubscribedFeeds } from "../lib/db";
-import { refreshAllFeeds } from "../lib/crawler";
 import { DEFAULT_RANGE } from "../lib/date-range";
 import type { DateRange } from "../lib/date-range";
 import type { SubscribedFeed } from "../types/database";
 import type { NavFilter } from "../components/SidebarNav";
+import { useFeedRefresh } from "../lib/hooks/use-feed-refresh";
 import AppShell from "../components/AppShell";
 import SidebarContent from "../components/SidebarContent";
 import Timeline from "../components/Timeline";
@@ -23,6 +23,13 @@ export default function HomePage() {
   useEffect(() => {
     getSubscribedFeeds().then(setFeeds).catch(console.error);
   }, [feedsRefreshKey]);
+
+  // Re-render timeline + sidebar whenever the background crawler finishes
+  const handleBackgroundRefresh = useCallback(() => {
+    setSidebarRefreshKey((k) => k + 1);
+    setTimelineRefreshKey((k) => k + 1);
+  }, []);
+  useFeedRefresh(handleBackgroundRefresh);
 
   function handleNavigate(filter: NavFilter) {
     setActiveFeedId(filter.feedId ?? null);
@@ -48,6 +55,11 @@ export default function HomePage() {
     setSidebarRefreshKey((k) => k + 1);
   }
 
+  function handleRefreshComplete() {
+    setSidebarRefreshKey((k) => k + 1);
+    setTimelineRefreshKey((k) => k + 1);
+  }
+
   const feedIds = useMemo(() => {
     if (activeFeedId) return [activeFeedId];
     if (activeFolder) return feeds.filter((f) => (f.folder ?? "Uncategorized") === activeFolder).map((f) => f.id);
@@ -60,13 +72,6 @@ export default function HomePage() {
     if (activeUnread) return "Unread";
     return "All Articles";
   }, [feeds, activeFeedId, activeFolder, activeUnread]);
-
-  async function handleRefresh() {
-    const result = await refreshAllFeeds();
-    setTimelineRefreshKey((k) => k + 1);
-    setSidebarRefreshKey((k) => k + 1);
-    return result;
-  }
 
   const sidebar = (
     <SidebarContent
@@ -93,5 +98,5 @@ export default function HomePage() {
     />
   );
 
-  return <AppShell sidebar={sidebar} main={main} onRefresh={handleRefresh} />;
+  return <AppShell sidebar={sidebar} main={main} onRefreshComplete={handleRefreshComplete} />;
 }

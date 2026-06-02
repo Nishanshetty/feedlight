@@ -1,4 +1,5 @@
 mod commands;
+mod crawler;
 
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -19,9 +20,15 @@ pub fn run() {
                 .add_migrations("sqlite:focal.db", migrations)
                 .build(),
         )
+        .setup(|app| {
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(crawler::run_crawler(handle));
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::feed::fetch_feed,
             commands::extract::extract_article,
+            crawler::refresh_feeds_now,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Focal");
