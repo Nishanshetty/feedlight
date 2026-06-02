@@ -1,0 +1,118 @@
+@import "@fontsource/manrope/400.css";
+@import "@fontsource/manrope/500.css";
+@import "@fontsource/manrope/600.css";
+@import "@fontsource/manrope/700.css";
+@import "@fontsource/epilogue/600.css";
+@import "@fontsource/epilogue/700.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes slide {
+  0%   { margin-left: -33%; }
+  100% { margin-left: 133%; }
+}
+
+/* ── Reader Customizer Themes ───────────────────────────────────────────── */
+.reader-theme-light {
+  --reader-bg: #fdfcf7;
+  --reader-header-bg: #fdfae7;
+  --reader-text: #1c1c11;
+  --reader-text-muted: #444842;
+  --reader-border: rgba(116, 120, 114, 0.2);
+  --reader-hover: rgba(116, 120, 114, 0.08);
+  --reader-primary: #182419;
+  --reader-code-bg: #f1eedc;
+}
+
+.reader-theme-sepia {
+  --reader-bg: #f4ecd8;
+  --reader-header-bg: #eadfca;
+  --reader-text: #5b4636;
+  --reader-text-muted: #705a4f;
+  --reader-border: rgba(112, 90, 79, 0.2);
+  --reader-hover: rgba(112, 90, 79, 0.08);
+  --reader-primary: #8f5a3c;
+  --reader-code-bg: #e5dac1;
+}
+
+.reader-theme-slate {
+  --reader-bg: #f1f3f5;
+  --reader-header-bg: #e9ecef;
+  --reader-text: #212529;
+  --reader-text-muted: #495057;
+  --reader-border: rgba(73, 80, 87, 0.2);
+  --reader-hover: rgba(73, 80, 87, 0.08);
+  --reader-primary: #1a202c;
+  --reader-code-bg: #e2e8f0;
+}
+
+.reader-theme-dark {
+  --reader-bg: #121212;
+  --reader-header-bg: #1e1e1e;
+  --reader-text: #e0e0e0;
+  --reader-text-muted: #a0a0a0;
+  --reader-border: rgba(255, 255, 255, 0.1);
+  --reader-hover: rgba(255, 255, 255, 0.08);
+  --reader-primary: #81c784;
+  --reader-code-bg: #2d2d2d;
+}
+
+/* ── Typography choices ──────────────────────────────────────────────────── */
+.font-reader-sans  { font-family: Manrope, sans-serif; }
+.font-reader-serif { font-family: Merriweather, Georgia, serif; }
+.font-reader-mono  { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+/* ── Article reader prose styles ─────────────────────────────────────────── */
+.article-content h1,
+.article-content h2,
+.article-content h3,
+.article-content h4 {
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-top: 1.75em;
+  margin-bottom: 0.5em;
+  color: var(--reader-text);
+}
+.article-content h1 { font-size: 1.4rem; }
+.article-content h2 { font-size: 1.2rem; }
+.article-content h3 { font-size: 1rem; }
+.article-content p  { margin-bottom: 1.1em; color: var(--reader-text); }
+.article-content a  { color: var(--reader-primary); text-decoration: underline; text-underline-offset: 3px; }
+.article-content a:hover { opacity: 0.7; }
+.article-content img { max-width: 100%; height: auto; border-radius: 2px; margin: 1.5em 0; }
+.article-content ul,
+.article-content ol { padding-left: 1.5em; margin-bottom: 1em; color: var(--reader-text); }
+.article-content li { margin-bottom: 0.35em; }
+.article-content blockquote {
+  border-left: 3px solid var(--reader-primary);
+  margin: 1.5em 0;
+  padding: 0.5em 1em;
+  color: var(--reader-text-muted);
+  font-style: italic;
+}
+.article-content pre,
+.article-content code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--reader-code-bg);
+  color: var(--reader-text);
+}
+.article-content pre  { padding: 1em; overflow-x: auto; margin-bottom: 1em; }
+.article-content code { padding: 0.15em 0.35em; }
+.article-content pre code { padding: 0; background: transparent; color: inherit; }
+.article-content figure { margin: 1.5em 0; }
+.article-content figcaption { font-size: 0.8em; color: var(--reader-text-muted); margin-top: 0.4em; text-align: center; }
+.article-content hr { border: none; border-top: 1px solid var(--reader-border); margin: 2em 0; }
+.article-content table { width: 100%; border-collapse: collapse; margin-bottom: 1em; font-size: 0.9em; color: var(--reader-text); }
+.article-content th,
+.article-content td { padding: 0.5em 0.75em; border: 1px solid var(--reader-border); }
+.article-content th { background: var(--reader-code-bg); font-weight: 600; }
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .ghost-border { border: 1px solid rgba(116, 120, 114, 0.3); }
+}
