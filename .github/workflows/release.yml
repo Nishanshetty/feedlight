@@ -8,7 +8,7 @@ on:
     inputs:
       release_tag:
         description: "Tag to release (e.g. v0.1.0)"
-        required: false
+        required: true
 
 permissions:
   contents: write
@@ -46,11 +46,11 @@ jobs:
       - name: Build Tauri app (universal binary)
         uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: --target universal-apple-darwin
           # On version tags, publish a GitHub Release with the .dmg attached.
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.event.inputs.release_tag }}
           releaseName: Focal ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
           releaseBody: |
             See the [CHANGELOG](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) for what changed in this release.
