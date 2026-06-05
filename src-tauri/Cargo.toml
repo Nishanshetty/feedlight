@@ -1,6 +1,6 @@
 [package]
 name = "focal"
-version = "0.1.0"
+version = "0.2.0"
 description = "Focal — because focus matters."
 authors = ["Nishan Shetty"]
 edition = "2021"
