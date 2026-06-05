@@ -77,8 +77,8 @@ export async function deleteFeed(feedId: string): Promise<void> {
   // Remove feed only if no other subscriptions reference it (none in single-user, but safe).
   await db.execute(
     `DELETE FROM feeds WHERE id = $1
-     AND NOT EXISTS (SELECT 1 FROM subscriptions WHERE feed_id = $1)`,
-    [feedId]
+     AND NOT EXISTS (SELECT 1 FROM subscriptions WHERE feed_id = $2)`,
+    [feedId, feedId]
   );
 }
 
@@ -156,17 +156,26 @@ export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineI
   }));
 }
 
-export async function getTotalUnreadCount(feedIds: string[]): Promise<number> {
+export async function getTotalUnreadCount(feedIds: string[], since: string | null = null): Promise<number> {
   if (feedIds.length === 0) return 0;
   const db = await getDb();
   const placeholders = feedIds.map((_, i) => `$${i + 1}`).join(", ");
+  const params: unknown[] = [...feedIds];
+
+  let sinceClause = "";
+  if (since) {
+    params.push(since);
+    sinceClause = `AND fi.published_at >= $${params.length}`;
+  }
+
   const rows = await db.select<Array<{ count: number }>>(
     `SELECT COUNT(*) AS count
      FROM feed_items fi
      LEFT JOIN item_states ist ON ist.item_id = fi.id
      WHERE fi.feed_id IN (${placeholders})
+       ${sinceClause}
        AND COALESCE(ist.is_read, 0) = 0`,
-    feedIds
+    params
   );
   return rows[0]?.count ?? 0;
 }
@@ -180,7 +189,7 @@ export async function upsertItemState(
   const db = await getDb();
   await db.execute(
     `INSERT INTO item_states (item_id, is_read, is_saved, is_starred, updated_at)
-     VALUES ($1, $2, $3, $4, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+     VALUES ($1, COALESCE($2, 0), COALESCE($3, 0), COALESCE($4, 0), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
      ON CONFLICT (item_id) DO UPDATE SET
        is_read    = COALESCE($2, is_read),
        is_saved   = COALESCE($3, is_saved),

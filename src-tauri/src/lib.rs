@@ -32,6 +32,8 @@ pub fn run() {
             commands::tts::synthesize_speech,
             commands::ollama::check_ollama,
             commands::ollama::summarize_article,
+            commands::ollama::chat_article,
+            commands::ollama::suggest_questions,
             crawler::refresh_feeds_now,
         ])
         .run(tauri::generate_context!())

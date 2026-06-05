@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Readability } from "@mozilla/readability";
+import ReactMarkdown from "react-markdown";
 import { getOllamaSettings, type OllamaSettings } from "../lib/settings";
 
 type Props = {
@@ -24,6 +25,13 @@ type SpeechControls = {
 };
 
 type SummarizeState = "idle" | "loading" | "done" | "error";
+
+type ChatMessageEntry = { role: "user" | "assistant"; content: string };
+
+type ChatControls = {
+  open: boolean;
+  onToggle: () => void;
+};
 
 type SummarizeControls = {
   state: SummarizeState;
@@ -81,9 +89,9 @@ function b64ToAudioUrl(b64: string): string {
 
 // ─── PaneHeader ───────────────────────────────────────────────────────────────
 
-function PaneHeader({ title, url, onClose, speech, summarize, settings }: {
+function PaneHeader({ title, url, onClose, speech, summarize, chat, settings }: {
   title: string | null; url: string; onClose: () => void;
-  speech?: SpeechControls; summarize?: SummarizeControls; settings?: ReaderSettings;
+  speech?: SpeechControls; summarize?: SummarizeControls; chat?: ChatControls; settings?: ReaderSettings;
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -132,6 +140,21 @@ function PaneHeader({ title, url, onClose, speech, summarize, settings }: {
                 d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
             </svg>
           )}
+        </button>
+      )}
+
+      {/* Chat button */}
+      {chat && (
+        <button
+          onClick={chat.onToggle}
+          aria-label="Ask about article"
+          title="Ask about this article"
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text ${chat.open ? "bg-reader-hover text-reader-text" : ""}`}
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
         </button>
       )}
 
@@ -246,6 +269,198 @@ function PaneHeader({ title, url, onClose, speech, summarize, settings }: {
   );
 }
 
+function ChatPanel({
+  messages,
+  loading,
+  suggestions,
+  suggestionsLoading,
+  onSend,
+  onClose,
+  model,
+}: {
+  messages: ChatMessageEntry[];
+  loading: boolean;
+  suggestions: string[];
+  suggestionsLoading: boolean;
+  onSend: (q: string) => void;
+  onClose: () => void;
+  model: string;
+}) {
+  const [input, setInput] = useState("");
+  const [panelHeight, setPanelHeight] = useState(480);
+  const isDragging = useRef(false);
+  const dragStartY = useRef(0);
+  const dragStartHeight = useRef(0);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading, suggestions]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  function onDragHandleMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    isDragging.current = true;
+    dragStartY.current = e.clientY;
+    dragStartHeight.current = panelHeight;
+    document.body.style.cursor = "ns-resize";
+    document.body.style.userSelect = "none";
+
+    function onMouseMove(ev: MouseEvent) {
+      if (!isDragging.current) return;
+      const delta = dragStartY.current - ev.clientY;
+      const next = Math.min(Math.max(dragStartHeight.current + delta, 200), window.innerHeight * 0.8);
+      setPanelHeight(next);
+    }
+
+    function onMouseUp() {
+      isDragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    }
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const q = input.trim();
+    if (!q || loading) return;
+    setInput("");
+    onSend(q);
+  }
+
+  function handleSuggestion(q: string) {
+    onSend(q);
+  }
+
+  return (
+    <div className="flex flex-col border-t border-reader-border bg-reader-bg" style={{ height: `${panelHeight}px` }}>
+      {/* Drag handle */}
+      <div
+        onMouseDown={onDragHandleMouseDown}
+        className="flex items-center justify-center h-3 shrink-0 cursor-ns-resize hover:bg-reader-hover/60 transition-colors group"
+        aria-label="Drag to resize"
+      >
+        <div className="w-8 h-1 rounded-full bg-reader-border group-hover:bg-reader-text-muted transition-colors" />
+      </div>
+
+      {/* Chat header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-reader-border shrink-0">
+        <span className="text-[10px] font-label font-bold uppercase tracking-widest text-reader-text-muted">
+          Ask · {model}
+        </span>
+        <button onClick={onClose} aria-label="Close chat"
+          className="flex h-6 w-6 items-center justify-center rounded text-reader-text-muted hover:bg-reader-hover hover:text-reader-text transition-colors">
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Message list */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+        {messages.length === 0 && !loading && suggestions.length === 0 && !suggestionsLoading && (
+          <p className="text-sm text-reader-text-muted text-center pt-6">
+            Ask a question about this article.
+          </p>
+        )}
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
+              msg.role === "user"
+                ? "bg-reader-primary text-white"
+                : "bg-reader-hover text-reader-text border border-reader-border"
+            }`}>
+              {msg.role === "user" ? msg.content : (
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-1 last:mb-0">{children}</ul>,
+                    ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-1 last:mb-0">{children}</ol>,
+                    li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                    strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                    h1: ({ children }) => <p className="font-bold mb-1.5">{children}</p>,
+                    h2: ({ children }) => <p className="font-bold mb-1.5">{children}</p>,
+                    h3: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
+                    code: ({ children }) => <code className="bg-reader-bg rounded px-1 font-mono text-xs">{children}</code>,
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+              )}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-reader-hover border border-reader-border rounded-xl px-4 py-3">
+              <span className="flex gap-1.5 items-center h-4">
+                <span className="w-2 h-2 rounded-full bg-reader-text-muted animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-2 h-2 rounded-full bg-reader-text-muted animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-2 h-2 rounded-full bg-reader-text-muted animate-bounce" style={{ animationDelay: "300ms" }} />
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Suggested questions */}
+        {!loading && (suggestions.length > 0 || suggestionsLoading) && (
+          <div className="flex flex-col gap-2 pt-1">
+            {suggestionsLoading && suggestions.length === 0 && (
+              <div className="flex flex-col gap-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-8 w-3/4 rounded-full bg-reader-hover animate-pulse" />
+                ))}
+              </div>
+            )}
+            {suggestions.map((q, i) => (
+              <button
+                key={i}
+                onClick={() => handleSuggestion(q)}
+                className="self-start text-left rounded-full border border-reader-border bg-reader-hover px-4 py-1.5 text-sm text-reader-text-muted hover:bg-reader-primary hover:text-white hover:border-transparent transition-colors leading-snug"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <form onSubmit={handleSubmit} className="flex items-center gap-2 px-4 py-3 border-t border-reader-border shrink-0">
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask a question…"
+          disabled={loading}
+          className="flex-1 bg-reader-hover border border-reader-border rounded-full px-4 py-2 text-sm text-reader-text placeholder:text-reader-text-muted outline-none focus:ring-1 focus:ring-reader-primary disabled:opacity-50 transition-colors"
+        />
+        <button
+          type="submit"
+          disabled={loading || !input.trim()}
+          aria-label="Send"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-reader-primary text-white disabled:opacity-40 hover:opacity-90 transition-opacity shrink-0"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function LoadingSkeleton() {
   return (
     <div className="flex flex-col gap-4 p-8 animate-pulse">
@@ -281,6 +496,13 @@ export default function ArticlePane({ url, title, onClose }: Props) {
   const [summarizeState, setSummarizeState] = useState<SummarizeState>("idle");
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  // Chat state
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessageEntry[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   const isYT = isYouTubeWatch(url);
 
@@ -320,6 +542,11 @@ export default function ArticlePane({ url, title, onClose }: Props) {
     setSummarizeState("idle");
     setSummary(null);
     setSummaryError(null);
+    setChatOpen(false);
+    setChatMessages([]);
+    setChatLoading(false);
+    setSuggestions([]);
+    setSuggestionsLoading(false);
   }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -462,6 +689,65 @@ export default function ArticlePane({ url, title, onClose }: Props) {
       ? { state: summarizeState, onSummarize: handleSummarize }
       : undefined;
 
+  async function fetchSuggestions(articleText: string, history: ChatMessageEntry[]) {
+    if (!ollamaSettings) return;
+    setSuggestionsLoading(true);
+    setSuggestions([]);
+    try {
+      const qs = await invoke<string[]>("suggest_questions", {
+        baseUrl: ollamaSettings.url,
+        model: ollamaSettings.model,
+        articleText,
+        history: history.map((m) => ({ role: m.role, content: m.content })),
+      });
+      setSuggestions(qs);
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }
+
+  async function handleChatSend(question: string) {
+    if (!ollamaSettings || result.state !== "ok") return;
+    const articleText = getParagraphs(result.content).join(" ");
+    const newMessages: ChatMessageEntry[] = [...chatMessages, { role: "user", content: question }];
+    setChatMessages(newMessages);
+    setChatLoading(true);
+    setSuggestions([]);
+    try {
+      const historyForApi = chatMessages.map((m) => ({ role: m.role, content: m.content }));
+      const answer = await invoke<string>("chat_article", {
+        baseUrl: ollamaSettings.url,
+        model: ollamaSettings.model,
+        articleText,
+        history: historyForApi,
+        question,
+      });
+      const finalMessages: ChatMessageEntry[] = [...newMessages, { role: "assistant", content: answer }];
+      setChatMessages(finalMessages);
+      fetchSuggestions(articleText, finalMessages);
+    } catch (err) {
+      setChatMessages([...newMessages, { role: "assistant", content: `Error: ${String(err)}` }]);
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  const chatControls: ChatControls | undefined =
+    !isYT && result.state === "ok" && ollamaSettings?.enabled
+      ? {
+          open: chatOpen,
+          onToggle: () => {
+            if (!chatOpen && chatMessages.length === 0 && result.state === "ok") {
+              const articleText = getParagraphs(result.content).join(" ");
+              fetchSuggestions(articleText, []);
+            }
+            setChatOpen((o) => !o);
+          },
+        }
+      : undefined;
+
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/25" onClick={onClose} aria-hidden="true" />
@@ -472,9 +758,10 @@ export default function ArticlePane({ url, title, onClose }: Props) {
           onClose={onClose}
           speech={speechControls}
           summarize={summarizeControls}
+          chat={chatControls}
           settings={isYT ? undefined : settingsControls}
         />
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {isYT ? (
             <iframe key={url} src={toYouTubeEmbed(url)} className="h-full w-full border-0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -540,6 +827,17 @@ export default function ArticlePane({ url, title, onClose }: Props) {
             </div>
           )}
         </div>
+        {chatOpen && chatControls && ollamaSettings && (
+          <ChatPanel
+            messages={chatMessages}
+            loading={chatLoading}
+            suggestions={suggestions}
+            suggestionsLoading={suggestionsLoading}
+            onSend={handleChatSend}
+            onClose={() => setChatOpen(false)}
+            model={ollamaSettings.model}
+          />
+        )}
       </div>
     </>
   );

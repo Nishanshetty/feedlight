@@ -54,7 +54,7 @@ export default function TimelineList({
 
     Promise.all([
       getTimelineItems({ feedIds, cursor: FIRST_PAGE_CURSOR, since, limit: pageSize, unreadOnly }),
-      getTotalUnreadCount(feedIds),
+      getTotalUnreadCount(feedIds, since),
     ]).then(([newItems, count]) => {
       setItems(newItems);
       setReadIds(new Set(newItems.filter((i) => i.is_read).map((i) => i.id)));
@@ -109,7 +109,6 @@ export default function TimelineList({
 
   function handleMarkAllRead() {
     if (totalUnread === 0) return;
-    if (totalUnread > 20 && !window.confirm(`Mark all ${totalUnread} unread items as read in "${filterLabel}"?`)) return;
 
     const visibleUnreadIds = items.filter((i) => !readIds.has(i.id)).map((i) => i.id);
     setReadIds((prev) => new Set(Array.from(prev).concat(visibleUnreadIds)));
@@ -117,7 +116,7 @@ export default function TimelineList({
     setTotalUnread(0);
     setIsMarkingAll(true);
 
-    markAllRead(feedIds, since)
+    markAllRead(feedIds, null)
       .then(onStatesChanged)
       .catch(() => {
         setReadIds((prev) => new Set(Array.from(prev).filter((id) => !visibleUnreadIds.includes(id))));

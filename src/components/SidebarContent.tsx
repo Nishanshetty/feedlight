@@ -53,8 +53,7 @@ export default function SidebarContent({
 
   const existingFolders = Object.keys(groups).filter((f) => f !== "Uncategorized");
 
-  async function handleUnsubscribe(_subId: string, feedId: string, title: string) {
-    if (!window.confirm(`Unsubscribe from "${title}"?`)) return;
+  async function handleUnsubscribe(_subId: string, feedId: string, _title: string) {
     try {
       await deleteFeed(feedId);
       if (activeFeedId === feedId) onNavigate({});
