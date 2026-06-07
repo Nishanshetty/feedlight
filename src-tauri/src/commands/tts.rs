@@ -1,10 +1,12 @@
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use security_framework::passwords::get_generic_password;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
-const KEYRING_SERVICE: &str = "com.focal.app";
+const SERVICE: &str = "com.focal.app";
+const ERR_NOT_FOUND: i32 = -25300;
 
 #[derive(Deserialize)]
 struct ServiceAccountCredentials {
@@ -92,14 +94,17 @@ pub async fn synthesize_speech(text: String, app: AppHandle) -> Result<String, S
     }
 
     // Read credentials from system keychain
-    let creds_entry = keyring::Entry::new(KEYRING_SERVICE, "gcp_tts_credentials")
-        .map_err(|e| format!("Keychain error: {e}"))?;
-    let creds_json = match creds_entry.get_password() {
-        Ok(v) if !v.trim().is_empty() => v,
-        _ => return Err(
-            "TTS credentials not configured — add your GCP service account JSON in Settings".to_string()
-        ),
+    let creds_json = match get_generic_password(SERVICE, "gcp_tts_credentials") {
+        Ok(bytes) => String::from_utf8(bytes).map_err(|e| format!("Credential encoding error: {e}"))?,
+        Err(e) if e.code() == ERR_NOT_FOUND => {
+            return Err("TTS credentials not configured — add your GCP service account JSON in Settings".to_string())
+        }
+        Err(e) => return Err(format!("Keychain error: {e}")),
     };
+
+    if creds_json.trim().is_empty() {
+        return Err("TTS credentials not configured — add your GCP service account JSON in Settings".to_string());
+    }
 
     let store = app
         .store("settings.json")

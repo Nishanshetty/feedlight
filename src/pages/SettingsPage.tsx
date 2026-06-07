@@ -190,7 +190,7 @@ export default function SettingsPage() {
   async function saveTtsCredentials() {
     setTtsSave("saving");
     try { await setGcpTtsCredentials(ttsCredentials); setTtsSave("saved"); setTimeout(() => setTtsSave("idle"), 2000); }
-    catch { setTtsSave("error"); }
+    catch (e) { console.error("set_credential failed:", e); setTtsSave("error"); }
   }
 
   return (
