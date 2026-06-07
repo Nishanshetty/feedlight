@@ -1,4 +1,5 @@
 import { Store } from "@tauri-apps/plugin-store";
+import { invoke } from "@tauri-apps/api/core";
 
 const STORE_PATH = "settings.json";
 let _store: Store | null = null;
@@ -11,25 +12,19 @@ async function getStore(): Promise<Store> {
 }
 
 export async function getYouTubeApiKey(): Promise<string> {
-  const store = await getStore();
-  return (await store.get<string>("youtube_api_key")) ?? "";
+  return (await invoke<string | null>("get_credential", { key: "youtube_api_key" })) ?? "";
 }
 
 export async function setYouTubeApiKey(key: string): Promise<void> {
-  const store = await getStore();
-  await store.set("youtube_api_key", key);
-  await store.save();
+  await invoke("set_credential", { key: "youtube_api_key", value: key });
 }
 
 export async function getGcpTtsCredentials(): Promise<string> {
-  const store = await getStore();
-  return (await store.get<string>("gcp_tts_credentials")) ?? "";
+  return (await invoke<string | null>("get_credential", { key: "gcp_tts_credentials" })) ?? "";
 }
 
 export async function setGcpTtsCredentials(creds: string): Promise<void> {
-  const store = await getStore();
-  await store.set("gcp_tts_credentials", creds);
-  await store.save();
+  await invoke("set_credential", { key: "gcp_tts_credentials", value: creds });
 }
 
 export const TTS_DEFAULT_VOICE = "en-US-Neural2-F";

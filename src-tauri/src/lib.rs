@@ -26,6 +26,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::credentials::get_credential,
+            commands::credentials::set_credential,
             commands::feed::fetch_feed,
             commands::feed::resolve_youtube_handle,
             commands::extract::fetch_article_html,

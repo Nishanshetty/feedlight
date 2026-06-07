@@ -31,3 +31,4 @@ hex = "0.4"
 url = "2"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }
 jsonwebtoken = "9"
+keyring = "3"
