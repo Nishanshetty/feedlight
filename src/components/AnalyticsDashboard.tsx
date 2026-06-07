@@ -22,7 +22,7 @@ export default function AnalyticsDashboard({ data, onFeedDeleted }: Props) {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto text-on-surface">
+    <div className="p-6 text-on-surface">
       <div className="flex flex-col gap-1 mb-8 border-b border-outline-variant/40 pb-4">
         <h1 className="text-2xl font-headline font-bold">Feed Health & Analytics</h1>
         <p className="text-xs font-label text-outline uppercase tracking-wider">

@@ -1,6 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import ShortcutsModal from "./ShortcutsModal";
+import ReadUrlModal from "./ReadUrlModal";
+import ArticlePane from "./ArticlePane";
 import { useKeyboardShortcuts } from "../lib/hooks/use-keyboard-shortcuts";
 import { Link } from "@tanstack/react-router";
 
@@ -13,11 +15,24 @@ type Props = {
 export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [readUrlOpen, setReadUrlOpen] = useState(false);
+  const [quickReadUrl, setQuickReadUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useKeyboardShortcuts({ "?": () => setShowShortcuts((v) => !v) });
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.metaKey && e.key === "l") {
+        e.preventDefault();
+        setReadUrlOpen((v) => !v);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -64,6 +79,13 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
           </svg>
         </button>
 
+        <button onClick={() => setReadUrlOpen(true)} aria-label="Read article URL (⌘L)"
+          className="rounded p-1.5 text-on-surface-variant transition-colors hover:text-primary">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        </button>
+
         <button onClick={() => setShowShortcuts(true)} aria-label="Keyboard shortcuts (?)">
           <svg className="h-5 w-5 rounded p-0 text-on-surface-variant transition-colors hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <rect x="2" y="6" width="20" height="13" rx="2" strokeWidth={1.75} />
@@ -90,6 +112,17 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
       </div>
 
       <ShortcutsModal open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+
+      {readUrlOpen && (
+        <ReadUrlModal
+          onSubmit={(url) => setQuickReadUrl(url)}
+          onClose={() => setReadUrlOpen(false)}
+        />
+      )}
+
+      {quickReadUrl && (
+        <ArticlePane url={quickReadUrl} title={null} onClose={() => setQuickReadUrl(null)} />
+      )}
 
       {toast && (
         <div role="status" aria-live="polite"

@@ -32,6 +32,19 @@ export async function setGcpTtsCredentials(creds: string): Promise<void> {
   await store.save();
 }
 
+export const TTS_DEFAULT_VOICE = "en-US-Neural2-F";
+
+export async function getTtsVoice(): Promise<string> {
+  const store = await getStore();
+  return (await store.get<string>("tts_voice")) ?? TTS_DEFAULT_VOICE;
+}
+
+export async function setTtsVoice(voice: string): Promise<void> {
+  const store = await getStore();
+  await store.set("tts_voice", voice);
+  await store.save();
+}
+
 export type OllamaSettings = {
   enabled: boolean;
   url: string;

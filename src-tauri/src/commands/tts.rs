@@ -108,9 +108,15 @@ pub async fn synthesize_speech(text: String, app: AppHandle) -> Result<String, S
     let client = reqwest::Client::new();
     let access_token = get_access_token(&client, &creds).await?;
 
+    let voice = store
+        .get("tts_voice")
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "en-US-Neural2-F".to_string());
+
     let body = serde_json::json!({
         "input": { "text": text.trim() },
-        "voice": { "languageCode": "en-US", "name": "en-US-Neural2-F" },
+        "voice": { "languageCode": "en-US", "name": voice },
         "audioConfig": { "audioEncoding": "MP3" }
     });
 

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
 
 export type FeedEntry = {
   subId: string;
@@ -11,19 +10,19 @@ export type FeedEntry = {
 export type NavFilter = {
   feedId?: string;
   folder?: string;
-  unread?: boolean;
+  analytics?: boolean;
 };
 
 type Props = {
   groups: Record<string, FeedEntry[]>;
   activeFeedId: string | null;
   activeFolder: string | null;
-  activeUnread: boolean;
+  activeAnalytics: boolean;
   onNavigate: (filter: NavFilter) => void;
   onUnsubscribe: (subId: string, feedId: string, title: string) => void;
 };
 
-export default function SidebarNav({ groups, activeFeedId, activeFolder, activeUnread, onNavigate, onUnsubscribe }: Props) {
+export default function SidebarNav({ groups, activeFeedId, activeFolder, activeAnalytics, onNavigate, onUnsubscribe }: Props) {
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
 
   function toggleFolder(folder: string) {
@@ -34,7 +33,7 @@ export default function SidebarNav({ groups, activeFeedId, activeFolder, activeU
     });
   }
 
-  const isAllActive = !activeFeedId && !activeFolder && !activeUnread;
+  const isAllActive = !activeFeedId && !activeFolder && !activeAnalytics;
   const totalUnread = Object.values(groups).flat().reduce((sum, e) => sum + e.unread, 0);
 
   const navRow = (label: string, active: boolean, badge: number | null, onClick: () => void) => (
@@ -53,11 +52,7 @@ export default function SidebarNav({ groups, activeFeedId, activeFolder, activeU
   return (
     <nav className="flex-1 overflow-y-auto scrollbar-hide py-3">
       {navRow("All Articles", isAllActive, totalUnread, () => onNavigate({}))}
-      {navRow("Unread", activeUnread, null, () => onNavigate({ unread: true }))}
-      <Link to="/analytics"
-        className="flex w-full items-center justify-between px-3 py-2 text-[13px] font-body transition-all duration-200 text-on-surface-variant hover:bg-surface-container hover:text-on-surface border-l-2 border-transparent [&.active]:border-primary [&.active]:bg-surface-container-low [&.active]:text-primary [&.active]:font-bold">
-        Analytics & Stats
-      </Link>
+      {navRow("Analytics & Stats", activeAnalytics, null, () => onNavigate({ analytics: true }))}
 
       {Object.keys(groups).length === 0 && (
         <p className="px-4 py-3 text-xs text-outline font-label">No feeds yet. Add one above.</p>

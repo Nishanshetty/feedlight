@@ -15,7 +15,6 @@ type Props = {
   filterKey: string;
   range: DateRange;
   since: string | null;
-  unreadOnly: boolean;
   pageSize: number;
   onRangeChange: (r: DateRange) => void;
   onStatesChanged: () => void;
@@ -29,9 +28,10 @@ function setToggle(prev: Set<string>, id: string): Set<string> {
 }
 
 export default function TimelineList({
-  feedIds, filterLabel, filterKey, range, since, unreadOnly, pageSize,
+  feedIds, filterLabel, filterKey, range, since, pageSize,
   onRangeChange, onStatesChanged,
 }: Props) {
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
@@ -45,10 +45,17 @@ export default function TimelineList({
 
   const prevFilterKeyRef = useRef(filterKey);
 
-  // Load items whenever filter changes
+  // Reset unread toggle when the feed/folder selection changes
+  useEffect(() => {
+    if (filterKey !== prevFilterKeyRef.current) {
+      setUnreadOnly(false);
+    }
+    prevFilterKeyRef.current = filterKey;
+  }, [filterKey]);
+
+  // Load items whenever filter or unreadOnly changes
   useEffect(() => {
     if (feedIds.length === 0) { setItems([]); setTotalUnread(0); setHasMore(false); return; }
-    prevFilterKeyRef.current = filterKey;
     setIsLoading(true);
     setLoadError("");
 
@@ -66,7 +73,7 @@ export default function TimelineList({
       setLoadError(String(err));
     }).finally(() => setIsLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterKey]);
+  }, [filterKey, unreadOnly]);
 
   const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
   useEffect(() => {
@@ -168,6 +175,10 @@ export default function TimelineList({
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setUnreadOnly((v) => !v)}
+            className={`ghost-border px-2.5 py-1 text-[11px] font-label font-bold uppercase tracking-widest transition-colors ${unreadOnly ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:text-on-surface"}`}>
+            Unread
+          </button>
           <select value={range} onChange={(e) => onRangeChange(e.target.value as DateRange)}
             className="ghost-border bg-surface-container px-2 py-1 text-[11px] font-label text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
             {DATE_RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

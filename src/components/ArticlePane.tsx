@@ -80,6 +80,17 @@ function getParagraphs(html: string): string[] {
   return paragraphs;
 }
 
+function tagParagraphsForTts(html: string): string {
+  if (typeof window === "undefined") return html;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const elements = doc.body.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li");
+  let idx = 0;
+  elements.forEach((el) => {
+    if (el.textContent?.trim()) el.setAttribute("data-tts-idx", String(idx++));
+  });
+  return doc.body.innerHTML;
+}
+
 function b64ToAudioUrl(b64: string): string {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
@@ -490,6 +501,8 @@ export default function ArticlePane({ url, title, onClose }: Props) {
   const [currentParagraphIndex, setCurrentParagraphIndex] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isPlayingRef = useRef(false);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const articleContentRef = useRef<HTMLDivElement>(null);
 
   // Ollama summarize state
   const [ollamaSettings, setOllamaSettings] = useState<OllamaSettings | null>(null);
@@ -510,6 +523,34 @@ export default function ArticlePane({ url, title, onClose }: Props) {
     if (result.state !== "ok") return [];
     return [result.title, ...getParagraphs(result.content)];
   }, [result]);
+
+  const taggedContent = useMemo(() => {
+    if (result.state !== "ok") return "";
+    return tagParagraphsForTts(result.content);
+  }, [result]);
+
+  useEffect(() => {
+    titleRef.current?.classList.remove("tts-active");
+    articleContentRef.current?.querySelectorAll(".tts-active").forEach((el) => {
+      el.classList.remove("tts-active");
+    });
+
+    if (currentParagraphIndex === null) return;
+
+    let target: HTMLElement | null = null;
+    if (currentParagraphIndex === 0) {
+      target = titleRef.current;
+    } else {
+      target = articleContentRef.current?.querySelector(
+        `[data-tts-idx="${currentParagraphIndex - 1}"]`
+      ) as HTMLElement | null;
+    }
+
+    if (target) {
+      target.classList.add("tts-active");
+      target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [currentParagraphIndex]);
 
   useEffect(() => {
     try {
@@ -816,14 +857,14 @@ export default function ArticlePane({ url, title, onClose }: Props) {
                 </div>
               )}
 
-              <h1 className="text-2xl font-headline font-bold leading-snug mb-3">{result.title}</h1>
+              <h1 ref={titleRef} className="text-2xl font-headline font-bold leading-snug mb-3">{result.title}</h1>
               {(result.byline || result.siteName) && (
                 <p className="text-[10px] font-label uppercase tracking-widest text-reader-text-muted mb-8">
                   {[result.byline, result.siteName].filter(Boolean).join(" · ")}
                 </p>
               )}
-              <div className="article-content" style={{ fontSize: `${fontSize}px` }}
-                dangerouslySetInnerHTML={{ __html: result.content }} />
+              <div ref={articleContentRef} className="article-content" style={{ fontSize: `${fontSize}px` }}
+                dangerouslySetInnerHTML={{ __html: taggedContent }} />
             </div>
           )}
         </div>

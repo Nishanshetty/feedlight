@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import {
   getYouTubeApiKey, setYouTubeApiKey,
   getGcpTtsCredentials, setGcpTtsCredentials,
+  getTtsVoice, setTtsVoice, TTS_DEFAULT_VOICE,
   getOllamaSettings, setOllamaSettings,
   type OllamaSettings,
 } from "../lib/settings";
@@ -172,10 +173,12 @@ export default function SettingsPage() {
   const [ytSave, setYtSave] = useState<SaveState>("idle");
   const [ttsCredentials, setTtsCredentials] = useState("");
   const [ttsSave, setTtsSave] = useState<SaveState>("idle");
+  const [ttsVoice, setTtsVoiceState] = useState(TTS_DEFAULT_VOICE);
 
   useEffect(() => {
     getYouTubeApiKey().then(setYtKey).catch(console.error);
     getGcpTtsCredentials().then(setTtsCredentials).catch(console.error);
+    getTtsVoice().then(setTtsVoiceState).catch(console.error);
   }, []);
 
   async function saveYtKey() {
@@ -221,6 +224,32 @@ export default function SettingsPage() {
               description="Paste the contents of your GCP service account JSON file. Used for the article read-aloud feature."
               value={ttsCredentials} onChange={setTtsCredentials} onSave={saveTtsCredentials}
               placeholder='{ "type": "service_account", ... }' type="textarea" saveState={ttsSave} />
+            <div className="border border-outline-variant/40 p-5 space-y-3">
+              <div>
+                <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
+                <p className="text-xs font-body text-on-surface-variant mt-0.5">
+                  Google Neural2 voice used for read-aloud. Changes apply on the next article you listen to.
+                </p>
+              </div>
+              <select
+                value={ttsVoice}
+                onChange={async (e) => {
+                  setTtsVoiceState(e.target.value);
+                  await setTtsVoice(e.target.value).catch(console.error);
+                }}
+                className="ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              >
+                <option value="en-US-Neural2-A">Neural2-A — Male</option>
+                <option value="en-US-Neural2-C">Neural2-C — Female</option>
+                <option value="en-US-Neural2-D">Neural2-D — Male</option>
+                <option value="en-US-Neural2-E">Neural2-E — Female</option>
+                <option value="en-US-Neural2-F">Neural2-F — Female (default)</option>
+                <option value="en-US-Neural2-G">Neural2-G — Female</option>
+                <option value="en-US-Neural2-H">Neural2-H — Female</option>
+                <option value="en-US-Neural2-I">Neural2-I — Male</option>
+                <option value="en-US-Neural2-J">Neural2-J — Male</option>
+              </select>
+            </div>
           </section>
 
           <OllamaSection />

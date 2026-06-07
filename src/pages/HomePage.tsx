@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getSubscribedFeeds } from "../lib/db";
+import { getSubscribedFeeds, getFeedAnalytics } from "../lib/db";
 import { DEFAULT_RANGE } from "../lib/date-range";
 import type { DateRange } from "../lib/date-range";
 import type { SubscribedFeed } from "../types/database";
 import type { NavFilter } from "../components/SidebarNav";
+import { classifyFeeds } from "../lib/analytics";
+import type { AnalyticsResult } from "../lib/analytics";
 import { useFeedRefresh } from "../lib/hooks/use-feed-refresh";
 import AppShell from "../components/AppShell";
 import SidebarContent from "../components/SidebarContent";
 import Timeline from "../components/Timeline";
+import AnalyticsDashboard from "../components/AnalyticsDashboard";
 
 export default function HomePage() {
   const [feeds, setFeeds] = useState<SubscribedFeed[]>([]);
@@ -17,7 +20,9 @@ export default function HomePage() {
 
   const [activeFeedId, setActiveFeedId] = useState<string | null>(null);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
-  const [activeUnread, setActiveUnread] = useState(false);
+  const [activeAnalytics, setActiveAnalytics] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsResult | null>(null);
+  const [analyticsError, setAnalyticsError] = useState("");
   const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
 
   useEffect(() => {
@@ -31,10 +36,28 @@ export default function HomePage() {
   }, []);
   useFeedRefresh(handleBackgroundRefresh);
 
+  async function loadAnalytics() {
+    setAnalyticsData(null);
+    setAnalyticsError("");
+    try {
+      const raw = await getFeedAnalytics();
+      setAnalyticsData(classifyFeeds(raw));
+    } catch (err) {
+      setAnalyticsError(String(err));
+    }
+  }
+
   function handleNavigate(filter: NavFilter) {
-    setActiveFeedId(filter.feedId ?? null);
-    setActiveFolder(filter.folder ?? null);
-    setActiveUnread(filter.unread ?? false);
+    if (filter.analytics) {
+      setActiveAnalytics(true);
+      setActiveFeedId(null);
+      setActiveFolder(null);
+      loadAnalytics();
+    } else {
+      setActiveAnalytics(false);
+      setActiveFeedId(filter.feedId ?? null);
+      setActiveFolder(filter.folder ?? null);
+    }
   }
 
   function handleFeedAdded() {
@@ -49,6 +72,7 @@ export default function HomePage() {
     setFeedsRefreshKey((k) => k + 1);
     setSidebarRefreshKey((k) => k + 1);
     setTimelineRefreshKey((k) => k + 1);
+    if (activeAnalytics) loadAnalytics();
   }
 
   function handleStatesChanged() {
@@ -69,16 +93,15 @@ export default function HomePage() {
   const filterLabel = useMemo(() => {
     if (activeFeedId) return feeds.find((f) => f.id === activeFeedId)?.title ?? "Feed";
     if (activeFolder) return activeFolder;
-    if (activeUnread) return "Unread";
     return "All Articles";
-  }, [feeds, activeFeedId, activeFolder, activeUnread]);
+  }, [feeds, activeFeedId, activeFolder]);
 
   const sidebar = (
     <SidebarContent
       feeds={feeds}
       activeFeedId={activeFeedId}
       activeFolder={activeFolder}
-      activeUnread={activeUnread}
+      activeAnalytics={activeAnalytics}
       refreshKey={sidebarRefreshKey}
       onNavigate={handleNavigate}
       onFeedAdded={handleFeedAdded}
@@ -86,12 +109,25 @@ export default function HomePage() {
     />
   );
 
-  const main = (
+  const main = activeAnalytics ? (
+    <div>
+      {analyticsError ? (
+        <div className="flex items-center justify-center p-20">
+          <p className="text-sm font-label text-error">{analyticsError}</p>
+        </div>
+      ) : !analyticsData ? (
+        <div className="flex items-center justify-center p-20">
+          <p className="text-[11px] font-label text-outline uppercase tracking-widest animate-pulse">Loading…</p>
+        </div>
+      ) : (
+        <AnalyticsDashboard data={analyticsData} onFeedDeleted={handleFeedDeleted} />
+      )}
+    </div>
+  ) : (
     <Timeline
       feedIds={feedIds}
-      filterLabel={activeUnread ? `${filterLabel} — Unread` : filterLabel}
+      filterLabel={filterLabel}
       range={range}
-      unreadOnly={activeUnread}
       refreshKey={timelineRefreshKey}
       onRangeChange={setRange}
       onStatesChanged={handleStatesChanged}
