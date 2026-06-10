@@ -17,6 +17,7 @@ A local-first RSS reader for macOS. No accounts, no servers, no subscriptions �
 - **Article reader** — distraction-free reading pane powered by Mozilla Readability (same engine as Firefox Reader View)
 - **Text to Speech** — paragraph-by-paragraph read-aloud via Google Cloud TTS (Neural2 voice)
 - **AI summarization** — on-demand article summaries via a locally running [Ollama](https://ollama.com) model; fully private, no cloud required
+- **Discover** — AI-generated search queries based on your subscriptions surface fresh articles from outside your feeds (requires Ollama)
 - **Background refresh** — feeds refresh automatically every 15 minutes in Rust; no browser tab needed
 - **OPML import/export** — migrate from Feedly, Inoreader, or any other reader instantly
 - **Feed analytics** — identify noisy, ignored, and dead feeds to declutter your reading list

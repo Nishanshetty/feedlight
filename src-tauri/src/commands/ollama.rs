@@ -325,3 +325,51 @@ No intro, no outro, no blank lines between items, no markdown other than the lea
         article_count,
     })
 }
+
+#[tauri::command]
+pub async fn generate_discover_queries(
+    base_url: String,
+    model: String,
+    feed_titles: Vec<String>,
+) -> Result<Vec<String>, String> {
+    if feed_titles.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let titles = feed_titles.iter().take(20).cloned().collect::<Vec<_>>().join(", ");
+    let prompt = format!(
+        "Based on these RSS feed subscriptions: {titles}\n\
+         Generate exactly 4 web search queries to discover new relevant articles the user would enjoy.\n\
+         Return ONLY a valid JSON array of strings, nothing else.\n\
+         Example: [\"query 1\", \"query 2\", \"query 3\", \"query 4\"]"
+    );
+
+    let url = format!("{}/api/generate", base_url.trim_end_matches('/'));
+    let body = GenerateRequest { model: &model, prompt, stream: false };
+
+    let resp = client
+        .post(&url)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Ollama returned HTTP {}", resp.status()));
+    }
+
+    let result: GenerateResponse = resp.json().await.map_err(|e| e.to_string())?;
+    let text = result.response.trim();
+
+    let start = text.find('[').ok_or("No JSON array in response")?;
+    let end = text.rfind(']').ok_or("No JSON array in response")?;
+    let queries: Vec<String> = serde_json::from_str(&text[start..=end])
+        .map_err(|e| format!("Failed to parse queries: {e}"))?;
+
+    Ok(queries.into_iter().take(5).filter(|q| !q.trim().is_empty()).collect())
+}

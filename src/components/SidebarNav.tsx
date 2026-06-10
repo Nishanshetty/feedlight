@@ -12,6 +12,7 @@ export type NavFilter = {
   folder?: string;
   analytics?: boolean;
   digest?: boolean;
+  discover?: boolean;
 };
 
 type Props = {
@@ -20,11 +21,12 @@ type Props = {
   activeFolder: string | null;
   activeAnalytics: boolean;
   activeDigest: boolean;
+  activeDiscover: boolean;
   onNavigate: (filter: NavFilter) => void;
   onUnsubscribe: (subId: string, feedId: string, title: string) => void;
 };
 
-export default function SidebarNav({ groups, activeFeedId, activeFolder, activeAnalytics, activeDigest, onNavigate, onUnsubscribe }: Props) {
+export default function SidebarNav({ groups, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, onNavigate, onUnsubscribe }: Props) {
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
 
   function toggleFolder(folder: string) {
@@ -35,7 +37,7 @@ export default function SidebarNav({ groups, activeFeedId, activeFolder, activeA
     });
   }
 
-  const isAllActive = !activeFeedId && !activeFolder && !activeAnalytics && !activeDigest;
+  const isAllActive = !activeFeedId && !activeFolder && !activeAnalytics && !activeDigest && !activeDiscover;
   const totalUnread = Object.values(groups).flat().reduce((sum, e) => sum + e.unread, 0);
 
   const navRow = (label: string, active: boolean, badge: number | null, onClick: () => void) => (
@@ -55,6 +57,7 @@ export default function SidebarNav({ groups, activeFeedId, activeFolder, activeA
     <nav className="flex-1 overflow-y-auto scrollbar-hide py-3">
       {navRow("All Articles", isAllActive, totalUnread, () => onNavigate({}))}
       {navRow("Today's Digest", activeDigest, null, () => onNavigate({ digest: true }))}
+      {navRow("Discover", activeDiscover, null, () => onNavigate({ discover: true }))}
       {navRow("Analytics & Stats", activeAnalytics, null, () => onNavigate({ analytics: true }))}
 
       {Object.keys(groups).length === 0 && (
