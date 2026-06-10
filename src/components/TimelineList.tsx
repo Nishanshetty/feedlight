@@ -49,6 +49,13 @@ export default function TimelineList({
   onRangeChange, onStatesChanged,
 }: Props) {
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [density, setDensity] = useState<"grid" | "list">(() => {
+    try { return localStorage.getItem("focal:timeline-density") === "list" ? "list" : "grid"; }
+    catch { return "grid"; }
+  });
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
@@ -62,13 +69,26 @@ export default function TimelineList({
 
   const prevFilterKeyRef = useRef(filterKey);
 
-  // Reset unread toggle when the feed/folder selection changes
+  // Reset unread toggle and search when the feed/folder selection changes
   useEffect(() => {
     if (filterKey !== prevFilterKeyRef.current) {
       setUnreadOnly(false);
+      setSearchInput("");
+      setSearchQuery("");
     }
     prevFilterKeyRef.current = filterKey;
   }, [filterKey]);
+
+  function changeDensity(d: "grid" | "list") {
+    setDensity(d);
+    try { localStorage.setItem("focal:timeline-density", d); } catch { /* ignore */ }
+  }
+
+  // Debounce search input → query
+  useEffect(() => {
+    const t = window.setTimeout(() => setSearchQuery(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   // Load items whenever filter or unreadOnly changes
   useEffect(() => {
@@ -77,7 +97,7 @@ export default function TimelineList({
     setLoadError("");
 
     Promise.all([
-      getTimelineItems({ feedIds, cursor: FIRST_PAGE_CURSOR, since, limit: pageSize, unreadOnly, starredOnly }),
+      getTimelineItems({ feedIds, cursor: FIRST_PAGE_CURSOR, since, limit: pageSize, unreadOnly, starredOnly, query: searchQuery || undefined }),
       getTotalUnreadCount(feedIds, since),
     ]).then(([newItems, count]) => {
       setItems(newItems);
@@ -90,7 +110,7 @@ export default function TimelineList({
       setLoadError(String(err));
     }).finally(() => setIsLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterKey, unreadOnly]);
+  }, [filterKey, unreadOnly, searchQuery]);
 
   // Infinite scroll: observer lives on a sentinel above the footer; the latest
   // handleLoadMore is kept in a ref so the observer never goes stale
@@ -139,7 +159,7 @@ export default function TimelineList({
     if (!cursor) return;
     setLoadError("");
     setIsLoading(true);
-    getTimelineItems({ feedIds, cursor, since, limit: pageSize, unreadOnly, starredOnly })
+    getTimelineItems({ feedIds, cursor, since, limit: pageSize, unreadOnly, starredOnly, query: searchQuery || undefined })
       .then((more) => {
         if (more.length < pageSize) setHasMore(false);
         if (more.length > 0) setItems((prev) => [...prev, ...more]);
@@ -192,6 +212,7 @@ export default function TimelineList({
       upsertItemState(item.id, { is_starred: next }).catch(console.error);
     },
     "Shift+A": handleMarkAllRead,
+    "/": () => searchRef.current?.focus(),
   });
 
   return (
@@ -210,6 +231,29 @@ export default function TimelineList({
           )}
         </div>
         <div className="flex items-center gap-2">
+          <input
+            ref={searchRef}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Escape") { setSearchInput(""); e.currentTarget.blur(); } }}
+            placeholder="Search… ( / )"
+            className="ghost-border w-36 bg-surface-container px-2 py-1 text-[11px] font-label text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <div className="flex">
+            <button onClick={() => changeDensity("grid")} aria-label="Grid view" title="Grid view"
+              className={`ghost-border px-2 py-1 transition-colors ${density === "grid" ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:text-on-surface"}`}>
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+            <button onClick={() => changeDensity("list")} aria-label="List view" title="List view"
+              className={`ghost-border px-2 py-1 transition-colors ${density === "list" ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:text-on-surface"}`}>
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
           <button onClick={() => setUnreadOnly((v) => !v)}
             className={`ghost-border px-2.5 py-1 text-[11px] font-label font-bold uppercase tracking-widest transition-colors ${unreadOnly ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:text-on-surface"}`}>
             Unread
@@ -235,14 +279,16 @@ export default function TimelineList({
         </div>
       ) : (
         <>
-          <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 p-6">
+          <ul className={density === "grid"
+            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 p-6"
+            : "flex flex-col px-2 py-4"}>
             {items.map((item, index) => {
               const group = dateGroup(item.published_at);
               const prevGroup = index > 0 ? dateGroup(items[index - 1].published_at) : null;
               return (
                 <Fragment key={item.id}>
                   {group !== prevGroup && (
-                    <li className="col-span-full flex items-center gap-3 pt-2 first:pt-0">
+                    <li className={`col-span-full flex items-center gap-3 ${density === "grid" ? "pt-2 first:pt-0" : "px-4 pt-4 pb-2 first:pt-1"}`}>
                       <span className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">
                         {group}
                       </span>
@@ -252,6 +298,8 @@ export default function TimelineList({
                   <FeedItemCard item={item}
                     isRead={readIds.has(item.id)} isStarred={starredIds.has(item.id)}
                     isSelected={index === selectedIndex} accentIndex={index}
+                    layout={density === "grid" ? "card" : "row"}
+                    hero={density === "grid" && !searchQuery && index === 0}
                     onActivate={() => selectAndRead(index)}
                     onOpen={() => { if (item.link) openUrl(item.link); }}
                     onToggleStar={(e) => handleToggleStar(index, item.id, e)}
@@ -276,7 +324,7 @@ export default function TimelineList({
       )}
 
       {paneItem?.link && (
-        <ArticlePane url={paneItem.link} title={paneItem.title} onClose={() => setPaneItem(null)} />
+        <ArticlePane url={paneItem.link} title={paneItem.title} itemId={paneItem.id} onClose={() => setPaneItem(null)} />
       )}
     </div>
   );

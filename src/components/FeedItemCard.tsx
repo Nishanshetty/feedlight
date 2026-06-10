@@ -52,15 +52,36 @@ type Props = {
   isStarred: boolean;
   isSelected: boolean;
   accentIndex: number;
+  layout: "card" | "row";
+  hero?: boolean;
   onActivate: () => void;
   onOpen: () => void;
   onToggleStar: (e: React.MouseEvent) => void;
   elRef: (el: HTMLLIElement | null) => void;
 };
 
+function ProgressLine({ progress }: { progress: number }) {
+  if (progress <= 0 || progress >= 0.97) return null;
+  return (
+    <div className="absolute bottom-0 left-0 h-0.5 bg-primary/70 pointer-events-none"
+      style={{ width: `${progress * 100}%` }} />
+  );
+}
+
+function StarButton({ isStarred, onToggleStar }: { isStarred: boolean; onToggleStar: (e: React.MouseEvent) => void }) {
+  return (
+    <button onClick={onToggleStar} aria-label={isStarred ? "Unstar" : "Star"}
+      className={["rounded p-0.5 transition-colors", isStarred ? "text-tertiary" : "text-outline opacity-0 group-hover:opacity-100 hover:text-tertiary"].join(" ")}>
+      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+      </svg>
+    </button>
+  );
+}
+
 function YouTubeCard({
   item, isRead, isStarred, isSelected, accent, onActivate, onOpen, onToggleStar,
-}: Omit<Props, "accentIndex" | "elRef"> & { accent: (typeof ACCENT_STYLES)[number] }) {
+}: Omit<Props, "accentIndex" | "elRef" | "layout" | "hero"> & { accent: (typeof ACCENT_STYLES)[number] }) {
   return (
     <div onClick={onActivate} className="flex flex-col flex-1 cursor-pointer select-none">
       <div className="relative aspect-video overflow-hidden bg-surface-container-high">
@@ -92,12 +113,7 @@ function YouTubeCard({
           {item.title ?? "Untitled"}
         </h3>
         <div className="mt-auto pt-3 flex items-center justify-end gap-2">
-          <button onClick={onToggleStar} aria-label={isStarred ? "Unstar" : "Star"}
-            className={["rounded p-0.5 transition-colors", isStarred ? "text-tertiary" : "text-outline opacity-0 group-hover:opacity-100 hover:text-tertiary"].join(" ")}>
-            <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-          </button>
+          <StarButton isStarred={isStarred} onToggleStar={onToggleStar} />
           <button onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="Open video"
             className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 ${accent.iconHover}`}>
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,16 +126,50 @@ function YouTubeCard({
   );
 }
 
-export default function FeedItemCard({ item, isRead, isStarred, isSelected, accentIndex, onActivate, onOpen, onToggleStar, elRef }: Props) {
+export default function FeedItemCard({ item, isRead, isStarred, isSelected, accentIndex, layout, hero, onActivate, onOpen, onToggleStar, elRef }: Props) {
   const accent = ACCENT_STYLES[accentIndex % 3];
   const stripped = item.content ? stripHtml(item.content) : null;
-  const preview = stripped ? stripped.slice(0, 200) : null;
   const minutes = stripped ? readMinutes(stripped) : null;
   const imageUrl = !item.thumbnail_url && item.content ? extractFirstImage(item.content) : null;
+  const isHero = !!hero && layout === "card" && !item.thumbnail_url;
+  const preview = stripped ? stripped.slice(0, isHero ? 320 : 200) : null;
+
+  if (layout === "row") {
+    return (
+      <li ref={elRef} onClick={onActivate}
+        className={["group relative flex items-center gap-3 px-4 py-2 border-l-2 cursor-pointer select-none transition-colors",
+          isSelected ? "border-primary bg-surface-container-low" : "border-transparent hover:bg-surface-container",
+          isRead && !isSelected ? "opacity-50" : ""].join(" ")}>
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isRead ? "bg-outline-variant/60" : "bg-primary"}`} />
+        {item.feed_title && (
+          <span className={`hidden sm:inline-block shrink-0 max-w-[9rem] truncate text-[9px] font-label font-bold tracking-widest uppercase px-2 py-0.5 ${accent.badge}`}>
+            {item.feed_title}
+          </span>
+        )}
+        <span className={`min-w-0 flex-1 truncate text-[13px] font-body text-on-surface transition-colors ${accent.titleHover}`}>
+          {item.title ?? "Untitled"}
+        </span>
+        <span className="shrink-0 text-[9px] font-label text-outline uppercase">
+          {minutes ? `${minutes} min · ` : ""}{formatRelative(item.published_at)}
+        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <StarButton isStarred={isStarred} onToggleStar={onToggleStar} />
+          <button onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="Open article"
+            className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 ${accent.iconHover}`}>
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </button>
+        </div>
+        <ProgressLine progress={item.read_progress} />
+      </li>
+    );
+  }
 
   return (
     <li ref={elRef}
       className={["group relative flex flex-col bg-surface-container-lowest border transition-all duration-200",
+        isHero ? "col-span-full" : "",
         isSelected ? "border-primary/60 ring-1 ring-primary/20" : `border-outline-variant/40 ${accent.cardHover}`].join(" ")}>
       {item.thumbnail_url ? (
         <YouTubeCard item={item} isRead={isRead} isStarred={isStarred} isSelected={isSelected}
@@ -128,7 +178,7 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, acce
         <div onClick={onActivate}
           className={`flex flex-col flex-1 cursor-pointer select-none ${isRead && !isSelected ? "opacity-50" : ""}`}>
           {imageUrl && (
-            <div className="h-36 overflow-hidden bg-surface-container-high">
+            <div className={`overflow-hidden bg-surface-container-high ${isHero ? "h-60" : "h-36"}`}>
               <img src={imageUrl} alt="" loading="lazy"
                 onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }}
                 className="h-full w-full object-cover" />
@@ -148,23 +198,18 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, acce
                 {minutes ? `${minutes} min · ` : ""}{formatRelative(item.published_at)}
               </span>
             </div>
-            <h3 className={`text-base font-headline font-semibold leading-snug mb-3 text-on-surface transition-colors ${accent.titleHover}`}>
+            <h3 className={`font-headline font-semibold leading-snug mb-3 text-on-surface transition-colors ${accent.titleHover} ${isHero ? "text-2xl" : "text-base"}`}>
               {item.title ?? "Untitled"}
             </h3>
             {preview && (
-              <p className={`text-xs font-body text-on-surface-variant leading-relaxed mb-6 ${imageUrl ? "line-clamp-2" : "line-clamp-3"}`}>{preview}</p>
+              <p className={`font-body text-on-surface-variant leading-relaxed mb-6 ${isHero ? "text-sm line-clamp-3 max-w-3xl" : imageUrl ? "text-xs line-clamp-2" : "text-xs line-clamp-3"}`}>{preview}</p>
             )}
             <div className="mt-auto pt-4 border-t border-outline-variant/30 flex items-center justify-between gap-2">
               <span className="text-[9px] font-label text-outline uppercase truncate">
                 {item.author ?? item.feed_title ?? ""}
               </span>
               <div className="flex items-center gap-2 shrink-0">
-                <button onClick={onToggleStar} aria-label={isStarred ? "Unstar" : "Star"}
-                  className={["rounded p-0.5 transition-colors", isStarred ? "text-tertiary" : "text-outline opacity-0 group-hover:opacity-100 hover:text-tertiary"].join(" ")}>
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                </button>
+                <StarButton isStarred={isStarred} onToggleStar={onToggleStar} />
                 <button onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="Open article"
                   className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 ${accent.iconHover}`}>
                   <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,6 +221,7 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, acce
           </div>
         </div>
       )}
+      <ProgressLine progress={item.read_progress} />
     </li>
   );
 }

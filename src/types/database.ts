@@ -57,6 +57,7 @@ export interface TimelineItem {
   is_read: boolean;
   is_saved: boolean;
   is_starred: boolean;
+  read_progress: number; // 0..1 scroll progress in the article pane
 }
 
 export interface TimelineOptions {
@@ -66,6 +67,7 @@ export interface TimelineOptions {
   limit: number;
   unreadOnly: boolean;
   starredOnly?: boolean;
+  query?: string;       // title/content substring search
 }
 
 // Shape returned by getFeedAnalytics()

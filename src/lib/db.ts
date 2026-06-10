@@ -91,7 +91,7 @@ export async function updateFeedFolder(feedId: string, folder: string | null): P
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
 export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineItem[]> {
-  const { feedIds, cursor, since, limit, unreadOnly, starredOnly } = opts;
+  const { feedIds, cursor, since, limit, unreadOnly, starredOnly, query } = opts;
 
   if (feedIds.length === 0) return [];
 
@@ -119,6 +119,14 @@ export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineI
     starredClause = `AND COALESCE(ist.is_starred, 0) = 1`;
   }
 
+  let searchClause = "";
+  if (query?.trim()) {
+    const escaped = query.trim().replace(/[\\%_]/g, (c) => `\\${c}`);
+    baseParams.push(`%${escaped}%`);
+    searchClause = `AND (fi.title LIKE $${idx} ESCAPE '\\' OR fi.content LIKE $${idx} ESCAPE '\\')`;
+    idx++;
+  }
+
   const rows = await db.select<
     Array<{
       id: string;
@@ -133,6 +141,7 @@ export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineI
       is_read: number;
       is_saved: number;
       is_starred: number;
+      read_progress: number;
     }>
   >(
     `SELECT
@@ -141,7 +150,8 @@ export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineI
        f.title AS feed_title,
        COALESCE(ist.is_read,    0) AS is_read,
        COALESCE(ist.is_saved,   0) AS is_saved,
-       COALESCE(ist.is_starred, 0) AS is_starred
+       COALESCE(ist.is_starred, 0) AS is_starred,
+       COALESCE(ist.read_progress, 0) AS read_progress
      FROM feed_items fi
      JOIN feeds f ON f.id = fi.feed_id
      LEFT JOIN item_states ist ON ist.item_id = fi.id
@@ -150,6 +160,7 @@ export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineI
        ${sinceClause}
        ${unreadClause}
        ${starredClause}
+       ${searchClause}
      ORDER BY fi.published_at DESC
      LIMIT $${idx}`,
     [...baseParams, limit]
@@ -191,24 +202,35 @@ export async function getTotalUnreadCount(feedIds: string[], since: string | nul
 
 export async function upsertItemState(
   itemId: string,
-  patch: Partial<{ is_read: boolean; is_saved: boolean; is_starred: boolean }>
+  patch: Partial<{ is_read: boolean; is_saved: boolean; is_starred: boolean; read_progress: number }>
 ): Promise<void> {
   const db = await getDb();
   await db.execute(
-    `INSERT INTO item_states (item_id, is_read, is_saved, is_starred, updated_at)
-     VALUES ($1, COALESCE($2, 0), COALESCE($3, 0), COALESCE($4, 0), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    `INSERT INTO item_states (item_id, is_read, is_saved, is_starred, read_progress, updated_at)
+     VALUES ($1, COALESCE($2, 0), COALESCE($3, 0), COALESCE($4, 0), COALESCE($5, 0), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
      ON CONFLICT (item_id) DO UPDATE SET
-       is_read    = COALESCE($2, is_read),
-       is_saved   = COALESCE($3, is_saved),
-       is_starred = COALESCE($4, is_starred),
-       updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`,
+       is_read       = COALESCE($2, is_read),
+       is_saved      = COALESCE($3, is_saved),
+       is_starred    = COALESCE($4, is_starred),
+       read_progress = COALESCE($5, read_progress),
+       updated_at    = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`,
     [
       itemId,
       patch.is_read    !== undefined ? (patch.is_read    ? 1 : 0) : null,
       patch.is_saved   !== undefined ? (patch.is_saved   ? 1 : 0) : null,
       patch.is_starred !== undefined ? (patch.is_starred ? 1 : 0) : null,
+      patch.read_progress ?? null,
     ]
   );
+}
+
+export async function getItemProgress(itemId: string): Promise<number> {
+  const db = await getDb();
+  const rows = await db.select<Array<{ read_progress: number }>>(
+    `SELECT read_progress FROM item_states WHERE item_id = $1`,
+    [itemId]
+  );
+  return rows[0]?.read_progress ?? 0;
 }
 
 export async function markAllRead(feedIds: string[], since: string | null): Promise<void> {

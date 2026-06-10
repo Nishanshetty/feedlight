@@ -5,10 +5,12 @@ import { Readability } from "@mozilla/readability";
 import DOMPurify from "dompurify";
 import ReactMarkdown from "react-markdown";
 import { getOllamaSettings, type OllamaSettings } from "../lib/settings";
+import { upsertItemState, getItemProgress } from "../lib/db";
 
 type Props = {
   url: string;
   title: string | null;
+  itemId?: string | null; // when set, scroll progress is persisted per item
   onClose: () => void;
 };
 
@@ -598,7 +600,7 @@ function LoadingSkeleton() {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function ArticlePane({ url, title, onClose }: Props) {
+export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   const [result, setResult] = useState<ExtractResult>({ state: "loading" });
   const [theme, setTheme] = useState<"light" | "sepia" | "slate" | "dark">("light");
   const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">("sans");
@@ -610,6 +612,12 @@ export default function ArticlePane({ url, title, onClose }: Props) {
   const [progress, setProgress] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const progressRafRef = useRef(0);
+
+  // Persisted reading progress (only when opened from the timeline with an itemId)
+  const [resumeProgress, setResumeProgress] = useState(0);
+  const restoredRef = useRef(false);
+  const lastProgressRef = useRef(0);
+  const saveProgressTimerRef = useRef(0);
 
   // TTS state
   const [speechState, setSpeechState] = useState<SpeechState>("idle");
@@ -681,7 +689,15 @@ export default function ArticlePane({ url, title, onClose }: Props) {
       const el = scrollRef.current;
       if (!el) return;
       const max = el.scrollHeight - el.clientHeight;
-      setProgress(max > 0 ? Math.min(el.scrollTop / max, 1) : 0);
+      const p = max > 0 ? Math.min(el.scrollTop / max, 1) : 0;
+      setProgress(p);
+      lastProgressRef.current = p;
+      if (itemId && p > 0) {
+        clearTimeout(saveProgressTimerRef.current);
+        saveProgressTimerRef.current = window.setTimeout(() => {
+          upsertItemState(itemId, { read_progress: p >= 0.97 ? 1 : p }).catch(() => {});
+        }, 800);
+      }
     });
   }
 
@@ -788,9 +804,42 @@ export default function ArticlePane({ url, title, onClose }: Props) {
     getOllamaSettings().then(setOllamaSettings).catch(console.error);
   }, []);
 
+  // Flush the pending progress save when the item changes or the pane closes
+  useEffect(() => {
+    return () => {
+      clearTimeout(saveProgressTimerRef.current);
+      const p = lastProgressRef.current;
+      if (itemId && p > 0) {
+        upsertItemState(itemId, { read_progress: p >= 0.97 ? 1 : p }).catch(() => {});
+      }
+    };
+  }, [itemId]);
+
+  // Load saved progress for the new item
+  useEffect(() => {
+    setResumeProgress(0);
+    if (itemId) getItemProgress(itemId).then(setResumeProgress).catch(() => {});
+  }, [itemId, url]);
+
+  // Restore scroll position once content is rendered and saved progress is known
+  useEffect(() => {
+    if (restoredRef.current || isYT || result.state !== "ok") return;
+    if (resumeProgress <= 0 || resumeProgress >= 0.97) return;
+    restoredRef.current = true;
+    const t = window.setTimeout(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const max = el.scrollHeight - el.clientHeight;
+      if (max > 0) el.scrollTop = max * resumeProgress;
+    }, 80);
+    return () => clearTimeout(t);
+  }, [result, resumeProgress, isYT]);
+
   // Reset per-article state on URL change
   useEffect(() => {
     setProgress(0);
+    lastProgressRef.current = 0;
+    restoredRef.current = false;
     scrollRef.current?.scrollTo({ top: 0 });
     stopSpeech();
     setSummarizeState("idle");
