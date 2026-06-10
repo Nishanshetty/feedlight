@@ -25,6 +25,7 @@ export default function HomePage() {
   const [activeAnalytics, setActiveAnalytics] = useState(false);
   const [activeDigest, setActiveDigest] = useState(false);
   const [activeDiscover, setActiveDiscover] = useState(false);
+  const [activeStarred, setActiveStarred] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsResult | null>(null);
   const [analyticsError, setAnalyticsError] = useState("");
   const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
@@ -52,32 +53,18 @@ export default function HomePage() {
   }
 
   function handleNavigate(filter: NavFilter) {
-    if (filter.analytics) {
-      setActiveAnalytics(true);
-      setActiveDigest(false);
-      setActiveDiscover(false);
-      setActiveFeedId(null);
-      setActiveFolder(null);
-      loadAnalytics();
-    } else if (filter.digest) {
-      setActiveDigest(true);
-      setActiveAnalytics(false);
-      setActiveDiscover(false);
-      setActiveFeedId(null);
-      setActiveFolder(null);
-    } else if (filter.discover) {
-      setActiveDiscover(true);
-      setActiveDigest(false);
-      setActiveAnalytics(false);
+    setActiveAnalytics(!!filter.analytics);
+    setActiveDigest(!!filter.digest);
+    setActiveDiscover(!!filter.discover);
+    setActiveStarred(!!filter.starred);
+    if (filter.analytics || filter.digest || filter.discover || filter.starred) {
       setActiveFeedId(null);
       setActiveFolder(null);
     } else {
-      setActiveAnalytics(false);
-      setActiveDigest(false);
-      setActiveDiscover(false);
       setActiveFeedId(filter.feedId ?? null);
       setActiveFolder(filter.folder ?? null);
     }
+    if (filter.analytics) loadAnalytics();
   }
 
   function handleFeedAdded() {
@@ -111,10 +98,11 @@ export default function HomePage() {
   }, [feeds, activeFeedId, activeFolder]);
 
   const filterLabel = useMemo(() => {
+    if (activeStarred) return "Starred";
     if (activeFeedId) return feeds.find((f) => f.id === activeFeedId)?.title ?? "Feed";
     if (activeFolder) return activeFolder;
     return "All Articles";
-  }, [feeds, activeFeedId, activeFolder]);
+  }, [feeds, activeFeedId, activeFolder, activeStarred]);
 
   const sidebar = (
     <SidebarContent
@@ -124,6 +112,7 @@ export default function HomePage() {
       activeAnalytics={activeAnalytics}
       activeDigest={activeDigest}
       activeDiscover={activeDiscover}
+      activeStarred={activeStarred}
       refreshKey={sidebarRefreshKey}
       onNavigate={handleNavigate}
       onFeedAdded={handleFeedAdded}
@@ -154,6 +143,7 @@ export default function HomePage() {
       feedIds={feedIds}
       filterLabel={filterLabel}
       range={range}
+      starredOnly={activeStarred}
       refreshKey={timelineRefreshKey}
       onRangeChange={setRange}
       onStatesChanged={handleStatesChanged}

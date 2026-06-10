@@ -13,6 +13,7 @@ export type NavFilter = {
   analytics?: boolean;
   digest?: boolean;
   discover?: boolean;
+  starred?: boolean;
 };
 
 type Props = {
@@ -22,11 +23,12 @@ type Props = {
   activeAnalytics: boolean;
   activeDigest: boolean;
   activeDiscover: boolean;
+  activeStarred: boolean;
   onNavigate: (filter: NavFilter) => void;
   onUnsubscribe: (subId: string, feedId: string, title: string) => void;
 };
 
-export default function SidebarNav({ groups, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, onNavigate, onUnsubscribe }: Props) {
+export default function SidebarNav({ groups, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, activeStarred, onNavigate, onUnsubscribe }: Props) {
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
 
   function toggleFolder(folder: string) {
@@ -37,7 +39,7 @@ export default function SidebarNav({ groups, activeFeedId, activeFolder, activeA
     });
   }
 
-  const isAllActive = !activeFeedId && !activeFolder && !activeAnalytics && !activeDigest && !activeDiscover;
+  const isAllActive = !activeFeedId && !activeFolder && !activeAnalytics && !activeDigest && !activeDiscover && !activeStarred;
   const totalUnread = Object.values(groups).flat().reduce((sum, e) => sum + e.unread, 0);
 
   const navRow = (label: string, active: boolean, badge: number | null, onClick: () => void) => (
@@ -56,6 +58,7 @@ export default function SidebarNav({ groups, activeFeedId, activeFolder, activeA
   return (
     <nav className="flex-1 overflow-y-auto scrollbar-hide py-3">
       {navRow("All Articles", isAllActive, totalUnread, () => onNavigate({}))}
+      {navRow("Starred", activeStarred, null, () => onNavigate({ starred: true }))}
       {navRow("Today's Digest", activeDigest, null, () => onNavigate({ digest: true }))}
       {navRow("Discover", activeDiscover, null, () => onNavigate({ discover: true }))}
       {navRow("Analytics & Stats", activeAnalytics, null, () => onNavigate({ analytics: true }))}

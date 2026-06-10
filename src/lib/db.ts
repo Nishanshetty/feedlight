@@ -91,7 +91,7 @@ export async function updateFeedFolder(feedId: string, folder: string | null): P
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
 export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineItem[]> {
-  const { feedIds, cursor, since, limit, unreadOnly } = opts;
+  const { feedIds, cursor, since, limit, unreadOnly, starredOnly } = opts;
 
   if (feedIds.length === 0) return [];
 
@@ -112,6 +112,11 @@ export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineI
   let unreadClause = "";
   if (unreadOnly) {
     unreadClause = `AND COALESCE(ist.is_read, 0) = 0`;
+  }
+
+  let starredClause = "";
+  if (starredOnly) {
+    starredClause = `AND COALESCE(ist.is_starred, 0) = 1`;
   }
 
   const rows = await db.select<
@@ -144,6 +149,7 @@ export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineI
        AND fi.published_at < ${cursorParam}
        ${sinceClause}
        ${unreadClause}
+       ${starredClause}
      ORDER BY fi.published_at DESC
      LIMIT $${idx}`,
     [...baseParams, limit]

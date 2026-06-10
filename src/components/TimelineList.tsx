@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getTimelineItems, getTotalUnreadCount, upsertItemState, markAllRead } from "../lib/db";
 import { DATE_RANGE_OPTIONS } from "../lib/date-range";
@@ -16,10 +16,26 @@ type Props = {
   filterKey: string;
   range: DateRange;
   since: string | null;
+  starredOnly: boolean;
   pageSize: number;
   onRangeChange: (r: DateRange) => void;
   onStatesChanged: () => void;
 };
+
+function dateGroup(iso: string | null): string {
+  if (!iso) return "Earlier";
+  const d = new Date(iso);
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfYesterday = new Date(startOfToday);
+  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+  const startOfWeek = new Date(startOfToday);
+  startOfWeek.setDate(startOfWeek.getDate() - 6);
+  if (d >= startOfToday) return "Today";
+  if (d >= startOfYesterday) return "Yesterday";
+  if (d >= startOfWeek) return "This Week";
+  return "Earlier";
+}
 
 function setAdd(prev: Set<string>, id: string): Set<string> {
   return new Set(Array.from(prev).concat(id));
@@ -29,7 +45,7 @@ function setToggle(prev: Set<string>, id: string): Set<string> {
 }
 
 export default function TimelineList({
-  feedIds, filterLabel, filterKey, range, since, pageSize,
+  feedIds, filterLabel, filterKey, range, since, starredOnly, pageSize,
   onRangeChange, onStatesChanged,
 }: Props) {
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -61,7 +77,7 @@ export default function TimelineList({
     setLoadError("");
 
     Promise.all([
-      getTimelineItems({ feedIds, cursor: FIRST_PAGE_CURSOR, since, limit: pageSize, unreadOnly }),
+      getTimelineItems({ feedIds, cursor: FIRST_PAGE_CURSOR, since, limit: pageSize, unreadOnly, starredOnly }),
       getTotalUnreadCount(feedIds, since),
     ]).then(([newItems, count]) => {
       setItems(newItems);
@@ -75,6 +91,22 @@ export default function TimelineList({
     }).finally(() => setIsLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey, unreadOnly]);
+
+  // Infinite scroll: observer lives on a sentinel above the footer; the latest
+  // handleLoadMore is kept in a ref so the observer never goes stale
+  const handleLoadMoreRef = useRef<() => void>(() => {});
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  function sentinelRef(el: HTMLDivElement | null) {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) handleLoadMoreRef.current(); },
+      { rootMargin: "400px" }
+    );
+    obs.observe(el);
+    observerRef.current = obs;
+  }
 
   const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
   useEffect(() => {
@@ -102,11 +134,12 @@ export default function TimelineList({
   }
 
   function handleLoadMore() {
+    if (isLoading || !hasMore) return;
     const cursor = items[items.length - 1]?.published_at;
     if (!cursor) return;
     setLoadError("");
     setIsLoading(true);
-    getTimelineItems({ feedIds, cursor, since, limit: pageSize, unreadOnly })
+    getTimelineItems({ feedIds, cursor, since, limit: pageSize, unreadOnly, starredOnly })
       .then((more) => {
         if (more.length < pageSize) setHasMore(false);
         if (more.length > 0) setItems((prev) => [...prev, ...more]);
@@ -114,6 +147,7 @@ export default function TimelineList({
       .catch((err) => setLoadError(String(err)))
       .finally(() => setIsLoading(false));
   }
+  handleLoadMoreRef.current = handleLoadMore;
 
   function handleMarkAllRead() {
     if (totalUnread === 0) return;
@@ -184,7 +218,7 @@ export default function TimelineList({
             className="ghost-border bg-surface-container px-2 py-1 text-[11px] font-label text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
             {DATE_RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          {totalUnread > 0 && (
+          {totalUnread > 0 && !starredOnly && (
             <button onClick={handleMarkAllRead} disabled={isMarkingAll}
               className="ghost-border bg-surface-container px-2.5 py-1 text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-40">
               {isMarkingAll ? "Marking…" : "Mark all read"}
@@ -202,16 +236,31 @@ export default function TimelineList({
       ) : (
         <>
           <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 p-6">
-            {items.map((item, index) => (
-              <FeedItemCard key={item.id} item={item}
-                isRead={readIds.has(item.id)} isStarred={starredIds.has(item.id)}
-                isSelected={index === selectedIndex} accentIndex={index}
-                onActivate={() => selectAndRead(index)}
-                onOpen={() => { if (item.link) openUrl(item.link); }}
-                onToggleStar={(e) => handleToggleStar(index, item.id, e)}
-                elRef={(el) => { itemRefs.current[index] = el; }} />
-            ))}
+            {items.map((item, index) => {
+              const group = dateGroup(item.published_at);
+              const prevGroup = index > 0 ? dateGroup(items[index - 1].published_at) : null;
+              return (
+                <Fragment key={item.id}>
+                  {group !== prevGroup && (
+                    <li className="col-span-full flex items-center gap-3 pt-2 first:pt-0">
+                      <span className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">
+                        {group}
+                      </span>
+                      <div className="h-px flex-1 bg-outline-variant/40" />
+                    </li>
+                  )}
+                  <FeedItemCard item={item}
+                    isRead={readIds.has(item.id)} isStarred={starredIds.has(item.id)}
+                    isSelected={index === selectedIndex} accentIndex={index}
+                    onActivate={() => selectAndRead(index)}
+                    onOpen={() => { if (item.link) openUrl(item.link); }}
+                    onToggleStar={(e) => handleToggleStar(index, item.id, e)}
+                    elRef={(el) => { itemRefs.current[index] = el; }} />
+                </Fragment>
+              );
+            })}
           </ul>
+          {hasMore && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
           <div className="py-8 text-center">
             {loadError && <p className="mb-3 text-[11px] font-label text-error">{loadError}</p>}
             {hasMore ? (

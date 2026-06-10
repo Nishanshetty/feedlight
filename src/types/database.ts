@@ -65,6 +65,7 @@ export interface TimelineOptions {
   since: string | null; // ISO8601 lower bound, null means no lower bound
   limit: number;
   unreadOnly: boolean;
+  starredOnly?: boolean;
 }
 
 // Shape returned by getFeedAnalytics()
