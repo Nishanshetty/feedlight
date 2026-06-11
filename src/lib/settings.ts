@@ -40,6 +40,20 @@ export async function setTtsVoice(voice: string): Promise<void> {
   await store.save();
 }
 
+export type AppTheme = "light" | "dark" | "system";
+
+export async function getAppTheme(): Promise<AppTheme> {
+  const store = await getStore();
+  const v = await store.get<string>("app_theme");
+  return v === "light" || v === "dark" || v === "system" ? v : "system";
+}
+
+export async function setAppTheme(theme: AppTheme): Promise<void> {
+  const store = await getStore();
+  await store.set("app_theme", theme);
+  await store.save();
+}
+
 export type OllamaSettings = {
   enabled: boolean;
   url: string;

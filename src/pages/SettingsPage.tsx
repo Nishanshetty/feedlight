@@ -6,8 +6,10 @@ import {
   getGcpTtsCredentials, setGcpTtsCredentials,
   getTtsVoice, setTtsVoice, TTS_DEFAULT_VOICE,
   getOllamaSettings, setOllamaSettings,
-  type OllamaSettings,
+  getAppTheme, setAppTheme,
+  type OllamaSettings, type AppTheme,
 } from "../lib/settings";
+import { applyTheme } from "../lib/theme";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -37,6 +39,53 @@ function SettingField({
         </button>
       </div>
     </div>
+  );
+}
+
+const THEME_OPTIONS: { value: AppTheme; label: string; description: string }[] = [
+  { value: "light", label: "Light", description: "Warm cream" },
+  { value: "dark", label: "Dark", description: "Warm dark" },
+  { value: "system", label: "System", description: "Follow macOS" },
+];
+
+function AppearanceSection() {
+  const [theme, setTheme] = useState<AppTheme>("system");
+
+  useEffect(() => {
+    getAppTheme().then(setTheme).catch(console.error);
+  }, []);
+
+  function update(next: AppTheme) {
+    setTheme(next);
+    applyTheme(next);
+    setAppTheme(next).catch(console.error);
+  }
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Appearance</h2>
+      <div className="border border-outline-variant/40 p-5 space-y-3">
+        <div>
+          <p className="text-sm font-headline font-semibold text-on-surface">Theme</p>
+          <p className="text-xs font-body text-on-surface-variant mt-0.5">
+            Applies to the whole app. The article reader keeps its own theme setting.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {THEME_OPTIONS.map((opt) => (
+            <button key={opt.value} onClick={() => update(opt.value)} aria-pressed={theme === opt.value}
+              className={["flex-1 px-3 py-2 text-[11px] font-label font-bold uppercase tracking-widest transition-colors",
+                theme === opt.value
+                  ? "bg-primary-container text-on-primary-container"
+                  : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
+              ].join(" ")}>
+              {opt.label}
+              <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal opacity-70">{opt.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -207,6 +256,8 @@ export default function SettingsPage() {
 
       <div className="flex-1 overflow-y-auto p-8">
         <div className="mx-auto max-w-2xl space-y-8">
+
+          <AppearanceSection />
 
           <section className="space-y-3">
             <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">YouTube</h2>

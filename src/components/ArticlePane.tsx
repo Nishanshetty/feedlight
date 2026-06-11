@@ -63,13 +63,15 @@ type SummarizeControls = {
   onSummarize: () => void;
 };
 
+type ReaderTheme = "auto" | "light" | "sepia" | "slate" | "dark";
+
 type ReaderSettings = {
-  theme: "light" | "sepia" | "slate" | "dark";
+  theme: ReaderTheme;
   fontFamily: "sans" | "serif" | "mono";
   fontSize: number;
   columnWidth: "narrow" | "medium" | "wide";
   lineHeight: "compact" | "normal" | "roomy";
-  onChangeTheme: (t: "light" | "sepia" | "slate" | "dark") => void;
+  onChangeTheme: (t: ReaderTheme) => void;
   onChangeFontFamily: (f: "sans" | "serif" | "mono") => void;
   onChangeFontSize: (s: number) => void;
   onChangeColumnWidth: (w: "narrow" | "medium" | "wide") => void;
@@ -293,11 +295,12 @@ function PaneHeader({ title, url, onClose, speech, summarize, chat, settings }: 
               <div className="mb-4">
                 <span className="block text-[11px] text-reader-text-muted mb-2">Theme</span>
                 <div className="flex gap-2">
-                  {[{ id: "light", label: "Light", bg: "bg-[#fdfcf7] text-[#1c1c11] border-gray-300" },
+                  {[{ id: "auto", label: "Auto", bg: "bg-[linear-gradient(135deg,#fdfcf7_50%,#121212_50%)] text-[#888888] border-gray-400" },
+                    { id: "light", label: "Light", bg: "bg-[#fdfcf7] text-[#1c1c11] border-gray-300" },
                     { id: "sepia", label: "Sepia", bg: "bg-[#f4ecd8] text-[#5b4636] border-[#eadfca]" },
                     { id: "slate", label: "Slate", bg: "bg-[#f1f3f5] text-[#212529] border-gray-300" },
                     { id: "dark", label: "Dark", bg: "bg-[#121212] text-[#e0e0e0] border-zinc-800" }].map((t) => (
-                    <button key={t.id} onClick={() => settings.onChangeTheme(t.id as "light" | "sepia" | "slate" | "dark")}
+                    <button key={t.id} onClick={() => settings.onChangeTheme(t.id as ReaderTheme)}
                       className={`relative flex h-8 w-8 items-center justify-center rounded-full border transition-all ${t.bg} ${settings.theme === t.id ? "ring-2 ring-reader-primary ring-offset-2 ring-offset-reader-bg scale-105 border-transparent" : "hover:scale-105"}`}>
                       <span className="text-[10px] font-bold">{t.label[0]}</span>
                     </button>
@@ -602,7 +605,8 @@ function LoadingSkeleton() {
 
 export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   const [result, setResult] = useState<ExtractResult>({ state: "loading" });
-  const [theme, setTheme] = useState<"light" | "sepia" | "slate" | "dark">("light");
+  const [theme, setTheme] = useState<ReaderTheme>("auto");
+  const [appDark, setAppDark] = useState(() => document.documentElement.classList.contains("dark"));
   const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">("sans");
   const [fontSize, setFontSize] = useState(14);
   const [columnWidth, setColumnWidth] = useState<"narrow" | "medium" | "wide">("medium");
@@ -776,6 +780,16 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     }
     document.addEventListener("mouseup", onMouseUp);
     return () => document.removeEventListener("mouseup", onMouseUp);
+  }, []);
+
+  // Track the app-level theme so the "auto" reader theme can follow it,
+  // including macOS appearance flips while an article is open.
+  useEffect(() => {
+    const obs = new MutationObserver(() => {
+      setAppDark(document.documentElement.classList.contains("dark"));
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
   }, []);
 
   useEffect(() => {
@@ -1207,17 +1221,19 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
         }
       : undefined;
 
+  const resolvedTheme = theme === "auto" ? (appDark ? "dark" : "light") : theme;
+
   // Ambient accent: fixed saturation/lightness per theme keeps text contrast safe
   const accentColor = accentHue === null ? undefined
-    : theme === "dark" ? `hsl(${accentHue} 45% 70%)`
-    : theme === "sepia" ? `hsl(${accentHue} 45% 32%)`
+    : resolvedTheme === "dark" ? `hsl(${accentHue} 45% 70%)`
+    : resolvedTheme === "sepia" ? `hsl(${accentHue} 45% 32%)`
     : `hsl(${accentHue} 50% 30%)`;
 
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/25" onClick={onClose} aria-hidden="true" />
       <div
-        className={`fixed right-0 top-0 bottom-0 z-50 flex w-full flex-col border-l shadow-2xl sm:w-[65vw] xl:w-[58vw] reader-theme-${theme} bg-reader-bg border-reader-border text-reader-text transition-colors duration-200`}
+        className={`fixed right-0 top-0 bottom-0 z-50 flex w-full flex-col border-l shadow-2xl sm:w-[65vw] xl:w-[58vw] reader-theme-${resolvedTheme} bg-reader-bg border-reader-border text-reader-text transition-colors duration-200`}
         style={accentColor ? ({ "--reader-primary": accentColor } as React.CSSProperties) : undefined}
       >
         <PaneHeader

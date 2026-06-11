@@ -9,6 +9,59 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── App theme tokens (RGB channel triplets for Tailwind <alpha-value>) ──── */
+:root {
+  --c-on-background: 28 28 17;
+  --c-background: 253 252 247;
+  --c-surface: 253 250 231;
+  --c-surface-container: 241 238 220;
+  --c-surface-container-low: 247 244 226;
+  --c-surface-container-high: 236 233 214;
+  --c-surface-container-highest: 230 227 209;
+  --c-surface-container-lowest: 255 255 255;
+  --c-surface-bright: 253 250 231;
+  --c-on-surface: 28 28 17;
+  --c-on-surface-variant: 68 72 66;
+  --c-primary: 24 36 25;
+  --c-primary-dim: 45 58 45;
+  --c-primary-container: 45 58 45;
+  --c-on-primary: 255 255 255;
+  --c-on-primary-container: 149 164 147;
+  --c-secondary: 94 95 91;
+  --c-secondary-container: 227 227 222;
+  --c-on-secondary-container: 100 101 97;
+  --c-tertiary: 27 37 0;
+  --c-error: 186 26 26;
+  --c-outline: 116 120 114;
+  --c-outline-variant: 229 226 208;
+}
+
+.dark {
+  --c-on-background: 230 227 216;
+  --c-background: 19 19 16;
+  --c-surface: 23 23 19;
+  --c-surface-container: 42 42 34;
+  --c-surface-container-low: 35 35 28;
+  --c-surface-container-high: 51 51 41;
+  --c-surface-container-highest: 61 61 50;
+  --c-surface-container-lowest: 30 30 24;
+  --c-surface-bright: 56 56 47;
+  --c-on-surface: 230 227 216;
+  --c-on-surface-variant: 196 198 189;
+  --c-primary: 169 194 166;
+  --c-primary-dim: 137 162 134;
+  --c-primary-container: 53 68 53;
+  --c-on-primary: 31 46 32;
+  --c-on-primary-container: 176 200 173;
+  --c-secondary: 178 179 172;
+  --c-secondary-container: 64 64 60;
+  --c-on-secondary-container: 200 201 194;
+  --c-tertiary: 205 214 163;
+  --c-error: 255 180 171;
+  --c-outline: 143 146 137;
+  --c-outline-variant: 64 67 58;
+}
+
 @keyframes slide {
   0%   { margin-left: -33%; }
   100% { margin-left: 133%; }
@@ -19,6 +72,9 @@
   background-color: rgba(253, 224, 71, 0.35);
   border-radius: 3px;
   transition: background-color 0.2s ease;
+}
+.dark .tts-active {
+  background-color: rgba(202, 165, 30, 0.25);
 }
 
 /* ── Reader Customizer Themes ───────────────────────────────────────────── */
@@ -121,5 +177,5 @@
 @layer utilities {
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-  .ghost-border { border: 1px solid rgba(116, 120, 114, 0.3); }
+  .ghost-border { border: 1px solid rgb(var(--c-outline) / 0.3); }
 }
