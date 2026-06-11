@@ -198,6 +198,23 @@ export async function getTotalUnreadCount(feedIds: string[], since: string | nul
   return rows[0]?.count ?? 0;
 }
 
+export async function getUnreadCountsByFeed(feedIds: string[]): Promise<Record<string, number>> {
+  if (feedIds.length === 0) return {};
+  const db = await getDb();
+  const placeholders = feedIds.map((_, i) => `$${i + 1}`).join(", ");
+
+  const rows = await db.select<Array<{ feed_id: string; count: number }>>(
+    `SELECT fi.feed_id, COUNT(*) AS count
+     FROM feed_items fi
+     LEFT JOIN item_states ist ON ist.item_id = fi.id
+     WHERE fi.feed_id IN (${placeholders})
+       AND COALESCE(ist.is_read, 0) = 0
+     GROUP BY fi.feed_id`,
+    [...feedIds]
+  );
+  return Object.fromEntries(rows.map((r) => [r.feed_id, r.count]));
+}
+
 // ─── Item states ──────────────────────────────────────────────────────────────
 
 export async function upsertItemState(

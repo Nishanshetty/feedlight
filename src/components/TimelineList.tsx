@@ -17,6 +17,7 @@ type Props = {
   range: DateRange;
   since: string | null;
   starredOnly: boolean;
+  lockRange?: boolean;
   pageSize: number;
   onRangeChange: (r: DateRange) => void;
   onStatesChanged: () => void;
@@ -45,7 +46,7 @@ function setToggle(prev: Set<string>, id: string): Set<string> {
 }
 
 export default function TimelineList({
-  feedIds, filterLabel, filterKey, range, since, starredOnly, pageSize,
+  feedIds, filterLabel, filterKey, range, since, starredOnly, lockRange, pageSize,
   onRangeChange, onStatesChanged,
 }: Props) {
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -258,10 +259,12 @@ export default function TimelineList({
             className={`ghost-border px-2.5 py-1 text-[11px] font-label font-bold uppercase tracking-widest transition-colors ${unreadOnly ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:text-on-surface"}`}>
             Unread
           </button>
-          <select value={range} onChange={(e) => onRangeChange(e.target.value as DateRange)}
-            className="ghost-border bg-surface-container px-2 py-1 text-[11px] font-label text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
-            {DATE_RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          {!lockRange && (
+            <select value={range} onChange={(e) => onRangeChange(e.target.value as DateRange)}
+              className="ghost-border bg-surface-container px-2 py-1 text-[11px] font-label text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+              {DATE_RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          )}
           {totalUnread > 0 && !starredOnly && (
             <button onClick={handleMarkAllRead} disabled={isMarkingAll}
               className="ghost-border bg-surface-container px-2.5 py-1 text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-40">

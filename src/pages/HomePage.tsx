@@ -26,6 +26,7 @@ export default function HomePage() {
   const [activeDigest, setActiveDigest] = useState(false);
   const [activeDiscover, setActiveDiscover] = useState(false);
   const [activeStarred, setActiveStarred] = useState(false);
+  const [activeToday, setActiveToday] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsResult | null>(null);
   const [analyticsError, setAnalyticsError] = useState("");
   const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
@@ -57,7 +58,8 @@ export default function HomePage() {
     setActiveDigest(!!filter.digest);
     setActiveDiscover(!!filter.discover);
     setActiveStarred(!!filter.starred);
-    if (filter.analytics || filter.digest || filter.discover || filter.starred) {
+    setActiveToday(!!filter.today);
+    if (filter.analytics || filter.digest || filter.discover || filter.starred || filter.today) {
       setActiveFeedId(null);
       setActiveFolder(null);
     } else {
@@ -98,11 +100,12 @@ export default function HomePage() {
   }, [feeds, activeFeedId, activeFolder]);
 
   const filterLabel = useMemo(() => {
+    if (activeToday) return "Today";
     if (activeStarred) return "Starred";
     if (activeFeedId) return feeds.find((f) => f.id === activeFeedId)?.title ?? "Feed";
     if (activeFolder) return activeFolder;
     return "All Articles";
-  }, [feeds, activeFeedId, activeFolder, activeStarred]);
+  }, [feeds, activeFeedId, activeFolder, activeStarred, activeToday]);
 
   const sidebar = (
     <SidebarContent
@@ -113,6 +116,7 @@ export default function HomePage() {
       activeDigest={activeDigest}
       activeDiscover={activeDiscover}
       activeStarred={activeStarred}
+      activeToday={activeToday}
       refreshKey={sidebarRefreshKey}
       onNavigate={handleNavigate}
       onFeedAdded={handleFeedAdded}
@@ -142,8 +146,9 @@ export default function HomePage() {
     <Timeline
       feedIds={feedIds}
       filterLabel={filterLabel}
-      range={range}
+      range={activeToday ? "1d" : range}
       starredOnly={activeStarred}
+      lockRange={activeToday}
       refreshKey={timelineRefreshKey}
       onRangeChange={setRange}
       onStatesChanged={handleStatesChanged}
