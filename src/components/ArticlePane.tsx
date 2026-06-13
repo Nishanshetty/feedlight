@@ -4,8 +4,14 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Readability } from "@mozilla/readability";
 import DOMPurify from "dompurify";
 import ReactMarkdown from "react-markdown";
-import { getOllamaSettings, type OllamaSettings } from "../lib/settings";
-import { upsertItemState, getItemProgress } from "../lib/db";
+import { getOllamaSettings, getObsidianVaultPath, type OllamaSettings } from "../lib/settings";
+import {
+  upsertItemState, getItemProgress,
+  getHighlightsForItem, addHighlight, updateHighlightNote, deleteHighlight,
+  getItemContent, setItemContent,
+} from "../lib/db";
+import { anchorFromRange, findRange, wrapRangeWithMarks, unwrapHighlights, type TextAnchor } from "../lib/highlight-anchor";
+import type { Highlight } from "../types/database";
 
 type Props = {
   url: string;
@@ -35,6 +41,13 @@ type SelectionToolbar = {
   y: number;
   text: string;
   ttsIdx: number | null;
+  anchor: TextAnchor | null;
+};
+
+type HighlightControls = {
+  count: number;
+  open: boolean;
+  onToggle: () => void;
 };
 
 type LinkPreviewData = {
@@ -180,9 +193,10 @@ function b64ToAudioUrl(b64: string): string {
 
 // ─── PaneHeader ───────────────────────────────────────────────────────────────
 
-function PaneHeader({ title, url, onClose, speech, summarize, chat, settings }: {
+function PaneHeader({ title, url, onClose, speech, summarize, chat, settings, highlights }: {
   title: string | null; url: string; onClose: () => void;
   speech?: SpeechControls; summarize?: SummarizeControls; chat?: ChatControls; settings?: ReaderSettings;
+  highlights?: HighlightControls;
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -246,6 +260,26 @@ function PaneHeader({ title, url, onClose, speech, summarize, chat, settings }: 
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
               d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
+        </button>
+      )}
+
+      {/* Highlights button */}
+      {highlights && (
+        <button
+          onClick={highlights.onToggle}
+          aria-label="Highlights"
+          title="Highlights"
+          className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text ${highlights.open ? "bg-reader-hover text-reader-text" : ""}`}
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+          {highlights.count > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-reader-primary px-0.5 text-[8px] font-bold text-white">
+              {highlights.count}
+            </span>
+          )}
         </button>
       )}
 
@@ -653,6 +687,15 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   const [selToolbar, setSelToolbar] = useState<SelectionToolbar | null>(null);
   const [pendingQuote, setPendingQuote] = useState<string | null>(null);
 
+  // Highlights
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [highlightsOpen, setHighlightsOpen] = useState(false);
+  const [activeNote, setActiveNote] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const notePopoverRef = useRef<HTMLDivElement>(null);
+  const [obsidianPath, setObsidianPath] = useState("");
+  const [obsidianStatus, setObsidianStatus] = useState<"idle" | "ok" | "error">("idle");
+
   // Key takeaways
   const [takeaways, setTakeaways] = useState<string[] | null>(null);
   const [takeawaysLoading, setTakeawaysLoading] = useState(false);
@@ -750,9 +793,16 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     return () => el.removeEventListener("click", handler);
   }, [taggedContent, speechState]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Selection toolbar: show on mouseup over a non-empty selection inside the article
+  // Track whether the current drag started inside the article content
+  const mouseDownInArticle = useRef(false);
+
+  // Selection toolbar: show on mouseup only when the drag started inside the article
   useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      mouseDownInArticle.current = !!articleContentRef.current?.contains(e.target as Node);
+    }
     function onMouseUp() {
+      if (!mouseDownInArticle.current) return;
       setTimeout(() => {
         const sel = window.getSelection();
         const container = articleContentRef.current;
@@ -770,17 +820,73 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
         const node = range.startContainer;
         const startEl = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
         const ttsEl = startEl?.closest("[data-tts-idx]");
+        let anchor: TextAnchor | null = null;
+        try { anchor = anchorFromRange(container, range); } catch { /* selection stays usable without highlight */ }
         setSelToolbar({
           x: Math.min(Math.max(rect.left + rect.width / 2, 90), window.innerWidth - 90),
           y: rect.top,
           text: text.slice(0, 1500),
           ttsIdx: ttsEl ? Number(ttsEl.getAttribute("data-tts-idx")) : null,
+          anchor,
         });
       }, 0);
     }
+    document.addEventListener("mousedown", onMouseDown);
     document.addEventListener("mouseup", onMouseUp);
-    return () => document.removeEventListener("mouseup", onMouseUp);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
   }, []);
+
+  // Paint highlight marks once the article DOM is in place; unwrap-then-reapply
+  // keeps this idempotent across highlight changes (wrapping preserves the
+  // text-node content, so anchors stay valid).
+  useEffect(() => {
+    const container = articleContentRef.current;
+    if (!container || result.state !== "ok") return;
+    unwrapHighlights(container);
+    for (const h of highlights) {
+      const range = findRange(container, h);
+      if (range) wrapRangeWithMarks(range, h.id, !!h.note);
+    }
+  }, [result, highlights, taggedContent]);
+
+  // Clicking a highlight opens its note popover
+  useEffect(() => {
+    const el = articleContentRef.current;
+    if (!el) return;
+    const handler = (e: MouseEvent) => {
+      const mark = (e.target as HTMLElement).closest?.("mark.reader-highlight") as HTMLElement | null;
+      if (!mark || !el.contains(mark)) return;
+      const id = mark.dataset.highlightId;
+      if (!id) return;
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed) return; // selecting inside a mark, not clicking it
+      const rect = mark.getBoundingClientRect();
+      const h = highlights.find((x) => x.id === id);
+      setNoteDraft(h?.note ?? "");
+      setActiveNote({
+        id,
+        x: Math.min(Math.max(rect.left + rect.width / 2, 150), window.innerWidth - 150),
+        y: rect.bottom,
+      });
+    };
+    el.addEventListener("click", handler);
+    return () => el.removeEventListener("click", handler);
+  }, [taggedContent, highlights]);
+
+  // Dismiss the note popover (saving the draft) when clicking outside it
+  useEffect(() => {
+    if (!activeNote) return;
+    function onMouseDown(e: MouseEvent) {
+      if (notePopoverRef.current && !notePopoverRef.current.contains(e.target as Node)) {
+        saveActiveNote();
+      }
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [activeNote, noteDraft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track the app-level theme so the "auto" reader theme can follow it,
   // including macOS appearance flips while an article is open.
@@ -885,8 +991,24 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   useEffect(() => {
     if (isYT) return;
     setResult({ state: "loading" });
-    invoke<string>("fetch_article_html", { url })
-      .then((html) => {
+    let stale = false;
+
+    (async () => {
+      // Highlighted articles are archived locally — prefer that copy so
+      // highlight anchors resolve against stable text (and opens are instant).
+      if (itemId) {
+        try {
+          const archived = await getItemContent(itemId);
+          if (archived && !stale) {
+            setResult({ state: "ok", ...archived });
+            return;
+          }
+        } catch { /* fall through to network */ }
+      }
+
+      try {
+        const html = await invoke<string>("fetch_article_html", { url });
+        if (stale) return;
         const doc = new DOMParser().parseFromString(html, "text/html");
         // Set base URL so relative links resolve correctly
         const base = doc.createElement("base");
@@ -905,11 +1027,20 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
           siteName: article.siteName ?? null,
           content: DOMPurify.sanitize(article.content ?? ""),
         });
-      })
-      .catch((err) => {
-        setResult({ state: "error", message: String(err) });
-      });
-  }, [url, isYT]);
+      } catch (err) {
+        if (!stale) setResult({ state: "error", message: String(err) });
+      }
+    })();
+
+    return () => { stale = true; };
+  }, [url, isYT, itemId]);
+
+  // Load persisted highlights for this item
+  useEffect(() => {
+    if (!itemId) return;
+    getHighlightsForItem(itemId).then(setHighlights).catch(() => {});
+    getObsidianVaultPath().then(setObsidianPath).catch(() => {});
+  }, [itemId]);
 
   // Auto-generate key takeaways in the background once the article is extracted
   useEffect(() => {
@@ -1198,6 +1329,89 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     setSelToolbar(null);
   }
 
+  async function createHighlight(anchor: TextAnchor, withNote: boolean) {
+    if (!itemId) return;
+    const id = crypto.randomUUID();
+    const pos = selToolbar ? { x: selToolbar.x, y: selToolbar.y } : null;
+    dismissSelection();
+    try {
+      await addHighlight({ id, item_id: itemId, quote: anchor.quote, prefix: anchor.prefix, suffix: anchor.suffix, note: null });
+      // Archive the extracted article on first highlight so anchors stay stable
+      if (result.state === "ok") {
+        setItemContent(itemId, {
+          title: result.title, byline: result.byline, siteName: result.siteName, content: result.content,
+        }).catch(() => {});
+      }
+      const h: Highlight = {
+        id, item_id: itemId, quote: anchor.quote, prefix: anchor.prefix, suffix: anchor.suffix,
+        note: null, created_at: new Date().toISOString(),
+      };
+      setHighlights((prev) => [...prev, h]);
+      if (withNote && pos) {
+        setNoteDraft("");
+        setActiveNote({ id, x: pos.x, y: pos.y });
+      }
+    } catch (err) {
+      console.error("Failed to save highlight:", err);
+    }
+  }
+
+  async function saveActiveNote() {
+    if (!activeNote) return;
+    const note = noteDraft.trim() || null;
+    try {
+      await updateHighlightNote(activeNote.id, note);
+      setHighlights((prev) => prev.map((h) => (h.id === activeNote.id ? { ...h, note } : h)));
+    } catch (err) {
+      console.error("Failed to save note:", err);
+    }
+    setActiveNote(null);
+  }
+
+  async function removeActiveHighlight() {
+    if (!activeNote) return;
+    try {
+      await deleteHighlight(activeNote.id);
+      setHighlights((prev) => prev.filter((h) => h.id !== activeNote.id));
+    } catch (err) {
+      console.error("Failed to delete highlight:", err);
+    }
+    setActiveNote(null);
+  }
+
+  function scrollToHighlight(id: string) {
+    articleContentRef.current
+      ?.querySelector(`mark[data-highlight-id="${id}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function highlightsMarkdown(): { filename: string; content: string } {
+    const articleTitle = (result.state === "ok" ? result.title : title) || "Untitled";
+    const lines: string[] = [`# ${articleTitle}`, url, ""];
+    for (const h of highlights) {
+      lines.push(`> ${h.quote.trim().replace(/\s*\n\s*/g, " ")}`);
+      if (h.note) lines.push("", h.note);
+      lines.push("");
+    }
+    return { filename: articleTitle, content: lines.join("\n") };
+  }
+
+  function copyHighlightsMarkdown() {
+    navigator.clipboard.writeText(highlightsMarkdown().content).catch(() => {});
+  }
+
+  async function sendHighlightsToObsidian() {
+    const { filename, content } = highlightsMarkdown();
+    try {
+      await invoke<string>("export_markdown", { dir: obsidianPath, filename, content });
+      setObsidianStatus("ok");
+    } catch (err) {
+      console.error("Export failed:", err);
+      setObsidianStatus("error");
+    }
+    setTimeout(() => setObsidianStatus("idle"), 3000);
+  }
+
   function openChatPanel() {
     if (!chatOpen) {
       if (chatMessages.length === 0 && result.state === "ok") {
@@ -1244,6 +1458,11 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
           summarize={summarizeControls}
           chat={chatControls}
           settings={isYT ? undefined : settingsControls}
+          highlights={itemId && !isYT ? {
+            count: highlights.length,
+            open: highlightsOpen,
+            onToggle: () => setHighlightsOpen((o) => !o),
+          } : undefined}
         />
         {!isYT && result.state === "ok" && (
           <div className="h-0.5 shrink-0">
@@ -1426,6 +1645,22 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
                 Listen
               </button>
             )}
+            {itemId && selToolbar.anchor && (
+              <>
+                <button
+                  onClick={() => createHighlight(selToolbar.anchor!, false)}
+                  className="rounded px-2 py-1 text-[11px] font-label font-semibold transition-colors hover:bg-reader-hover"
+                >
+                  Highlight
+                </button>
+                <button
+                  onClick={() => createHighlight(selToolbar.anchor!, true)}
+                  className="rounded px-2 py-1 text-[11px] font-label font-semibold transition-colors hover:bg-reader-hover"
+                >
+                  Note
+                </button>
+              </>
+            )}
             <button
               onClick={() => {
                 navigator.clipboard.writeText(selToolbar.text).catch(() => {});
@@ -1435,6 +1670,80 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
             >
               Copy
             </button>
+          </div>
+        )}
+        {activeNote && (
+          <div
+            ref={notePopoverRef}
+            className="fixed z-[60] w-72 -translate-x-1/2 rounded-lg border border-reader-border bg-reader-header-bg p-3 shadow-xl text-reader-text"
+            style={{ left: activeNote.x, top: Math.min(activeNote.y + 8, window.innerHeight - 190) }}
+          >
+            <textarea
+              value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} rows={3} autoFocus
+              placeholder="Add a note…"
+              className="w-full rounded border border-reader-border bg-reader-bg px-2 py-1.5 text-xs font-body text-reader-text placeholder-reader-text-muted focus:outline-none resize-none"
+            />
+            <div className="mt-2 flex items-center justify-between">
+              <button onClick={removeActiveHighlight}
+                className="text-[11px] font-label text-reader-text-muted transition-colors hover:text-red-500">
+                Delete highlight
+              </button>
+              <div className="flex gap-2">
+                <button onClick={() => setActiveNote(null)}
+                  className="text-[11px] font-label text-reader-text-muted transition-colors hover:text-reader-text">
+                  Cancel
+                </button>
+                <button onClick={saveActiveNote}
+                  className="rounded bg-reader-primary px-3 py-1 text-[11px] font-label font-bold text-white transition-opacity hover:opacity-90">
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {highlightsOpen && (
+          <div className="absolute right-3 top-14 z-[55] max-h-[70vh] w-80 overflow-y-auto rounded-lg border border-reader-border bg-reader-header-bg p-3 shadow-xl text-reader-text">
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="text-[10px] font-label font-bold uppercase tracking-wider text-reader-text-muted">
+                Highlights ({highlights.length})
+              </h4>
+              {highlights.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <button onClick={copyHighlightsMarkdown}
+                    className="text-[11px] font-label text-reader-text-muted transition-colors hover:text-reader-text">
+                    Copy markdown
+                  </button>
+                  {obsidianPath && (
+                    <button onClick={sendHighlightsToObsidian}
+                      className={`text-[11px] font-label transition-colors ${
+                        obsidianStatus === "ok" ? "text-reader-primary"
+                        : obsidianStatus === "error" ? "text-red-500"
+                        : "text-reader-text-muted hover:text-reader-text"}`}>
+                      {obsidianStatus === "ok" ? "Sent ✓" : obsidianStatus === "error" ? "Failed" : "Send to Obsidian"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            {highlights.length === 0 ? (
+              <p className="py-4 text-center text-xs text-reader-text-muted">
+                Select text in the article to highlight it.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {highlights.map((h) => (
+                  <li key={h.id}>
+                    <button onClick={() => scrollToHighlight(h.id)}
+                      className="w-full rounded border border-reader-border p-2 text-left transition-colors hover:bg-reader-hover">
+                      <p className="text-xs font-body leading-relaxed line-clamp-3">“{h.quote.trim()}”</p>
+                      {h.note && (
+                        <p className="mt-1 text-[11px] font-body text-reader-text-muted line-clamp-2">{h.note}</p>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
         {chatOpen && chatControls && ollamaSettings && (

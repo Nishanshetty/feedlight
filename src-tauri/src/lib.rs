@@ -20,6 +20,12 @@ pub fn run() {
             sql: include_str!("../migrations/003_read_progress.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "highlights",
+            sql: include_str!("../migrations/004_highlights.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
@@ -42,6 +48,7 @@ pub fn run() {
             commands::feed::resolve_youtube_handle,
             commands::extract::fetch_article_html,
             commands::extract::fetch_image_base64,
+            commands::export::export_markdown,
             commands::tts::synthesize_speech,
             commands::ollama::check_ollama,
             commands::ollama::summarize_article,

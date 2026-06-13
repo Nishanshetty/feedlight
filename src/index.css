@@ -127,6 +127,43 @@
 .font-reader-serif { font-family: Merriweather, Georgia, serif; }
 .font-reader-mono  { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
+/* ── Reader highlights ───────────────────────────────────────────────────── */
+.reader-highlight {
+  background-color: rgba(253, 224, 71, 0.4);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0.05em 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.reader-highlight:hover {
+  background-color: rgba(253, 224, 71, 0.6);
+}
+/* Keep the yellow tint visible when selected text overlaps a highlight mark */
+.reader-highlight::selection,
+.reader-highlight *::selection {
+  background-color: rgba(234, 179, 8, 0.45);
+}
+.reader-theme-dark .reader-highlight {
+  background-color: rgba(202, 165, 30, 0.35);
+}
+.reader-theme-dark .reader-highlight:hover {
+  background-color: rgba(202, 165, 30, 0.5);
+}
+.reader-theme-dark .reader-highlight::selection,
+.reader-theme-dark .reader-highlight *::selection {
+  background-color: rgba(202, 165, 30, 0.5);
+}
+.reader-highlight--noted {
+  border-bottom: 2px dotted var(--reader-primary);
+}
+
+/* Article text must be selectable (Tauri/WebKit defaults to non-selectable) */
+.article-content {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* ── Article reader prose styles ─────────────────────────────────────────── */
 .article-content h1,
 .article-content h2,

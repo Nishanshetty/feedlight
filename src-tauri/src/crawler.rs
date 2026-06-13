@@ -220,6 +220,7 @@ pub async fn do_refresh(app: &AppHandle) -> Result<RefreshResult, String> {
                         "DELETE FROM feed_items
                          WHERE feed_id = ?
                            AND id NOT IN (SELECT item_id FROM item_states WHERE is_starred = 1)
+                           AND id NOT IN (SELECT item_id FROM highlights)
                            AND (
                              published_at < datetime('now', printf('-%d days', ?))
                              OR id NOT IN (

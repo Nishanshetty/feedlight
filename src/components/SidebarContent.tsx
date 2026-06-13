@@ -16,6 +16,7 @@ type Props = {
   activeDiscover: boolean;
   activeStarred: boolean;
   activeToday: boolean;
+  activeHighlights: boolean;
   refreshKey: number;
   onNavigate: (filter: NavFilter) => void;
   onFeedAdded: () => void;
@@ -23,7 +24,7 @@ type Props = {
 };
 
 export default function SidebarContent({
-  feeds, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, activeStarred, activeToday,
+  feeds, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, activeStarred, activeToday, activeHighlights,
   refreshKey, onNavigate, onFeedAdded, onFeedDeleted,
 }: Props) {
   const [unreadByFeed, setUnreadByFeed] = useState<Record<string, number>>({});
@@ -92,6 +93,7 @@ export default function SidebarContent({
         activeDiscover={activeDiscover}
         activeStarred={activeStarred}
         activeToday={activeToday}
+        activeHighlights={activeHighlights}
         todayUnread={todayUnread}
         onNavigate={onNavigate}
         onUnsubscribe={handleUnsubscribe}

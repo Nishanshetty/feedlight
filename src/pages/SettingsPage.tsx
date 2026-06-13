@@ -7,6 +7,7 @@ import {
   getTtsVoice, setTtsVoice, TTS_DEFAULT_VOICE,
   getOllamaSettings, setOllamaSettings,
   getAppTheme, setAppTheme,
+  getObsidianVaultPath, setObsidianVaultPath,
   type OllamaSettings, type AppTheme,
 } from "../lib/settings";
 import { applyTheme } from "../lib/theme";
@@ -223,12 +224,21 @@ export default function SettingsPage() {
   const [ttsCredentials, setTtsCredentials] = useState("");
   const [ttsSave, setTtsSave] = useState<SaveState>("idle");
   const [ttsVoice, setTtsVoiceState] = useState(TTS_DEFAULT_VOICE);
+  const [vaultPath, setVaultPath] = useState("");
+  const [vaultSave, setVaultSave] = useState<SaveState>("idle");
 
   useEffect(() => {
     getYouTubeApiKey().then(setYtKey).catch(console.error);
     getGcpTtsCredentials().then(setTtsCredentials).catch(console.error);
     getTtsVoice().then(setTtsVoiceState).catch(console.error);
+    getObsidianVaultPath().then(setVaultPath).catch(console.error);
   }, []);
+
+  async function saveVaultPath() {
+    setVaultSave("saving");
+    try { await setObsidianVaultPath(vaultPath.trim()); setVaultSave("saved"); setTimeout(() => setVaultSave("idle"), 2000); }
+    catch { setVaultSave("error"); }
+  }
 
   async function saveYtKey() {
     setYtSave("saving");
@@ -304,6 +314,15 @@ export default function SettingsPage() {
           </section>
 
           <OllamaSection />
+
+          <section className="space-y-3">
+            <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Export</h2>
+            <SettingField
+              label="Obsidian Vault Folder"
+              description='Absolute path to a folder inside your vault. "Send to Obsidian" writes one markdown file per article with your highlights and notes.'
+              value={vaultPath} onChange={setVaultPath} onSave={saveVaultPath}
+              placeholder="/Users/you/Documents/Vault/Feedlight" saveState={vaultSave} />
+          </section>
 
         </div>
       </div>

@@ -16,6 +16,7 @@ export type NavFilter = {
   discover?: boolean;
   starred?: boolean;
   today?: boolean;
+  highlights?: boolean;
 };
 
 type Props = {
@@ -28,6 +29,7 @@ type Props = {
   activeDiscover: boolean;
   activeStarred: boolean;
   activeToday: boolean;
+  activeHighlights: boolean;
   todayUnread: number;
   onNavigate: (filter: NavFilter) => void;
   onUnsubscribe: (subId: string, feedId: string, title: string) => void;
@@ -40,6 +42,7 @@ const NAV_ICONS = {
   starred: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.98 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
   digest: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z",
   discover: "M12 21a9 9 0 100-18 9 9 0 000 18zm2.8-11.8l-1.9 4.7-4.7 1.9 1.9-4.7 4.7-1.9z",
+  highlights: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
   analytics: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
 } as const;
 
@@ -147,7 +150,7 @@ function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUns
   );
 }
 
-export default function SidebarNav({ groups, existingFolders, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, activeStarred, activeToday, todayUnread, onNavigate, onUnsubscribe, onMoveToFolder }: Props) {
+export default function SidebarNav({ groups, existingFolders, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, activeStarred, activeToday, activeHighlights, todayUnread, onNavigate, onUnsubscribe, onMoveToFolder }: Props) {
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [menuFor, setMenuFor] = useState<string | null>(null);
 
@@ -159,7 +162,7 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
     });
   }
 
-  const isAllActive = !activeFeedId && !activeFolder && !activeAnalytics && !activeDigest && !activeDiscover && !activeStarred && !activeToday;
+  const isAllActive = !activeFeedId && !activeFolder && !activeAnalytics && !activeDigest && !activeDiscover && !activeStarred && !activeToday && !activeHighlights;
   const totalUnread = Object.values(groups).flat().reduce((sum, e) => sum + e.unread, 0);
 
   const sectionLabel = (label: string) => (
@@ -194,6 +197,7 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
       {navRow("All Articles", "all", isAllActive, totalUnread, () => onNavigate({}))}
       {navRow("Today", "today", activeToday, todayUnread, () => onNavigate({ today: true }))}
       {navRow("Starred", "starred", activeStarred, null, () => onNavigate({ starred: true }))}
+      {navRow("Highlights", "highlights", activeHighlights, null, () => onNavigate({ highlights: true }))}
       {navRow("Digest", "digest", activeDigest, null, () => onNavigate({ digest: true }))}
       {navRow("Discover", "discover", activeDiscover, null, () => onNavigate({ discover: true }))}
       {navRow("Analytics & Stats", "analytics", activeAnalytics, null, () => onNavigate({ analytics: true }))}

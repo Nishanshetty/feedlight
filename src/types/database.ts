@@ -107,3 +107,20 @@ export interface FeedItemInsert {
   author: string | null;
   thumbnail_url: string | null;
 }
+
+export interface Highlight {
+  id: string;
+  item_id: string;
+  quote: string;
+  prefix: string | null;
+  suffix: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+// Joined shape returned by getAllHighlights()
+export interface HighlightWithArticle extends Highlight {
+  article_title: string | null;
+  article_link: string | null;
+  feed_title: string | null;
+}

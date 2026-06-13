@@ -6,6 +6,8 @@ import type {
   FeedAnalytics,
   FeedItemInsert,
   DigestItem,
+  Highlight,
+  HighlightWithArticle,
 } from "../types/database";
 
 const DB_PATH = "sqlite:focal.db";
@@ -306,6 +308,83 @@ export async function updateFeedMeta(
   await db.execute(
     `UPDATE feeds SET last_fetched_at = $1, etag = $2 WHERE id = $3`,
     [meta.last_fetched_at, meta.etag, feedId]
+  );
+}
+
+// ─── Highlights ───────────────────────────────────────────────────────────────
+
+export async function getHighlightsForItem(itemId: string): Promise<Highlight[]> {
+  const db = await getDb();
+  return db.select<Highlight[]>(
+    `SELECT * FROM highlights WHERE item_id = $1 ORDER BY created_at ASC`,
+    [itemId]
+  );
+}
+
+export async function addHighlight(h: {
+  id: string;
+  item_id: string;
+  quote: string;
+  prefix: string | null;
+  suffix: string | null;
+  note: string | null;
+}): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO highlights (id, item_id, quote, prefix, suffix, note)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [h.id, h.item_id, h.quote, h.prefix, h.suffix, h.note]
+  );
+}
+
+export async function updateHighlightNote(id: string, note: string | null): Promise<void> {
+  const db = await getDb();
+  await db.execute(`UPDATE highlights SET note = $1 WHERE id = $2`, [note, id]);
+}
+
+export async function deleteHighlight(id: string): Promise<void> {
+  const db = await getDb();
+  await db.execute(`DELETE FROM highlights WHERE id = $1`, [id]);
+}
+
+export async function getAllHighlights(): Promise<HighlightWithArticle[]> {
+  const db = await getDb();
+  return db.select<HighlightWithArticle[]>(
+    `SELECT h.*, fi.title AS article_title, fi.link AS article_link, f.title AS feed_title
+     FROM highlights h
+     JOIN feed_items fi ON fi.id = h.item_id
+     JOIN feeds f ON f.id = fi.feed_id
+     ORDER BY h.created_at DESC`
+  );
+}
+
+export type ArchivedContent = {
+  title: string;
+  byline: string | null;
+  siteName: string | null;
+  content: string; // sanitized article HTML
+};
+
+export async function getItemContent(itemId: string): Promise<ArchivedContent | null> {
+  const db = await getDb();
+  const rows = await db.select<Array<{ content_json: string }>>(
+    `SELECT content_json FROM item_content WHERE item_id = $1`,
+    [itemId]
+  );
+  if (!rows[0]) return null;
+  try {
+    return JSON.parse(rows[0].content_json) as ArchivedContent;
+  } catch {
+    return null;
+  }
+}
+
+export async function setItemContent(itemId: string, content: ArchivedContent): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO item_content (item_id, content_json) VALUES ($1, $2)
+     ON CONFLICT (item_id) DO NOTHING`,
+    [itemId, JSON.stringify(content)]
   );
 }
 

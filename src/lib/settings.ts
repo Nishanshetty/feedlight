@@ -54,6 +54,17 @@ export async function setAppTheme(theme: AppTheme): Promise<void> {
   await store.save();
 }
 
+export async function getObsidianVaultPath(): Promise<string> {
+  const store = await getStore();
+  return (await store.get<string>("obsidian_vault_path")) ?? "";
+}
+
+export async function setObsidianVaultPath(path: string): Promise<void> {
+  const store = await getStore();
+  await store.set("obsidian_vault_path", path);
+  await store.save();
+}
+
 export type OllamaSettings = {
   enabled: boolean;
   url: string;

@@ -13,6 +13,7 @@ import Timeline from "../components/Timeline";
 import AnalyticsDashboard from "../components/AnalyticsDashboard";
 import DigestView from "../components/DigestView";
 import DiscoverView from "../components/DiscoverView";
+import HighlightsView from "../components/HighlightsView";
 
 export default function HomePage() {
   const [feeds, setFeeds] = useState<SubscribedFeed[]>([]);
@@ -27,6 +28,7 @@ export default function HomePage() {
   const [activeDiscover, setActiveDiscover] = useState(false);
   const [activeStarred, setActiveStarred] = useState(false);
   const [activeToday, setActiveToday] = useState(false);
+  const [activeHighlights, setActiveHighlights] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsResult | null>(null);
   const [analyticsError, setAnalyticsError] = useState("");
   const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
@@ -59,7 +61,8 @@ export default function HomePage() {
     setActiveDiscover(!!filter.discover);
     setActiveStarred(!!filter.starred);
     setActiveToday(!!filter.today);
-    if (filter.analytics || filter.digest || filter.discover || filter.starred || filter.today) {
+    setActiveHighlights(!!filter.highlights);
+    if (filter.analytics || filter.digest || filter.discover || filter.starred || filter.today || filter.highlights) {
       setActiveFeedId(null);
       setActiveFolder(null);
     } else {
@@ -117,6 +120,7 @@ export default function HomePage() {
       activeDiscover={activeDiscover}
       activeStarred={activeStarred}
       activeToday={activeToday}
+      activeHighlights={activeHighlights}
       refreshKey={sidebarRefreshKey}
       onNavigate={handleNavigate}
       onFeedAdded={handleFeedAdded}
@@ -124,7 +128,9 @@ export default function HomePage() {
     />
   );
 
-  const main = activeDiscover ? (
+  const main = activeHighlights ? (
+    <HighlightsView />
+  ) : activeDiscover ? (
     <DiscoverView feeds={feeds} />
   ) : activeDigest ? (
     <DigestView />
