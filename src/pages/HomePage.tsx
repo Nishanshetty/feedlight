@@ -34,7 +34,10 @@ export default function HomePage() {
   const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
 
   useEffect(() => {
-    getSubscribedFeeds().then(setFeeds).catch(console.error);
+    getSubscribedFeeds().then((f) => {
+      setFeeds(f);
+      if (feedsRefreshKey === 0 && f.length === 0) setActiveDiscover(true);
+    }).catch(console.error);
   }, [feedsRefreshKey]);
 
   // Re-render timeline + sidebar whenever the background crawler finishes
@@ -131,7 +134,7 @@ export default function HomePage() {
   const main = activeHighlights ? (
     <HighlightsView />
   ) : activeDiscover ? (
-    <DiscoverView feeds={feeds} />
+    <DiscoverView feeds={feeds} onFeedAdded={handleFeedAdded} />
   ) : activeDigest ? (
     <DigestView />
   ) : activeAnalytics ? (

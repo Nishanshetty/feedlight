@@ -1,188 +1,166 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { getOllamaSettings } from "../lib/settings";
+import { addFeed, upsertFeedItems } from "../lib/db";
+import { v4 as uuidv4 } from "uuid";
 import type { SubscribedFeed } from "../types/database";
 
-type ResultItem = {
+type RecommendedFeed = {
+  name: string;
+  url: string;
+  tagline: string;
+};
+
+type Category = {
+  label: string;
+  feeds: RecommendedFeed[];
+};
+
+const RECOMMENDED: Category[] = [
+  {
+    label: "Tech",
+    feeds: [
+      { name: "Hacker News", url: "https://news.ycombinator.com/rss", tagline: "The pulse of the tech community" },
+      { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", tagline: "Tech, culture & gadgets" },
+      { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index", tagline: "In-depth tech journalism" },
+      { name: "MIT Technology Review", url: "https://www.technologyreview.com/feed/", tagline: "Emerging tech and innovation" },
+    ],
+  },
+  {
+    label: "Science",
+    feeds: [
+      { name: "Quanta Magazine", url: "https://api.quantamagazine.org/feed/", tagline: "Math, physics, and life sciences" },
+      { name: "NASA Breaking News", url: "https://www.nasa.gov/rss/dyn/breaking_news.rss", tagline: "Space exploration and discoveries" },
+      { name: "Scientific American", url: "https://www.scientificamerican.com/platform/syndication/rss/", tagline: "Science for the curious mind" },
+    ],
+  },
+  {
+    label: "Design & Dev",
+    feeds: [
+      { name: "Smashing Magazine", url: "https://www.smashingmagazine.com/feed/", tagline: "Design and front-end development" },
+      { name: "CSS-Tricks", url: "https://css-tricks.com/feed/", tagline: "Web design tips and techniques" },
+      { name: "A List Apart", url: "https://alistapart.com/main/feed/", tagline: "Web standards and best practices" },
+    ],
+  },
+  {
+    label: "News",
+    feeds: [
+      { name: "BBC News", url: "https://feeds.bbci.co.uk/news/rss.xml", tagline: "World news from the BBC" },
+      { name: "Reuters", url: "https://feeds.reuters.com/Reuters/worldNews", tagline: "Impartial global reporting" },
+      { name: "The Guardian", url: "https://www.theguardian.com/world/rss", tagline: "Independent journalism since 1821" },
+    ],
+  },
+  {
+    label: "Culture",
+    feeds: [
+      { name: "Kottke.org", url: "https://feeds.kottke.org/main", tagline: "The best of the web since 1998" },
+      { name: "The Marginalian", url: "https://www.themarginalian.org/feed/", tagline: "Ideas on art, science & philosophy" },
+      { name: "Wait But Why", url: "https://waitbutwhy.com/feed", tagline: "Long-form essays on everything" },
+    ],
+  },
+];
+
+type ParsedFeedItem = {
+  id: string;
+  guid: string;
   title: string | null;
   link: string | null;
+  content: string | null;
+  content_hash: string | null;
   published_at: string | null;
   author: string | null;
+  thumbnail_url: string | null;
 };
 
 type ParsedFeed = {
-  items: ResultItem[];
+  title: string | null;
+  site_url: string | null;
+  items: ParsedFeedItem[];
 };
 
-type QueryResult = {
-  query: string;
-  items: ResultItem[];
-  error?: string;
-};
+type FeedStatus = "idle" | "pending" | "done" | "error";
 
-type State =
-  | { kind: "idle" }
-  | { kind: "generating" }
-  | { kind: "fetching"; queries: string[] }
-  | { kind: "done"; results: QueryResult[] }
-  | { kind: "error"; message: string };
+type Props = { feeds: SubscribedFeed[]; onFeedAdded: () => void };
 
-function formatRelative(iso: string | null): string {
-  if (!iso) return "";
-  const diff = Date.now() - new Date(iso).getTime();
-  const hrs = Math.floor(diff / 3_600_000);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(diff / 86_400_000);
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
+export default function DiscoverView({ feeds, onFeedAdded }: Props) {
+  const [statuses, setStatuses] = useState<Record<string, FeedStatus>>({});
 
-type Props = { feeds: SubscribedFeed[] };
+  const subscribedUrls = new Set(feeds.map((f) => f.url));
 
-export default function DiscoverView({ feeds }: Props) {
-  const [state, setState] = useState<State>({ kind: "idle" });
+  function setStatus(url: string, status: FeedStatus) {
+    setStatuses((prev) => ({ ...prev, [url]: status }));
+  }
 
-  async function discover() {
-    setState({ kind: "generating" });
-
+  async function handleSubscribe(rec: RecommendedFeed) {
+    setStatus(rec.url, "pending");
     try {
-      const settings = await getOllamaSettings();
-      const feedTitles = feeds.map((f) => f.title ?? f.url).filter(Boolean) as string[];
-
-      let queries: string[];
-
-      if (settings.enabled && feedTitles.length > 0) {
-        try {
-          queries = await invoke<string[]>("generate_discover_queries", {
-            baseUrl: settings.url,
-            model: settings.model,
-            feedTitles,
-          });
-        } catch {
-          queries = feedTitles.slice(0, 4);
-        }
-      } else {
-        queries = feedTitles.slice(0, 4);
-      }
-
-      if (queries.length === 0) {
-        setState({ kind: "error", message: "No feeds to discover from. Add some feeds first." });
-        return;
-      }
-
-      setState({ kind: "fetching", queries });
-
-      const results = await Promise.all(
-        queries.map(async (query): Promise<QueryResult> => {
-          try {
-            const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
-            const feed = await invoke<ParsedFeed>("fetch_feed", { url });
-            return { query, items: feed.items.slice(0, 6) };
-          } catch (e) {
-            return { query, items: [], error: String(e) };
-          }
-        })
+      const parsed = await invoke<ParsedFeed>("fetch_feed", { url: rec.url });
+      const feedId = uuidv4();
+      const subscriptionId = uuidv4();
+      await addFeed(
+        { id: feedId, url: rec.url, title: parsed.title ?? rec.name, site_url: parsed.site_url },
+        null,
+        subscriptionId
       );
-
-      setState({ kind: "done", results });
-    } catch (e) {
-      setState({ kind: "error", message: String(e) });
+      await upsertFeedItems(parsed.items.map((item) => ({ ...item, feed_id: feedId })));
+      setStatus(rec.url, "done");
+      onFeedAdded();
+    } catch {
+      setStatus(rec.url, "error");
     }
   }
 
-  useEffect(() => { discover(); }, []);
-
   return (
     <div className="flex h-full flex-col bg-background">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-outline-variant/40 bg-background/80 backdrop-blur-xl px-6">
+      <header className="flex h-14 shrink-0 items-center border-b border-outline-variant/40 bg-background/80 backdrop-blur-xl px-6">
         <span className="font-headline text-lg font-bold tracking-[0.2em] text-primary uppercase">Discover</span>
-        {(state.kind === "done" || state.kind === "error") && (
-          <button onClick={discover}
-            className="text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors">
-            Refresh
-          </button>
-        )}
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">
-        {state.kind === "idle" || state.kind === "generating" ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-            <p className="text-[11px] font-label uppercase tracking-widest text-outline animate-pulse">
-              {state.kind === "generating" ? "Generating queries with AI…" : "Starting…"}
-            </p>
-          </div>
-        ) : state.kind === "fetching" ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-            <p className="text-[11px] font-label uppercase tracking-widest text-outline animate-pulse">
-              Fetching results…
-            </p>
-            <div className="flex flex-wrap justify-center gap-2 mt-2">
-              {state.queries.map((q) => (
-                <span key={q} className="text-[10px] font-label px-2 py-0.5 border border-outline-variant/40 text-outline">
-                  {q}
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : state.kind === "error" ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-            <p className="text-[11px] font-label uppercase tracking-widest text-error">{state.message}</p>
-            <button onClick={discover}
-              className="mt-2 border border-outline-variant/40 px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors">
-              Try Again
-            </button>
-          </div>
-        ) : (
-          <div className="mx-auto max-w-3xl space-y-10">
-            {state.results.map(({ query, items, error }) => (
-              <section key={query}>
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">
-                    {query}
-                  </span>
-                  <div className="flex-1 border-t border-outline-variant/30" />
-                </div>
+        <div className="mx-auto max-w-2xl space-y-10">
+          {RECOMMENDED.map(({ label, feeds: recs }) => (
+            <section key={label}>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">{label}</span>
+                <div className="flex-1 border-t border-outline-variant/30" />
+              </div>
+              <ul className="space-y-1">
+                {recs.map((rec) => {
+                  const alreadySubscribed = subscribedUrls.has(rec.url);
+                  const status = alreadySubscribed ? "done" : (statuses[rec.url] ?? "idle");
 
-                {error ? (
-                  <p className="text-[11px] font-label text-error px-1">{error}</p>
-                ) : items.length === 0 ? (
-                  <p className="text-[11px] font-label text-outline px-1">No results found.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {items.map((item, i) => (
-                      <li key={i}
-                        className="group flex items-start justify-between gap-4 border border-outline-variant/40 px-4 py-3 hover:border-primary/40 transition-colors cursor-pointer"
-                        onClick={() => item.link && openUrl(item.link)}>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-body text-on-surface leading-snug group-hover:text-primary transition-colors line-clamp-2">
-                            {item.title ?? "Untitled"}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            {item.author && (
-                              <span className="text-[10px] font-label text-outline truncate">{item.author}</span>
-                            )}
-                            {item.author && item.published_at && (
-                              <span className="text-[10px] text-outline/50">·</span>
-                            )}
-                            {item.published_at && (
-                              <span className="text-[10px] font-label text-outline shrink-0">
-                                {formatRelative(item.published_at)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <svg className="h-3.5 w-3.5 shrink-0 mt-0.5 text-outline opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ))}
-          </div>
-        )}
+                  return (
+                    <li key={rec.url}
+                      className="flex items-center justify-between gap-4 border border-outline-variant/40 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-body text-on-surface">{rec.name}</p>
+                        <p className="text-[11px] font-label text-outline mt-0.5">{rec.tagline}</p>
+                      </div>
+
+                      {status === "done" ? (
+                        <span className="shrink-0 flex items-center gap-1 text-[11px] font-label font-bold text-primary">
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Subscribed
+                        </span>
+                      ) : status === "error" ? (
+                        <button onClick={() => handleSubscribe(rec)}
+                          className="shrink-0 text-[11px] font-label font-bold text-error hover:underline">
+                          Retry
+                        </button>
+                      ) : (
+                        <button onClick={() => handleSubscribe(rec)} disabled={status === "pending"}
+                          className="shrink-0 border border-outline-variant/60 px-3 py-1.5 text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-colors hover:border-primary hover:text-primary disabled:opacity-40">
+                          {status === "pending" ? "Adding…" : "+ Add"}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       </div>
     </div>
   );
