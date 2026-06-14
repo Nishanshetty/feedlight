@@ -51,7 +51,7 @@ export default function TimelineList({
 }: Props) {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [density, setDensity] = useState<"grid" | "list">(() => {
-    try { return localStorage.getItem("focal:timeline-density") === "list" ? "list" : "grid"; }
+    try { return localStorage.getItem("feedlight:timeline-density") === "list" ? "list" : "grid"; }
     catch { return "grid"; }
   });
   const [searchInput, setSearchInput] = useState("");
@@ -82,7 +82,7 @@ export default function TimelineList({
 
   function changeDensity(d: "grid" | "list") {
     setDensity(d);
-    try { localStorage.setItem("focal:timeline-density", d); } catch { /* ignore */ }
+    try { localStorage.setItem("feedlight:timeline-density", d); } catch { /* ignore */ }
   }
 
   // Debounce search input → query

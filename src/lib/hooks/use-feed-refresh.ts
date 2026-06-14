@@ -8,7 +8,7 @@ type RefreshPayload = {
 
 export function useFeedRefresh(onRefresh: (payload: RefreshPayload) => void): void {
   useEffect(() => {
-    const unlisten = listen<RefreshPayload>("focal://feeds-refreshed", (event) => {
+    const unlisten = listen<RefreshPayload>("feedlight://feeds-refreshed", (event) => {
       onRefresh(event.payload);
     });
     return () => { unlisten.then((fn) => fn()); };

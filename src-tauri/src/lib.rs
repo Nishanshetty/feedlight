@@ -33,7 +33,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(
             tauri_plugin_sql::Builder::default()
-                .add_migrations("sqlite:focal.db", migrations)
+                .add_migrations("sqlite:feedlight.db", migrations)
                 .build(),
         )
         .setup(|app| {
@@ -60,5 +60,5 @@ pub fn run() {
             crawler::refresh_feeds_now,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Focal");
+        .expect("error while running Feedlight");
 }

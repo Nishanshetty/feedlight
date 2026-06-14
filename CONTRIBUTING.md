@@ -1,4 +1,4 @@
-# Contributing to Focal
+# Contributing to Feedlight
 
 Thanks for your interest in contributing! Here's everything you need to get started.
 
@@ -9,8 +9,8 @@ Thanks for your interest in contributing! Here's everything you need to get star
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # 2. Clone and install
-git clone https://github.com/nishanshetty/focal.git
-cd focal
+git clone https://github.com/nishanshetty/feedlight.git
+cd feedlight
 npm install
 
 # 3. Start the dev server
@@ -49,7 +49,7 @@ cd src-tauri && cargo check   # Rust — must pass
 
 ## Reporting bugs
 
-Use the [Bug Report](.github/ISSUE_TEMPLATE/bug_report.md) template. Include your macOS version, Focal version, and steps to reproduce.
+Use the [Bug Report](.github/ISSUE_TEMPLATE/bug_report.md) template. Include your macOS version, Feedlight version, and steps to reproduce.
 
 ## Suggesting features
 

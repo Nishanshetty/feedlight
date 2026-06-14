@@ -1,0 +1,612 @@
+---
+import Layout from '../layouts/Layout.astro';
+import '../styles/global.css';
+
+const GITHUB_URL = 'https://github.com/nishanshetty/feedlight';
+const RELEASES_URL = 'https://github.com/nishanshetty/feedlight/releases/latest';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+// Sidebar table of contents — keep ids in sync with section headings below.
+const toc = [
+  {
+    group: 'Getting started',
+    items: [
+      { id: 'install', label: 'Installation' },
+      { id: 'first-launch', label: 'First launch' },
+      { id: 'quick-start', label: 'Quick start' },
+    ],
+  },
+  {
+    group: 'Feeds',
+    items: [
+      { id: 'add-feeds', label: 'Adding feeds' },
+      { id: 'youtube', label: 'YouTube channels' },
+      { id: 'discover', label: 'Discover' },
+      { id: 'folders', label: 'Folders' },
+      { id: 'opml', label: 'OPML import / export' },
+    ],
+  },
+  {
+    group: 'Reading',
+    items: [
+      { id: 'timeline', label: 'The timeline' },
+      { id: 'reader', label: 'The reader' },
+      { id: 'highlights', label: 'Highlights & notes' },
+      { id: 'tts', label: 'Text to speech' },
+    ],
+  },
+  {
+    group: 'Intelligence',
+    items: [
+      { id: 'ai', label: 'AI features' },
+      { id: 'digest', label: "Today's Digest" },
+      { id: 'analytics', label: 'Analytics' },
+    ],
+  },
+  {
+    group: 'Reference',
+    items: [
+      { id: 'export', label: 'Obsidian export' },
+      { id: 'settings', label: 'Settings reference' },
+      { id: 'shortcuts', label: 'Keyboard shortcuts' },
+      { id: 'privacy', label: 'Privacy & data' },
+      { id: 'troubleshooting', label: 'Troubleshooting' },
+    ],
+  },
+];
+---
+
+<Layout
+  title="Documentation — Feedlight"
+  description="Complete documentation for Feedlight: installing, configuring, and using every feature of the local-first RSS reader for macOS."
+>
+  <!-- ── Navigation ───────────────────────────────────────────────── -->
+  <header class="fixed top-0 inset-x-0 z-50 border-b border-border bg-bg/80 backdrop-blur-xl">
+    <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+      <a href={`${base}/`} class="font-headline text-sm font-bold tracking-[0.25em] text-accent-bright uppercase">FEEDLIGHT</a>
+      <nav class="flex items-center gap-6 text-xs font-semibold tracking-wide text-muted">
+        <a href={`${base}/`} class="transition-colors hover:text-cream">Home</a>
+        <a href={`${base}/docs`} class="text-cream">Docs</a>
+        <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 transition-colors hover:text-cream">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844a9.59 9.59 0 012.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+          </svg>
+          GitHub
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="mx-auto max-w-6xl px-6 pt-24 pb-32">
+    <div class="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-12">
+
+      <!-- ── Sidebar TOC ──────────────────────────────────────────── -->
+      <aside class="hidden lg:block">
+        <nav class="sticky top-24 space-y-6">
+          {toc.map((section) => (
+            <div>
+              <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-accent">{section.group}</p>
+              <ul class="space-y-1.5 border-l border-border">
+                {section.items.map((item) => (
+                  <li>
+                    <a href={`#${item.id}`} class="-ml-px block border-l border-transparent pl-3 text-[13px] text-muted transition-colors hover:border-accent hover:text-cream">
+                      {item.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <!-- ── Content ──────────────────────────────────────────────── -->
+      <main class="docs min-w-0">
+        <p class="mb-3 text-xs font-bold uppercase tracking-widest text-accent">Documentation</p>
+        <h1 class="font-headline text-4xl font-bold tracking-tight text-cream">Feedlight user guide</h1>
+        <p class="mt-4 max-w-2xl text-base leading-relaxed text-muted">
+          Feedlight is a local-first RSS reader for macOS. Everything — your feeds, articles, highlights,
+          and settings — lives in a SQLite database on your Mac. No accounts, no cloud, no telemetry.
+          This guide covers installation, configuration, and every feature in the app.
+        </p>
+
+        <!-- ════════════════════ INSTALLATION ════════════════════ -->
+        <h2 id="install">Installation</h2>
+        <p>
+          Feedlight ships as a universal macOS app (Apple Silicon + Intel). Requires <strong>macOS 13 Ventura or later</strong>.
+        </p>
+        <ol>
+          <li>Go to the <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer">latest release</a> and download the <code>.dmg</code>.</li>
+          <li>Open the <code>.dmg</code> and drag <strong>Feedlight</strong> into your <strong>Applications</strong> folder.</li>
+          <li>Launch it from Applications or Spotlight.</li>
+        </ol>
+
+        <h3>Build from source</h3>
+        <p>If you'd rather build it yourself, you'll need <a href="https://rustup.rs" target="_blank" rel="noopener noreferrer">Rust</a> 1.80+, Node.js 18+, and the Xcode Command Line Tools.</p>
+        <pre><code>git clone https://github.com/nishanshetty/feedlight.git
+cd feedlight
+npm install
+npm run tauri dev      # development build with hot reload
+npm run tauri build    # production .dmg + .app</code></pre>
+        <p>The production build is written to <code>src-tauri/target/release/bundle/</code>.</p>
+
+        <!-- ════════════════════ FIRST LAUNCH ════════════════════ -->
+        <h2 id="first-launch">First launch</h2>
+        <p>
+          The release builds are not notarized by Apple, so the first launch needs one extra step.
+          If macOS says the app “cannot be opened because the developer cannot be verified”:
+        </p>
+        <ol>
+          <li>Click <strong>Cancel</strong> on the dialog.</li>
+          <li>Open <strong>System Settings → Privacy &amp; Security</strong>, scroll to the Security section, and click <strong>Open Anyway</strong> next to the Feedlight notice.</li>
+          <li>Confirm <strong>Open</strong>. macOS remembers this — you only do it once.</li>
+        </ol>
+        <p class="callout">
+          Prefer the terminal? <code>xattr -dr com.apple.quarantine /Applications/Feedlight.app</code> clears the quarantine flag in one step.
+        </p>
+
+        <!-- ════════════════════ QUICK START ════════════════════ -->
+        <h2 id="quick-start">Quick start</h2>
+        <p>Three ways to fill your timeline in under a minute:</p>
+        <ul>
+          <li><strong>Add a feed by URL</strong> — paste any site or feed URL into <strong>Add Feed</strong> in the sidebar. See <a href="#add-feeds">Adding feeds</a>.</li>
+          <li><strong>Pick from Discover</strong> — a curated catalog of quality feeds you can subscribe to with one click. See <a href="#discover">Discover</a>.</li>
+          <li><strong>Import OPML</strong> — bring your whole subscription list over from Feedly, Inoreader, or any other reader. See <a href="#opml">OPML import / export</a>.</li>
+        </ul>
+
+        <figure>
+          <img src={`${base}/screenshots/main.png`} alt="The Feedlight timeline showing article cards, the sidebar, and the reader" loading="lazy" />
+          <figcaption>The main window — sidebar of feeds and views on the left, article timeline in the center.</figcaption>
+        </figure>
+
+        <!-- ════════════════════ ADD FEEDS ════════════════════ -->
+        <h2 id="add-feeds">Adding feeds</h2>
+        <p>
+          Click <strong>Add Feed</strong> at the top of the sidebar, paste a URL, and hit <strong>Subscribe</strong>.
+          You don't need the exact feed address — paste a site's home page (for example <code>https://example.com</code>)
+          and Feedlight auto-discovers its RSS or Atom feed. You can optionally type a <strong>Folder</strong> name to
+          file the feed straight away (existing folders autocomplete).
+        </p>
+        <p>Feedlight understands:</p>
+        <ul>
+          <li><strong>RSS and Atom feeds</strong> — by direct feed URL or by site URL (auto-discovered).</li>
+          <li><strong>YouTube channels</strong> — see below.</li>
+        </ul>
+
+        <figure>
+          <div class="shot-placeholder">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+            <span class="file">screenshots/add-feed.png</span>
+            <span class="hint">Screenshot coming soon</span>
+          </div>
+          <figcaption>Adding a feed — paste a site or feed URL and, optionally, a folder.</figcaption>
+        </figure>
+
+        <h3 id="youtube">YouTube channels</h3>
+        <p>Subscribe to a YouTube channel and its uploads land in your timeline like any other feed. Three URL forms work:</p>
+        <ul>
+          <li><code>youtube.com/channel/UC…</code> — works out of the box.</li>
+          <li><code>youtube.com/user/name</code> — works out of the box.</li>
+          <li><code>youtube.com/@handle</code> — requires a free <strong>YouTube Data API key</strong> (Feedlight uses it to resolve the handle into a channel ID).</li>
+        </ul>
+        <p>
+          To use <code>@handle</code> URLs, add a key in <a href="#settings">Settings → YouTube</a>. Get one from the
+          <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">Google Cloud Console</a> →
+          APIs &amp; Services → enable <strong>YouTube Data API v3</strong> → create an API key.
+        </p>
+
+        <!-- ════════════════════ DISCOVER ════════════════════ -->
+        <h2 id="discover">Discover</h2>
+        <p>
+          The <strong>Discover</strong> view is a hand-picked catalog of quality feeds grouped by topic —
+          <em>Tech</em>, <em>Science</em>, <em>Design &amp; Dev</em>, <em>News</em>, and <em>Culture</em>.
+          Click <strong>+ Add</strong> next to any feed to subscribe instantly; feeds you already follow are marked
+          <strong>Subscribed</strong>. It's the fastest way to seed a fresh install with good sources.
+        </p>
+        <figure>
+          <div class="shot-placeholder">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+            <span class="file">screenshots/discover.png</span>
+            <span class="hint">Screenshot coming soon</span>
+          </div>
+          <figcaption>Discover — a curated catalog of feeds, one click to subscribe.</figcaption>
+        </figure>
+
+        <!-- ════════════════════ FOLDERS ════════════════════ -->
+        <h2 id="folders">Folders</h2>
+        <p>
+          Organize feeds into folders to keep the sidebar tidy. You can set a folder when adding a feed, or change it
+          later: hover a feed in the sidebar, click the <strong>⋯</strong> menu, and choose <strong>Move to folder</strong>
+          (pick an existing folder, type a new one, or remove it from its folder). The same menu has
+          <strong>Unsubscribe</strong>. Folders collapse and show a combined unread count; each feed shows its own
+          unread pill and site favicon.
+        </p>
+
+        <!-- ════════════════════ OPML ════════════════════ -->
+        <h2 id="opml">OPML import / export</h2>
+        <p>
+          OPML is the standard interchange format for feed subscriptions, so you can move in and out of Feedlight freely.
+          The <strong>Import</strong> and <strong>Export</strong> buttons live in the sidebar.
+        </p>
+        <ul>
+          <li><strong>Import</strong> — pick an <code>.opml</code> file exported from another reader. Feedlight fetches each feed, preserves your folder structure, skips duplicates, and reports how many were added, already subscribed, or failed.</li>
+          <li><strong>Export</strong> — writes all your subscriptions (grouped by folder) to a dated <code>.opml</code> file you can back up or import elsewhere.</li>
+        </ul>
+
+        <!-- ════════════════════ TIMELINE ════════════════════ -->
+        <h2 id="timeline">The timeline</h2>
+        <p>The center column is your reading timeline. The sidebar's <strong>Views</strong> section controls what it shows:</p>
+        <ul>
+          <li><strong>All Articles</strong> — everything from every feed, newest first.</li>
+          <li><strong>Today</strong> — only articles published today, with its own unread count.</li>
+          <li><strong>Starred</strong> — articles you've starred for later.</li>
+          <li><strong>A single feed or folder</strong> — click any feed or folder name to filter.</li>
+        </ul>
+        <p>Within the timeline you can:</p>
+        <ul>
+          <li><strong>Search</strong> — press <kbd>/</kbd> and type to full-text search across titles and content.</li>
+          <li><strong>Switch density</strong> — magazine-style cards (with images and a hero lead story) or a compact list.</li>
+          <li><strong>Resume reading</strong> — cards show a progress line; reopening an article scrolls back to where you left off.</li>
+          <li><strong>Mark read / star</strong> — per article, or <kbd>Shift</kbd>+<kbd>A</kbd> to mark everything visible as read.</li>
+        </ul>
+        <p>Articles are grouped under date headers, and the timeline loads more as you scroll. See <a href="#shortcuts">Keyboard shortcuts</a> to fly through it hands-free.</p>
+
+        <!-- ════════════════════ READER ════════════════════ -->
+        <h2 id="reader">The reader</h2>
+        <p>
+          Open any article to read it in a distraction-free pane powered by <a href="https://github.com/mozilla/readability" target="_blank" rel="noopener noreferrer">Mozilla Readability</a> —
+          the same extraction engine as Firefox's Reader View. Ads, navigation, and clutter are stripped away,
+          leaving just the article, a reading-progress bar, and a read-time estimate. The accent color is drawn from
+          the article's lead image.
+        </p>
+        <p>Click the <strong>Aa</strong> button in the reader header to customize the reading experience:</p>
+        <ul>
+          <li><strong>Theme</strong> — Auto (follows the app theme), Light, Sepia, Slate, or Dark.</li>
+          <li><strong>Font</strong> — Sans-serif, Serif, or Monospace.</li>
+          <li><strong>Font size</strong> — 12–22px.</li>
+          <li><strong>Width</strong> — column width.</li>
+          <li><strong>Spacing</strong> — line height.</li>
+        </ul>
+        <p>Your choices are remembered. The <strong>open-in-browser</strong> button (top right) opens the original page in your default browser.</p>
+        <figure>
+          <img src={`${base}/screenshots/reader.png`} alt="The Feedlight article reader pane" loading="lazy" />
+          <figcaption>The reader — clean typography, four themes, adjustable font and width.</figcaption>
+        </figure>
+
+        <!-- ════════════════════ HIGHLIGHTS ════════════════════ -->
+        <h2 id="highlights">Highlights &amp; notes</h2>
+        <p>
+          Select any text in the reader and a small toolbar appears. From it you can:
+        </p>
+        <ul>
+          <li><strong>Highlight</strong> — save the passage. It's marked in the article and added to your Highlights.</li>
+          <li><strong>Note</strong> — highlight the passage <em>and</em> attach a note. Click any highlight later to edit its note.</li>
+          <li><strong>Explain</strong> / <strong>Ask</strong> — send the passage to the AI chat (see <a href="#ai">AI features</a>).</li>
+          <li><strong>Listen</strong> — jump text-to-speech to that paragraph (see <a href="#tts">Text to speech</a>).</li>
+          <li><strong>Copy</strong> — copy the selection.</li>
+        </ul>
+        <p>
+          The <strong>Highlights</strong> view in the sidebar collects every highlight, grouped by article, with its note and date.
+          From there you can <strong>Copy</strong> an article's highlights as Markdown, open the source article, delete a highlight,
+          or <strong>Send to Obsidian</strong> (see <a href="#export">Obsidian export</a>).
+        </p>
+        <figure>
+          <div class="shot-placeholder">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+            <span class="file">screenshots/highlights.png</span>
+            <span class="hint">Screenshot coming soon</span>
+          </div>
+          <figcaption>Highlights — every saved passage and note, grouped by article.</figcaption>
+        </figure>
+
+        <!-- ════════════════════ TTS ════════════════════ -->
+        <h2 id="tts">Text to speech</h2>
+        <p>
+          Feedlight can read articles aloud using Google Cloud's <strong>Neural2</strong> voices, with the current paragraph
+          highlighted as it plays. This is an optional feature that needs Google Cloud TTS credentials.
+        </p>
+        <h3>Set it up</h3>
+        <ol>
+          <li>In the <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">Google Cloud Console</a>, enable the <strong>Cloud Text-to-Speech API</strong>.</li>
+          <li>Create a <strong>service account</strong> (IAM &amp; Admin → Service Accounts) and add a <strong>JSON key</strong>.</li>
+          <li>Open the downloaded JSON file, copy its entire contents, and paste it into <a href="#settings">Settings → Text to Speech → Google Cloud TTS Credentials</a>.</li>
+          <li>Pick a <strong>Voice</strong> from the nine Neural2 options (the default is a female voice).</li>
+        </ol>
+        <h3>Listen</h3>
+        <p>
+          In the reader header, press <strong>Listen</strong> (the speaker icon). Controls let you <strong>Pause</strong>,
+          <strong>Stop</strong>, and cycle <strong>playback speed</strong>. Click any paragraph — or use the
+          <strong>Listen</strong> button in the selection toolbar — to jump playback to that spot.
+        </p>
+        <p class="callout">
+          Credentials are stored locally on your Mac via <code>tauri-plugin-store</code>; audio is synthesized through your
+          own Google Cloud project. Standard Google Cloud TTS pricing applies.
+        </p>
+
+        <!-- ════════════════════ AI ════════════════════ -->
+        <h2 id="ai">AI features</h2>
+        <p>
+          Feedlight's AI runs entirely on your own machine through <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> —
+          a local LLM runtime. Nothing is sent to a cloud service, and there are no API keys or usage fees.
+        </p>
+        <h3>Set it up</h3>
+        <ol>
+          <li>Install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> and pull a model: <code>ollama pull llama3.2</code></li>
+          <li>Open <a href="#settings">Settings → AI Summarization</a> and toggle <strong>Enable Ollama Summarization</strong> on.</li>
+          <li>Confirm the <strong>Base URL</strong> (<code>http://localhost:11434</code>) and <strong>Model</strong> (e.g. <code>llama3.2</code>), then press <strong>Test</strong> to verify Feedlight can reach Ollama and the model is installed.</li>
+        </ol>
+        <h3>What you get</h3>
+        <p>Once enabled, the reader gains these tools:</p>
+        <ul>
+          <li><strong>Summarize</strong> (✦ in the reader header) — a streamed summary with automatic key takeaways.</li>
+          <li><strong>Ask</strong> — open a chat panel and ask questions about the article, with suggested questions to get going.</li>
+          <li><strong>Explain / Ask from a selection</strong> — select text and choose <strong>Explain</strong> for an instant explanation, or <strong>Ask</strong> to quote it into a question.</li>
+        </ul>
+        <figure>
+          <div class="shot-placeholder">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+            <span class="file">screenshots/summary.png</span>
+            <span class="hint">Screenshot coming soon</span>
+          </div>
+          <figcaption>AI summary and chat — generated locally by Ollama.</figcaption>
+        </figure>
+
+        <!-- ════════════════════ DIGEST ════════════════════ -->
+        <h2 id="digest">Today's Digest</h2>
+        <p>
+          The <strong>Digest</strong> view turns the last 24 hours of articles into a focused briefing. Press
+          <strong>Generate Digest</strong> and Ollama writes a short bulleted summary of everything new, followed by the
+          underlying articles grouped by source so you can dive into anything that catches your eye. Requires
+          <a href="#ai">AI features</a> to be enabled.
+        </p>
+        <figure>
+          <img src={`${base}/screenshots/digest.png`} alt="Today's Digest — an AI summary of the last 24 hours" loading="lazy" />
+          <figcaption>Today's Digest — an at-a-glance summary of the last 24 hours, with sources below.</figcaption>
+        </figure>
+
+        <!-- ════════════════════ ANALYTICS ════════════════════ -->
+        <h2 id="analytics">Analytics</h2>
+        <p>
+          The <strong>Analytics &amp; Stats</strong> view helps you keep your subscription list healthy. It shows your overall
+          read-engagement rate, subscription volume, and folder distribution, then flags three kinds of feeds worth
+          reviewing:
+        </p>
+        <ul>
+          <li><strong>Noisy Feeds</strong> — publishing more than ~15 articles a week.</li>
+          <li><strong>Ignored Feeds</strong> — active feeds you read less than 10% of (minimum 10 posts).</li>
+          <li><strong>Dead &amp; Failing</strong> — no new posts in 30 days, or feeds that are failing to sync.</li>
+        </ul>
+        <p>You can unsubscribe straight from each flagged feed to declutter in seconds.</p>
+        <figure>
+          <div class="shot-placeholder">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+            <span class="file">screenshots/analytics.png</span>
+            <span class="hint">Screenshot coming soon</span>
+          </div>
+          <figcaption>Analytics — engagement metrics and feeds worth pruning.</figcaption>
+        </figure>
+
+        <!-- ════════════════════ EXPORT ════════════════════ -->
+        <h2 id="export">Obsidian export</h2>
+        <p>
+          If you keep notes in <a href="https://obsidian.md" target="_blank" rel="noopener noreferrer">Obsidian</a>, Feedlight can write your
+          highlights straight into your vault. Set the absolute path to a folder inside your vault in
+          <a href="#settings">Settings → Export → Obsidian Vault Folder</a> (for example
+          <code>/Users/you/Documents/Vault/Feedlight</code>).
+        </p>
+        <p>
+          Then, in the <strong>Highlights</strong> view, click <strong>Send to Obsidian</strong> on any article. Feedlight
+          writes one Markdown file per article — the title and source link, followed by each highlight as a blockquote with
+          its note underneath. Prefer to paste it yourself? <strong>Copy</strong> gives you the same Markdown on your
+          clipboard.
+        </p>
+
+        <!-- ════════════════════ SETTINGS ════════════════════ -->
+        <h2 id="settings">Settings reference</h2>
+        <p>Open <strong>Settings</strong> from the gear icon in the top bar. Everything is optional except what you choose to use.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Section</th><th>Setting</th><th>What it does</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Appearance</td><td>Theme</td><td>App-wide Light, Dark, or System (follows macOS). The reader keeps its own theme setting.</td></tr>
+              <tr><td>YouTube</td><td>YouTube Data API Key</td><td>Lets you subscribe to <code>@handle</code> YouTube channels.</td></tr>
+              <tr><td>Text to Speech</td><td>Google Cloud TTS Credentials</td><td>Paste your GCP service-account JSON to enable read-aloud.</td></tr>
+              <tr><td>Text to Speech</td><td>Voice</td><td>Choose one of nine Google Neural2 voices.</td></tr>
+              <tr><td>AI Summarization</td><td>Enable Ollama</td><td>Turns on local AI summaries, chat, and digest.</td></tr>
+              <tr><td>AI Summarization</td><td>Base URL &amp; Model</td><td>Where Ollama runs and which model to use; <strong>Test</strong> verifies the connection.</td></tr>
+              <tr><td>Export</td><td>Obsidian Vault Folder</td><td>Destination folder for <strong>Send to Obsidian</strong>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figure>
+          <img src={`${base}/screenshots/settings.png`} alt="The Feedlight settings screen" loading="lazy" />
+          <figcaption>Settings — appearance, YouTube, TTS, AI, and export, all stored locally.</figcaption>
+        </figure>
+
+        <!-- ════════════════════ SHORTCUTS ════════════════════ -->
+        <h2 id="shortcuts">Keyboard shortcuts</h2>
+        <p>Feedlight is built to be driven from the keyboard. Press <kbd>?</kbd> anytime to see this list in the app.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Key</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td><kbd>j</kbd></td><td>Next item</td></tr>
+              <tr><td><kbd>k</kbd></td><td>Previous item</td></tr>
+              <tr><td><kbd>o</kbd> / <kbd>Enter</kbd></td><td>Open article pane</td></tr>
+              <tr><td><kbd>m</kbd></td><td>Toggle read / unread</td></tr>
+              <tr><td><kbd>s</kbd></td><td>Toggle star</td></tr>
+              <tr><td><kbd>Shift</kbd>+<kbd>A</kbd></td><td>Mark all visible items as read</td></tr>
+              <tr><td><kbd>/</kbd></td><td>Search</td></tr>
+              <tr><td><kbd>Esc</kbd></td><td>Close article pane</td></tr>
+              <tr><td><kbd>?</kbd></td><td>Show keyboard shortcuts</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ════════════════════ PRIVACY ════════════════════ -->
+        <h2 id="privacy">Privacy &amp; data</h2>
+        <p>
+          Feedlight is local-first by design. Your subscriptions, articles, read state, highlights, and notes are stored in
+          a SQLite database on your Mac, and your API keys and credentials are kept locally via
+          <code>tauri-plugin-store</code>. There are no accounts and no telemetry.
+        </p>
+        <p>Network requests only happen for things you'd expect:</p>
+        <ul>
+          <li>Fetching the feeds and article pages you subscribe to (feeds also refresh automatically every 15 minutes in the background).</li>
+          <li>Loading site favicons.</li>
+          <li>Resolving YouTube handles (only if you add a YouTube API key).</li>
+          <li>Google Cloud TTS (only if you enable read-aloud).</li>
+          <li>Your local Ollama instance (only if you enable AI features — this never leaves your machine).</li>
+        </ul>
+
+        <!-- ════════════════════ TROUBLESHOOTING ════════════════════ -->
+        <h2 id="troubleshooting">Troubleshooting</h2>
+        <h3>“The app can't be opened because the developer cannot be verified.”</h3>
+        <p>This is expected for an unsigned app. Follow the <a href="#first-launch">First launch</a> steps to allow it.</p>
+
+        <h3>A feed won't add.</h3>
+        <p>Make sure the URL is reachable in a browser. For sites without an obvious feed, try the site's home page and let auto-discovery find it, or search the site for an RSS link. For <code>@handle</code> YouTube URLs, you need a <a href="#youtube">YouTube API key</a>.</p>
+
+        <h3>AI features say Ollama isn't enabled or reachable.</h3>
+        <p>Confirm Ollama is running (<code>ollama serve</code>) and the model is pulled (<code>ollama pull llama3.2</code>). In <a href="#settings">Settings → AI Summarization</a>, check the Base URL and press <strong>Test</strong> — it tells you whether Ollama is reachable and whether the model is installed.</p>
+
+        <h3>Read-aloud does nothing.</h3>
+        <p>Read-aloud needs valid Google Cloud TTS credentials with the Text-to-Speech API enabled on that project. Re-paste the full service-account JSON in <a href="#settings">Settings → Text to Speech</a>.</p>
+
+        <h3>Send to Obsidian fails.</h3>
+        <p>The vault folder must be an existing absolute path. Double-check the path in <a href="#settings">Settings → Export</a>.</p>
+
+        <hr />
+        <p class="text-muted">
+          Still stuck? Open an issue on <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a>.
+          Feedlight is free and open source under the MIT license.
+        </p>
+      </main>
+    </div>
+  </div>
+
+  <!-- ── Footer ───────────────────────────────────────────────────── -->
+  <footer class="border-t border-border px-6 py-8">
+    <div class="mx-auto flex max-w-6xl items-center justify-between">
+      <span class="font-headline text-xs font-bold tracking-[0.25em] text-muted uppercase">FEEDLIGHT</span>
+      <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" class="text-xs text-muted transition-colors hover:text-cream tracking-wide">
+        Open source on GitHub
+      </a>
+    </div>
+  </footer>
+</Layout>
+
+<style is:global>
+  /* Prose styling scoped to the docs content column. */
+  .docs { color: #c9cfc6; }
+  .docs h2 {
+    font-family: 'Epilogue', sans-serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: #f0ede4;
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(143, 171, 141, 0.12);
+    scroll-margin-top: 5.5rem;
+  }
+  .docs h3 {
+    font-family: 'Epilogue', sans-serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: #f0ede4;
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+    scroll-margin-top: 5.5rem;
+  }
+  .docs p { margin-top: 1rem; line-height: 1.75; color: #aab3a6; }
+  .docs ul, .docs ol { margin-top: 1rem; padding-left: 1.25rem; line-height: 1.75; color: #aab3a6; }
+  .docs ul { list-style: disc; }
+  .docs ol { list-style: decimal; }
+  .docs li { margin-top: 0.4rem; }
+  .docs li::marker { color: #5a6859; }
+  .docs strong { color: #e3e0d6; font-weight: 600; }
+  .docs em { color: #c4d4c2; font-style: italic; }
+  .docs a { color: #8fab8d; text-decoration: underline; text-underline-offset: 2px; transition: color 0.15s; }
+  .docs a:hover { color: #c4d4c2; }
+  .docs code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85em;
+    background: #131a11;
+    border: 1px solid rgba(143, 171, 141, 0.12);
+    border-radius: 4px;
+    padding: 0.1rem 0.35rem;
+    color: #c4d4c2;
+  }
+  .docs pre {
+    margin-top: 1rem;
+    background: #0a0f08;
+    border: 1px solid rgba(143, 171, 141, 0.12);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+  }
+  .docs pre code { background: none; border: none; padding: 0; color: #c9cfc6; font-size: 0.82rem; line-height: 1.6; }
+  .docs kbd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78em;
+    background: #131a11;
+    border: 1px solid rgba(143, 171, 141, 0.2);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+    color: #c4d4c2;
+  }
+  .docs figure { margin-top: 1.75rem; }
+  .docs figure img {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid rgba(143, 171, 141, 0.12);
+    box-shadow: 0 20px 40px -20px rgba(0,0,0,0.7);
+  }
+  .docs figcaption { margin-top: 0.6rem; font-size: 0.8rem; color: #5a6859; text-align: center; }
+  .docs .shot-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    aspect-ratio: 16 / 10;
+    width: 100%;
+    border-radius: 10px;
+    border: 1px dashed rgba(143, 171, 141, 0.3);
+    background:
+      repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(143,171,141,0.025) 10px, rgba(143,171,141,0.025) 20px),
+      #0e150c;
+    color: #5a6859;
+  }
+  .docs .shot-placeholder svg { width: 2rem; height: 2rem; opacity: 0.5; }
+  .docs .shot-placeholder .file {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8rem;
+    color: #8fab8d;
+  }
+  .docs .shot-placeholder .hint { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; }
+  .docs .callout {
+    margin-top: 1.25rem;
+    background: rgba(143, 171, 141, 0.06);
+    border-left: 2px solid #8fab8d;
+    border-radius: 0 6px 6px 0;
+    padding: 0.85rem 1.1rem;
+    font-size: 0.9rem;
+  }
+  .docs .table-wrap { margin-top: 1.25rem; overflow-x: auto; }
+  .docs table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .docs th, .docs td {
+    text-align: left;
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid rgba(143, 171, 141, 0.12);
+    vertical-align: top;
+  }
+  .docs th { color: #8fab8d; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+  .docs td { color: #aab3a6; }
+  .docs hr { margin-top: 3rem; border: none; border-top: 1px solid rgba(143, 171, 141, 0.12); }
+</style>

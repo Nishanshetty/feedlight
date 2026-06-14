@@ -59,7 +59,7 @@ function buildOpml(groups: Map<string, Array<{ title: string; url: string; siteU
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<opml version="2.0">',
     "  <head>",
-    "    <title>Focal Subscriptions</title>",
+    "    <title>Feedlight Subscriptions</title>",
     `    <dateCreated>${new Date().toUTCString()}</dateCreated>`,
     "  </head>",
     "  <body>",
@@ -149,7 +149,7 @@ export default function OpmlControls({ onImportComplete }: Props) {
       const blob = new Blob([xml], { type: "text/xml;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `focal-${new Date().toISOString().slice(0, 10)}.opml`; a.click();
+      a.href = url; a.download = `feedlight-${new Date().toISOString().slice(0, 10)}.opml`; a.click();
       URL.revokeObjectURL(url);
       setState({ status: "idle" });
     } catch (err) {

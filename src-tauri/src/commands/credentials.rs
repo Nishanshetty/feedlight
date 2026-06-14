@@ -1,6 +1,6 @@
 use security_framework::passwords::{delete_generic_password, get_generic_password, set_generic_password};
 
-const SERVICE: &str = "com.focal.app";
+const SERVICE: &str = "app.feedlight";
 const ERR_NOT_FOUND: i32 = -25300; // errSecItemNotFound
 const ERR_DUPLICATE: i32 = -25299; // errSecDuplicateItem
 

@@ -2,7 +2,7 @@ import { getAppTheme, type AppTheme } from "./settings";
 
 // Mirrored to localStorage so the boot path can apply the theme synchronously,
 // before the async Tauri store is readable — avoids a flash of the wrong theme.
-const LS_KEY = "focal:theme";
+const LS_KEY = "feedlight:theme";
 
 let current: AppTheme = "system";
 

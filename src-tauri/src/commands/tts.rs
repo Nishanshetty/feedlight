@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
-const SERVICE: &str = "com.focal.app";
+const SERVICE: &str = "app.feedlight";
 const ERR_NOT_FOUND: i32 = -25300;
 
 #[derive(Deserialize)]

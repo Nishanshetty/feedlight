@@ -10,7 +10,7 @@ import type {
   HighlightWithArticle,
 } from "../types/database";
 
-const DB_PATH = "sqlite:focal.db";
+const DB_PATH = "sqlite:feedlight.db";
 
 let _db: Database | null = null;
 

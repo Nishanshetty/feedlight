@@ -1,18 +1,18 @@
-# Focal
+# Feedlight
 
 > **Because focus matters.**
 
 A local-first RSS reader for macOS. No accounts, no servers, no subscriptions — your feeds live on your machine.
 
 <!-- TODO: add screenshot once first build is ready -->
-<!-- ![Focal screenshot](docs/screenshot.png) -->
+<!-- ![Feedlight screenshot](docs/screenshot.png) -->
 
 ---
 
 ## Features
 
 - **Local-first** — all data stored in SQLite on your Mac; works fully offline
-- **RSS & Atom** — subscribe to any RSS/Atom feed; paste a site URL and Focal auto-discovers the feed
+- **RSS & Atom** — subscribe to any RSS/Atom feed; paste a site URL and Feedlight auto-discovers the feed
 - **YouTube channels** — subscribe to channels by URL (`/channel/`, `/user/`, or `@handle` with API key)
 - **Article timeline** — magazine-style cards or compact list density, hero lead story, article images, read-time estimates, date group headers, infinite scroll, full-text search (`/`), and a Starred view
 - **Resume reading** — scroll position is remembered per article; cards show a progress line and reopening picks up where you left off
@@ -47,8 +47,8 @@ Pre-built macOS universal binaries (arm64 + x86_64) are available on the [Releas
 ### Steps
 
 ```bash
-git clone https://github.com/nishanshetty/focal.git
-cd focal
+git clone https://github.com/nishanshetty/feedlight.git
+cd feedlight
 npm install
 npm run tauri dev        # development build with hot-reload
 npm run tauri build      # production .dmg + .app
@@ -73,7 +73,7 @@ Credentials are stored locally in the app data directory via `tauri-plugin-store
 ### AI summarization setup
 
 1. Install [Ollama](https://ollama.com) and pull a model: `ollama pull llama3.2`
-2. Open Focal → Settings → **AI Summarization**
+2. Open Feedlight → Settings → **AI Summarization**
 3. Toggle it on, confirm the URL (`http://localhost:11434`), hit **Test**
 4. Open any article — a sparkle button (✦) appears in the reader header
 

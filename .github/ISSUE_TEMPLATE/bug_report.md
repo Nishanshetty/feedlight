@@ -19,7 +19,7 @@ What you expected to happen.
 What actually happened. Include any error messages shown in the app.
 
 ## Environment
-- **Focal version:** (e.g. v0.2.0 or commit SHA)
+- **Feedlight version:** (e.g. v0.2.0 or commit SHA)
 - **macOS version:** (e.g. macOS 15.4 Sequoia)
 - **Mac model:** (e.g. MacBook Pro M3)
 

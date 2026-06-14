@@ -22,7 +22,7 @@ async fn get_pool(app: &AppHandle) -> Result<SqlitePool, String> {
         .path()
         .app_data_dir()
         .map_err(|e| format!("App data dir error: {e}"))?;
-    let path = dir.join("focal.db");
+    let path = dir.join("feedlight.db");
     SqlitePool::connect(&format!("sqlite:{}", path.display()))
         .await
         .map_err(|e| format!("DB connect error: {e}"))
@@ -158,7 +158,7 @@ pub async fn do_refresh(app: &AppHandle) -> Result<RefreshResult, String> {
     let pool = get_pool(app).await?;
 
     let client = Client::builder()
-        .user_agent("Mozilla/5.0 (compatible; Focal/0.1)")
+        .user_agent("Mozilla/5.0 (compatible; Feedlight/0.1)")
         .timeout(Duration::from_secs(30))
         .build()
         .map_err(|e| e.to_string())?;
@@ -253,7 +253,7 @@ pub async fn run_crawler(app: AppHandle) {
         tokio::time::sleep(Duration::from_secs(REFRESH_INTERVAL_SECS)).await;
         match do_refresh(&app).await {
             Ok(result) => {
-                let _ = app.emit("focal://feeds-refreshed", result);
+                let _ = app.emit("feedlight://feeds-refreshed", result);
             }
             Err(e) => eprintln!("Background crawler error: {e}"),
         }
@@ -264,6 +264,6 @@ pub async fn run_crawler(app: AppHandle) {
 #[tauri::command]
 pub async fn refresh_feeds_now(app: AppHandle) -> Result<RefreshResult, String> {
     let result = do_refresh(&app).await?;
-    let _ = app.emit("focal://feeds-refreshed", result.clone());
+    let _ = app.emit("feedlight://feeds-refreshed", result.clone());
     Ok(result)
 }

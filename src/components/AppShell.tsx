@@ -68,7 +68,7 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
           </svg>
         </button>
 
-        <span className="font-headline text-lg font-bold tracking-[0.2em] text-primary uppercase">FOCAL</span>
+        <span className="font-headline text-lg font-bold tracking-[0.2em] text-primary uppercase">FEEDLIGHT</span>
 
         <div className="flex-1" />
 

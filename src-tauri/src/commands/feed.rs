@@ -129,7 +129,7 @@ pub async fn fetch_feed(url: String) -> Result<ParsedFeed, String> {
     let feed_url = youtube_to_feed_url(&url).unwrap_or_else(|| url.clone());
 
     let client = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (compatible; Focal/0.1)")
+        .user_agent("Mozilla/5.0 (compatible; Feedlight/0.1)")
         .build()
         .map_err(|e| e.to_string())?;
 

@@ -1,9 +1,9 @@
-# Focal — Session Log & Conventions
+# Feedlight — Session Log & Conventions
 
 ## Architecture Decisions
 - All data local: SQLite via `tauri-plugin-sql`; no cloud backend
 - Feed parsing in Rust (`feed-rs`); article extraction in JS (`@mozilla/readability`) via `fetch_article_html` Rust command (bypasses CORS)
-- Background crawler is a Rust tokio thread; emits `focal://feeds-refreshed` Tauri event to frontend
+- Background crawler is a Rust tokio thread; emits `feedlight://feeds-refreshed` Tauri event to frontend
 - API keys stored in `tauri-plugin-store` (`settings.json` in app data dir); never leave the machine
 - TTS uses Google Cloud REST API directly from Rust with RS256 JWT auth (`jsonwebtoken`)
 - Ollama calls go through Rust (`reqwest`) to avoid WebView CORS/CSP issues — same pattern as TTS

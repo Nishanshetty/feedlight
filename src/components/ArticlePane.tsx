@@ -900,7 +900,7 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("focal:reader-settings");
+      const saved = localStorage.getItem("feedlight:reader-settings");
       if (saved) {
         const p = JSON.parse(saved);
         if (p.theme) setTheme(p.theme);
@@ -916,7 +916,7 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   const saveSettings = useMemo(() => (updates: Partial<{ theme: typeof theme; fontFamily: typeof fontFamily; fontSize: number; columnWidth: typeof columnWidth; lineHeight: typeof lineHeight; speed: number }>) => {
     try {
       const current = { theme, fontFamily, fontSize, columnWidth, lineHeight, speed, ...updates };
-      localStorage.setItem("focal:reader-settings", JSON.stringify(current));
+      localStorage.setItem("feedlight:reader-settings", JSON.stringify(current));
     } catch { /* ignore */ }
   }, [theme, fontFamily, fontSize, columnWidth, lineHeight, speed]);
 

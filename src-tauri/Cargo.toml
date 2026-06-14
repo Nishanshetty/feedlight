@@ -1,12 +1,12 @@
 [package]
-name = "focal"
+name = "feedlight"
 version = "0.2.0"
-description = "Focal — because focus matters."
+description = "Feedlight — because focus matters."
 authors = ["Nishan Shetty"]
 edition = "2021"
 
 [lib]
-name = "focal_lib"
+name = "feedlight_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
