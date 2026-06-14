@@ -38,6 +38,17 @@ const features = [
     icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>`,
   },
 ];
+
+// "Why Feedlight" positioning — yes | no | a short note string (n/a or partial).
+const compareCols = ['Feedlight', 'Cloud readers', 'Classic local'];
+const compareRows = [
+  { label: 'Data stays on your Mac',        cells: ['yes', 'no', 'yes'] },
+  { label: 'Private, on-device AI',         cells: ['yes', 'no', '—'] },
+  { label: 'Daily AI digest',               cells: ['yes', 'yes', '—'] },
+  { label: 'Free to use',                   cells: ['yes', 'Freemium', 'yes'] },
+  { label: 'Open source',                   cells: ['yes', 'no', 'Some'] },
+  { label: 'No account or telemetry',       cells: ['yes', 'no', 'yes'] },
+];
 ---
 
 <Layout>
@@ -124,6 +135,63 @@ const features = [
         </div>
         <!-- Glow under screenshot -->
         <div class="pointer-events-none absolute -bottom-10 inset-x-0 h-32 bg-gradient-to-t from-bg to-transparent"></div>
+      </div>
+    </section>
+
+    <!-- ── Why Feedlight (positioning) ──────────────────────────────── -->
+    <section class="px-6 py-24 border-t border-border">
+      <div class="mx-auto max-w-4xl">
+        <div class="mb-12 text-center">
+          <p class="mb-3 text-xs font-bold tracking-widest text-accent uppercase">Why Feedlight</p>
+          <h2 class="font-headline text-3xl font-bold tracking-tight text-cream sm:text-4xl text-balance">
+            Private or smart? Both.
+          </h2>
+          <p class="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted text-balance">
+            Every other reader makes you choose — your reading in someone's cloud, or an app that
+            hasn't changed since 2012. Feedlight refuses the tradeoff: a modern reader with AI that
+            runs on your own machine.
+          </p>
+        </div>
+
+        <!-- Comparison -->
+        <div class="overflow-hidden rounded-xl border border-border bg-surface/40">
+          <!-- Header row -->
+          <div class="grid grid-cols-[1.4fr_repeat(3,1fr)] border-b border-border">
+            <div class="px-4 py-3 sm:px-5"></div>
+            {compareCols.map((col, i) => (
+              <div class={`px-2 py-3 text-center sm:px-4 ${i === 0 ? 'bg-accent/10' : ''}`}>
+                <span class={`font-headline text-xs font-bold tracking-wide sm:text-sm ${i === 0 ? 'text-accent-bright' : 'text-muted'}`}>{col}</span>
+              </div>
+            ))}
+          </div>
+
+          <!-- Feature rows -->
+          {compareRows.map((row, ri) => (
+            <div class={`grid grid-cols-[1.4fr_repeat(3,1fr)] items-center ${ri !== compareRows.length - 1 ? 'border-b border-border' : ''}`}>
+              <div class="px-4 py-3.5 text-[13px] text-cream sm:px-5 sm:text-sm">{row.label}</div>
+              {row.cells.map((cell, ci) => (
+                <div class={`flex items-center justify-center px-2 py-3.5 sm:px-4 ${ci === 0 ? 'bg-accent/10' : ''}`}>
+                  {cell === 'yes' ? (
+                    <svg class={`h-5 w-5 ${ci === 0 ? 'text-accent-bright' : 'text-accent/70'}`} viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                    </svg>
+                  ) : cell === 'no' ? (
+                    <svg class="h-4 w-4 text-muted/40" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" clip-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+                    </svg>
+                  ) : (
+                    <span class="text-[11px] font-medium tracking-wide text-muted/70">{cell}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <p class="mt-4 text-center text-xs text-muted/50">
+          “Cloud readers” = Feedly, Inoreader, Readwise Reader and similar. “Classic local” = traditional native readers without AI.
+          Text-to-speech is the one optional feature that uses a cloud API.
+        </p>
       </div>
     </section>
 
