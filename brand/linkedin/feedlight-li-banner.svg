@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1128 191">
+  <rect width="1128" height="191" fill="#1B1F24"/>
+  <g>
+    <circle cx="452" cy="80" r="34" fill="none" stroke="#F6A623" stroke-width="7"/>
+    <circle cx="452" cy="80" r="15" fill="#F6A623"/>
+    <line x1="452" y1="36" x2="452" y2="50" stroke="#F6A623" stroke-width="7" stroke-linecap="round"/>
+    <line x1="452" y1="110" x2="452" y2="124" stroke="#F6A623" stroke-width="7" stroke-linecap="round"/>
+    <line x1="408" y1="80" x2="422" y2="80" stroke="#F6A623" stroke-width="7" stroke-linecap="round"/>
+    <line x1="482" y1="80" x2="496" y2="80" stroke="#F6A623" stroke-width="7" stroke-linecap="round"/>
+  </g>
+  <text x="512" y="96" font-family="Epilogue, sans-serif" font-size="56" font-weight="700" letter-spacing="-1" fill="#F0EDE4">feedlight</text>
+  <text x="514" y="132" font-family="Epilogue, sans-serif" font-size="20" font-weight="400" letter-spacing="0.5" fill="#A39A86">A focused RSS reader for macOS</text>
+</svg>
