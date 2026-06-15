@@ -63,7 +63,17 @@ const toc = [
   <!-- ── Navigation ───────────────────────────────────────────────── -->
   <header class="fixed top-0 inset-x-0 z-50 border-b border-border bg-bg/80 backdrop-blur-xl">
     <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-      <a href={`${base}/`} class="font-headline text-sm font-bold tracking-[0.25em] text-accent-bright uppercase">FEEDLIGHT</a>
+      <a href={`${base}/`} class="flex items-center gap-2.5">
+        <svg class="h-6 w-6" viewBox="0 0 512 512" fill="none" aria-hidden="true">
+          <circle cx="256" cy="256" r="128" stroke="#f6a623" stroke-width="24" />
+          <circle cx="256" cy="256" r="56" fill="#f6a623" />
+          <line x1="256" y1="96" x2="256" y2="144" stroke="#f6a623" stroke-width="24" stroke-linecap="round" />
+          <line x1="256" y1="368" x2="256" y2="416" stroke="#f6a623" stroke-width="24" stroke-linecap="round" />
+          <line x1="96" y1="256" x2="144" y2="256" stroke="#f6a623" stroke-width="24" stroke-linecap="round" />
+          <line x1="368" y1="256" x2="416" y2="256" stroke="#f6a623" stroke-width="24" stroke-linecap="round" />
+        </svg>
+        <span class="font-headline text-sm font-bold tracking-[0.25em] text-cream uppercase">Feedlight</span>
+      </a>
       <nav class="flex items-center gap-6 text-xs font-semibold tracking-wide text-muted">
         <a href={`${base}/`} class="transition-colors hover:text-cream">Home</a>
         <a href={`${base}/docs`} class="text-cream">Docs</a>
@@ -510,7 +520,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
     color: #f0ede4;
     margin-top: 3.5rem;
     padding-top: 1.5rem;
-    border-top: 1px solid rgba(143, 171, 141, 0.12);
+    border-top: 1px solid rgba(246, 166, 35, 0.12);
     scroll-margin-top: 5.5rem;
   }
   .docs h3 {
@@ -527,24 +537,24 @@ npm run tauri build    # production .dmg + .app</code></pre>
   .docs ul { list-style: disc; }
   .docs ol { list-style: decimal; }
   .docs li { margin-top: 0.4rem; }
-  .docs li::marker { color: #5a6859; }
+  .docs li::marker { color: #6b6353; }
   .docs strong { color: #e3e0d6; font-weight: 600; }
-  .docs em { color: #c4d4c2; font-style: italic; }
-  .docs a { color: #8fab8d; text-decoration: underline; text-underline-offset: 2px; transition: color 0.15s; }
-  .docs a:hover { color: #c4d4c2; }
+  .docs em { color: #fbd089; font-style: italic; }
+  .docs a { color: #f6a623; text-decoration: underline; text-underline-offset: 2px; transition: color 0.15s; }
+  .docs a:hover { color: #fbd089; }
   .docs code {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.85em;
-    background: #131a11;
-    border: 1px solid rgba(143, 171, 141, 0.12);
+    background: #1a160f;
+    border: 1px solid rgba(246, 166, 35, 0.12);
     border-radius: 4px;
     padding: 0.1rem 0.35rem;
-    color: #c4d4c2;
+    color: #fbd089;
   }
   .docs pre {
     margin-top: 1rem;
     background: #0a0f08;
-    border: 1px solid rgba(143, 171, 141, 0.12);
+    border: 1px solid rgba(246, 166, 35, 0.12);
     border-radius: 8px;
     padding: 1rem 1.25rem;
     overflow-x: auto;
@@ -553,21 +563,21 @@ npm run tauri build    # production .dmg + .app</code></pre>
   .docs kbd {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.78em;
-    background: #131a11;
-    border: 1px solid rgba(143, 171, 141, 0.2);
+    background: #1a160f;
+    border: 1px solid rgba(246, 166, 35, 0.2);
     border-bottom-width: 2px;
     border-radius: 4px;
     padding: 0.1rem 0.4rem;
-    color: #c4d4c2;
+    color: #fbd089;
   }
   .docs figure { margin-top: 1.75rem; }
   .docs figure img {
     width: 100%;
     border-radius: 10px;
-    border: 1px solid rgba(143, 171, 141, 0.12);
+    border: 1px solid rgba(246, 166, 35, 0.12);
     box-shadow: 0 20px 40px -20px rgba(0,0,0,0.7);
   }
-  .docs figcaption { margin-top: 0.6rem; font-size: 0.8rem; color: #5a6859; text-align: center; }
+  .docs figcaption { margin-top: 0.6rem; font-size: 0.8rem; color: #6b6353; text-align: center; }
   .docs .shot-placeholder {
     display: flex;
     flex-direction: column;
@@ -577,23 +587,23 @@ npm run tauri build    # production .dmg + .app</code></pre>
     aspect-ratio: 16 / 10;
     width: 100%;
     border-radius: 10px;
-    border: 1px dashed rgba(143, 171, 141, 0.3);
+    border: 1px dashed rgba(246, 166, 35, 0.3);
     background:
-      repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(143,171,141,0.025) 10px, rgba(143,171,141,0.025) 20px),
+      repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(246,166,35,0.025) 10px, rgba(246,166,35,0.025) 20px),
       #0e150c;
-    color: #5a6859;
+    color: #6b6353;
   }
   .docs .shot-placeholder svg { width: 2rem; height: 2rem; opacity: 0.5; }
   .docs .shot-placeholder .file {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.8rem;
-    color: #8fab8d;
+    color: #f6a623;
   }
   .docs .shot-placeholder .hint { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; }
   .docs .callout {
     margin-top: 1.25rem;
-    background: rgba(143, 171, 141, 0.06);
-    border-left: 2px solid #8fab8d;
+    background: rgba(246, 166, 35, 0.06);
+    border-left: 2px solid #f6a623;
     border-radius: 0 6px 6px 0;
     padding: 0.85rem 1.1rem;
     font-size: 0.9rem;
@@ -603,10 +613,10 @@ npm run tauri build    # production .dmg + .app</code></pre>
   .docs th, .docs td {
     text-align: left;
     padding: 0.65rem 0.9rem;
-    border-bottom: 1px solid rgba(143, 171, 141, 0.12);
+    border-bottom: 1px solid rgba(246, 166, 35, 0.12);
     vertical-align: top;
   }
-  .docs th { color: #8fab8d; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+  .docs th { color: #f6a623; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
   .docs td { color: #aab3a6; }
-  .docs hr { margin-top: 3rem; border: none; border-top: 1px solid rgba(143, 171, 141, 0.12); }
+  .docs hr { margin-top: 3rem; border: none; border-top: 1px solid rgba(246, 166, 35, 0.12); }
 </style>

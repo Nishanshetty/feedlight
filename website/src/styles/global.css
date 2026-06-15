@@ -14,8 +14,8 @@
     scroll-behavior: smooth;
   }
   ::selection {
-    background: rgba(143, 171, 141, 0.25);
-    color: #c4d4c2;
+    background: rgba(246, 166, 35, 0.25);
+    color: #fbd089;
   }
 }
 

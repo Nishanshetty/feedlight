@@ -6,6 +6,13 @@
       "runtimeExecutable": "/bin/sh",
       "runtimeArgs": ["-c", "cd /tmp/focal-harness && exec /usr/bin/python3 -m http.server 8765"],
       "port": 8765
+    },
+    {
+      "name": "website",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "cd /Users/nishanshetty/Documents/Github/focal/website && exec npm run dev -- --port 4455"],
+      "port": 4455,
+      "autoPort": false
     }
   ]
 }
