@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 270 80" role="img" aria-label="Feedlight">
+  <circle cx="40" cy="40" r="24" fill="none" stroke="#F6A623" stroke-width="4.5"/>
+  <circle cx="40" cy="40" r="10" fill="#F6A623"/>
+  <line x1="40" y1="8"  x2="40" y2="18" stroke="#F6A623" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="40" y1="62" x2="40" y2="72" stroke="#F6A623" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="8"  y1="40" x2="18" y2="40" stroke="#F6A623" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="62" y1="40" x2="72" y2="40" stroke="#F6A623" stroke-width="4.5" stroke-linecap="round"/>
+  <text x="86" y="52" font-family="Epilogue, Manrope, -apple-system, Segoe UI, sans-serif" font-size="34" font-weight="700" letter-spacing="-0.5" fill="#1B1F24">feedlight</text>
+</svg>
