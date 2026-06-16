@@ -188,7 +188,7 @@ function b64ToAudioUrl(b64: string): string {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
+  return URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
 }
 
 // ─── PaneHeader ───────────────────────────────────────────────────────────────
@@ -1192,6 +1192,13 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
       if (isPlayingRef.current) await audio.play();
       else URL.revokeObjectURL(audioUrl);
     } catch (err) {
+      if (String(err).includes("voice_not_downloaded")) {
+        stopSpeech();
+        window.alert(
+          "The read-aloud voice isn't installed yet.\n\nOpen Settings → Read Aloud and download the offline voice (~61 MB) to start listening.",
+        );
+        return;
+      }
       console.error("TTS error:", err);
       if (isPlayingRef.current && playSessionRef.current === session) playParagraph(index + 1);
     }
