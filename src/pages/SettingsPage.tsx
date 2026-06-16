@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, Channel } from "@tauri-apps/api/core";
 import { Link } from "@tanstack/react-router";
 import {
   getYouTubeApiKey, setYouTubeApiKey,
-  getGcpTtsCredentials, setGcpTtsCredentials,
-  getTtsVoice, setTtsVoice, TTS_DEFAULT_VOICE,
   getOllamaSettings, setOllamaSettings,
   getAppTheme, setAppTheme,
   getObsidianVaultPath, setObsidianVaultPath,
@@ -218,19 +216,84 @@ function OllamaSection() {
   );
 }
 
+type VoiceStatus = "checking" | "downloaded" | "missing";
+
+function TtsSection() {
+  const [status, setStatus] = useState<VoiceStatus>("checking");
+  const [progress, setProgress] = useState<number | null>(null); // 0–100, or null
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    invoke<boolean>("tts_voice_status")
+      .then((ok) => setStatus(ok ? "downloaded" : "missing"))
+      .catch(() => setStatus("missing"));
+  }, []);
+
+  async function download() {
+    setError(null);
+    setProgress(0);
+    const onEvent = new Channel<{ downloaded: number; total: number | null }>();
+    onEvent.onmessage = ({ downloaded, total }) => {
+      if (total && total > 0) setProgress(Math.round((downloaded / total) * 100));
+    };
+    try {
+      await invoke("download_tts_voice", { onEvent });
+      setProgress(null);
+      setStatus("downloaded");
+    } catch (e) {
+      console.error("voice download failed:", e);
+      setError(String(e));
+      setProgress(null);
+    }
+  }
+
+  const downloading = progress !== null;
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Read Aloud</h2>
+      <div className="border border-outline-variant/40 p-5 space-y-3">
+        <div>
+          <p className="text-sm font-headline font-semibold text-on-surface">Offline Voice</p>
+          <p className="text-xs font-body text-on-surface-variant mt-0.5">
+            Article read-aloud runs entirely on your machine — no account or internet needed once the
+            voice is downloaded. The voice (Lessac, US English) is a one-time ~61&nbsp;MB download.
+          </p>
+        </div>
+
+        {status === "downloaded" ? (
+          <p className="text-[11px] font-label text-primary">✓ Voice installed — ready to listen</p>
+        ) : (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={download}
+              disabled={downloading || status === "checking"}
+              className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+            >
+              {downloading ? `Downloading… ${progress}%` : status === "checking" ? "Checking…" : "Download voice (~61 MB)"}
+            </button>
+            {downloading && (
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-outline/20">
+                <div className="h-full bg-primary transition-[width] duration-200" style={{ width: `${progress}%` }} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {error && <p className="text-[11px] font-body text-error">✗ {error}</p>}
+      </div>
+    </section>
+  );
+}
+
 export default function SettingsPage() {
   const [ytKey, setYtKey] = useState("");
   const [ytSave, setYtSave] = useState<SaveState>("idle");
-  const [ttsCredentials, setTtsCredentials] = useState("");
-  const [ttsSave, setTtsSave] = useState<SaveState>("idle");
-  const [ttsVoice, setTtsVoiceState] = useState(TTS_DEFAULT_VOICE);
   const [vaultPath, setVaultPath] = useState("");
   const [vaultSave, setVaultSave] = useState<SaveState>("idle");
 
   useEffect(() => {
     getYouTubeApiKey().then(setYtKey).catch(console.error);
-    getGcpTtsCredentials().then(setTtsCredentials).catch(console.error);
-    getTtsVoice().then(setTtsVoiceState).catch(console.error);
     getObsidianVaultPath().then(setVaultPath).catch(console.error);
   }, []);
 
@@ -244,12 +307,6 @@ export default function SettingsPage() {
     setYtSave("saving");
     try { await setYouTubeApiKey(ytKey); setYtSave("saved"); setTimeout(() => setYtSave("idle"), 2000); }
     catch { setYtSave("error"); }
-  }
-
-  async function saveTtsCredentials() {
-    setTtsSave("saving");
-    try { await setGcpTtsCredentials(ttsCredentials); setTtsSave("saved"); setTimeout(() => setTtsSave("idle"), 2000); }
-    catch (e) { console.error("set_credential failed:", e); setTtsSave("error"); }
   }
 
   return (
@@ -278,40 +335,7 @@ export default function SettingsPage() {
               placeholder="AIzaSy..." saveState={ytSave} />
           </section>
 
-          <section className="space-y-3">
-            <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Text to Speech</h2>
-            <SettingField
-              label="Google Cloud TTS Credentials"
-              description="Paste the contents of your GCP service account JSON file. Used for the article read-aloud feature."
-              value={ttsCredentials} onChange={setTtsCredentials} onSave={saveTtsCredentials}
-              placeholder='{ "type": "service_account", ... }' type="textarea" saveState={ttsSave} />
-            <div className="border border-outline-variant/40 p-5 space-y-3">
-              <div>
-                <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
-                <p className="text-xs font-body text-on-surface-variant mt-0.5">
-                  Google Neural2 voice used for read-aloud. Changes apply on the next article you listen to.
-                </p>
-              </div>
-              <select
-                value={ttsVoice}
-                onChange={async (e) => {
-                  setTtsVoiceState(e.target.value);
-                  await setTtsVoice(e.target.value).catch(console.error);
-                }}
-                className="ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-              >
-                <option value="en-US-Neural2-A">Neural2-A — Male</option>
-                <option value="en-US-Neural2-C">Neural2-C — Female</option>
-                <option value="en-US-Neural2-D">Neural2-D — Male</option>
-                <option value="en-US-Neural2-E">Neural2-E — Female</option>
-                <option value="en-US-Neural2-F">Neural2-F — Female (default)</option>
-                <option value="en-US-Neural2-G">Neural2-G — Female</option>
-                <option value="en-US-Neural2-H">Neural2-H — Female</option>
-                <option value="en-US-Neural2-I">Neural2-I — Male</option>
-                <option value="en-US-Neural2-J">Neural2-J — Male</option>
-              </select>
-            </div>
-          </section>
+          <TtsSection />
 
           <OllamaSection />
 

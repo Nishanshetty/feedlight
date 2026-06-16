@@ -50,6 +50,8 @@ pub fn run() {
             commands::extract::fetch_image_base64,
             commands::export::export_markdown,
             commands::tts::synthesize_speech,
+            commands::tts::tts_voice_status,
+            commands::tts::download_tts_voice,
             commands::ollama::check_ollama,
             commands::ollama::summarize_article,
             commands::ollama::chat_article,

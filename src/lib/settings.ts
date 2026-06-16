@@ -19,27 +19,6 @@ export async function setYouTubeApiKey(key: string): Promise<void> {
   await invoke("set_credential", { key: "youtube_api_key", value: key });
 }
 
-export async function getGcpTtsCredentials(): Promise<string> {
-  return (await invoke<string | null>("get_credential", { key: "gcp_tts_credentials" })) ?? "";
-}
-
-export async function setGcpTtsCredentials(creds: string): Promise<void> {
-  await invoke("set_credential", { key: "gcp_tts_credentials", value: creds });
-}
-
-export const TTS_DEFAULT_VOICE = "en-US-Neural2-F";
-
-export async function getTtsVoice(): Promise<string> {
-  const store = await getStore();
-  return (await store.get<string>("tts_voice")) ?? TTS_DEFAULT_VOICE;
-}
-
-export async function setTtsVoice(voice: string): Promise<void> {
-  const store = await getStore();
-  await store.set("tts_voice", voice);
-  await store.save();
-}
-
 export type AppTheme = "light" | "dark" | "system";
 
 export async function getAppTheme(): Promise<AppTheme> {

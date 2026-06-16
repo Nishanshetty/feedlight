@@ -8,14 +8,22 @@ Thanks for your interest in contributing! Here's everything you need to get star
 # 1. Install Rust (if you don't have it)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# 2. Clone and install
+# 2. Install CMake — required to build the local text-to-speech engine
+#    (piper-rs compiles espeak-ng from C source).
+brew install cmake
+
+# 3. Clone and install
 git clone https://github.com/nishanshetty/feedlight.git
 cd feedlight
 npm install
 
-# 3. Start the dev server
+# 4. Start the dev server
 npm run tauri dev
 ```
+
+> **Note:** CMake is a build-time dependency only — end users never need it. The
+> read-aloud engine (onnxruntime + espeak-ng) is statically linked into the app
+> binary, and the voice model is downloaded on demand at runtime.
 
 The Vite frontend hot-reloads on save. Rust changes trigger a recompile (a few seconds).
 
