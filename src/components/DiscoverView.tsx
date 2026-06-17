@@ -120,7 +120,7 @@ function Favicon({ url, name }: { url: string; name: string }) {
 
   // YouTube feeds all share one favicon, so show the YouTube play mark instead —
   // an unmistakable "this is a video channel" signal next to the article feeds.
-  if (host.endsWith("youtube.com")) {
+  if (host === "youtube.com" || host.endsWith(".youtube.com")) {
     return (
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-[#FF0000] text-white">
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
