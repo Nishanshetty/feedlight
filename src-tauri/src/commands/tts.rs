@@ -1,169 +1,134 @@
-use base64::Engine as _;
-use piper_rs::Piper;
-use serde::Serialize;
-use std::io::Write;
-use std::path::PathBuf;
-use tauri::ipc::Channel;
-use tauri::{AppHandle, Manager};
+use security_framework::passwords::get_generic_password;
+use serde::{Deserialize, Serialize};
+use tauri::AppHandle;
+use tauri_plugin_store::StoreExt;
 
-/// Default local voice. The model + config are downloaded on demand from
-/// HuggingFace (rhasspy/piper-voices) into the app data directory.
-const VOICE_NAME: &str = "en_US-lessac-medium";
-const VOICE_ONNX_URL: &str = "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx";
-const VOICE_CONFIG_URL: &str = "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json";
+const SERVICE: &str = "app.feedlight";
+const ERR_NOT_FOUND: i32 = -25300; // errSecItemNotFound
 
-/// Sentinel error the frontend matches on to prompt the user to download the
-/// voice in Settings. Keep this string stable.
-const ERR_NOT_DOWNLOADED: &str = "voice_not_downloaded";
+/// Sentinel error the frontend matches on to fall back to the system voice /
+/// prompt the user to add a key in Settings. Keep this string stable.
+const ERR_NO_KEY: &str = "no_api_key";
 
-fn voice_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Cannot resolve app data dir: {e}"))?
-        .join("tts");
-    Ok(dir)
+/// Used when the user hasn't picked a voice yet.
+const DEFAULT_VOICE: &str = "en-US-Neural2-F";
+const DEFAULT_LANG: &str = "en-US";
+
+/// Reads the user's Google Cloud TTS API key from the system keychain.
+fn api_key() -> Result<String, String> {
+    match get_generic_password(SERVICE, "gcp_tts_api_key") {
+        Ok(bytes) => {
+            let key = String::from_utf8(bytes).map_err(|e| format!("Key encoding error: {e}"))?;
+            if key.trim().is_empty() {
+                Err(ERR_NO_KEY.to_string())
+            } else {
+                Ok(key)
+            }
+        }
+        Err(e) if e.code() == ERR_NOT_FOUND => Err(ERR_NO_KEY.to_string()),
+        Err(e) => Err(format!("Keychain error: {e}")),
+    }
 }
 
-/// Returns `(onnx_path, config_path)` for the bundled voice.
-fn voice_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
-    let dir = voice_dir(app)?;
-    Ok((
-        dir.join(format!("{VOICE_NAME}.onnx")),
-        dir.join(format!("{VOICE_NAME}.onnx.json")),
-    ))
+#[derive(Deserialize)]
+struct TtsResponse {
+    #[serde(rename = "audioContent")]
+    audio_content: String,
 }
 
-/// Whether the local voice has been downloaded and is ready to use.
-#[tauri::command]
-pub fn tts_voice_status(app: AppHandle) -> Result<bool, String> {
-    let (onnx, config) = voice_paths(&app)?;
-    Ok(onnx.exists() && config.exists())
-}
-
-#[derive(Serialize, Clone)]
+/// A Google Cloud TTS voice, as returned by the `voices.list` endpoint and
+/// surfaced to the voice picker in Settings.
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DownloadProgress {
-    downloaded: u64,
-    /// Total bytes, when the server reports a content length.
-    total: Option<u64>,
+pub struct Voice {
+    name: String,
+    language_codes: Vec<String>,
+    ssml_gender: String,
+    #[serde(default)]
+    natural_sample_rate_hertz: Option<u32>,
 }
 
-async fn download_to(
-    client: &reqwest::Client,
-    url: &str,
-    dest: &PathBuf,
-    on_event: Option<&Channel<DownloadProgress>>,
-) -> Result<(), String> {
-    use tokio::io::AsyncWriteExt;
-    let mut resp = client
-        .get(url)
+#[derive(Deserialize)]
+struct VoicesResponse {
+    #[serde(default)]
+    voices: Vec<Voice>,
+}
+
+/// Lists the Google Cloud TTS voices available to the user's API key.
+#[tauri::command]
+pub async fn list_tts_voices() -> Result<Vec<Voice>, String> {
+    let key = api_key()?;
+    let client = reqwest::Client::new();
+    let resp = client
+        .get("https://texttospeech.googleapis.com/v1/voices")
+        .query(&[("key", key.as_str())])
         .send()
         .await
-        .map_err(|e| format!("Download request failed: {e}"))?;
+        .map_err(|e| format!("Voices request failed: {e}"))?;
+
     if !resp.status().is_success() {
-        return Err(format!("Download failed: HTTP {}", resp.status()));
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("Voices API error {status}: {body}"));
     }
-    let total = resp.content_length();
 
-    // Write to a temp `.part` file, then atomically rename into place.
-    let part = dest.with_extension("part");
-    let mut file = tokio::fs::File::create(&part)
+    let parsed: VoicesResponse = resp
+        .json()
         .await
-        .map_err(|e| format!("Cannot create {}: {e}", part.display()))?;
-
-    let mut downloaded = 0u64;
-    while let Some(chunk) = resp
-        .chunk()
-        .await
-        .map_err(|e| format!("Download interrupted: {e}"))?
-    {
-        file.write_all(&chunk)
-            .await
-            .map_err(|e| format!("Write failed: {e}"))?;
-        downloaded += chunk.len() as u64;
-        if let Some(ch) = on_event {
-            let _ = ch.send(DownloadProgress { downloaded, total });
-        }
-    }
-    file.flush().await.map_err(|e| format!("Flush failed: {e}"))?;
-    drop(file);
-
-    tokio::fs::rename(&part, dest)
-        .await
-        .map_err(|e| format!("Cannot finalize {}: {e}", dest.display()))?;
-    Ok(())
+        .map_err(|e| format!("Failed to parse voices response: {e}"))?;
+    Ok(parsed.voices)
 }
 
-/// Downloads the local voice model + config into the app data directory,
-/// reporting byte progress over `on_event`.
-#[tauri::command]
-pub async fn download_tts_voice(
-    app: AppHandle,
-    on_event: Channel<DownloadProgress>,
-) -> Result<(), String> {
-    let dir = voice_dir(&app)?;
-    tokio::fs::create_dir_all(&dir)
-        .await
-        .map_err(|e| format!("Cannot create voice dir: {e}"))?;
-    let (onnx, config) = voice_paths(&app)?;
-
-    let client = reqwest::Client::new();
-    // Config is tiny; no progress needed. Model is the large download.
-    download_to(&client, VOICE_CONFIG_URL, &config, None).await?;
-    download_to(&client, VOICE_ONNX_URL, &onnx, Some(&on_event)).await?;
-    Ok(())
-}
-
-/// Encodes 16-bit mono PCM samples as a complete WAV file.
-fn samples_to_wav(samples: &[f32], sample_rate: u32) -> Vec<u8> {
-    let channels: u16 = 1;
-    let bits: u16 = 16;
-    let data_len = (samples.len() * 2) as u32;
-    let byte_rate = sample_rate * channels as u32 * (bits / 8) as u32;
-    let mut buf = Vec::with_capacity(44 + samples.len() * 2);
-    buf.write_all(b"RIFF").unwrap();
-    buf.write_all(&(36 + data_len).to_le_bytes()).unwrap();
-    buf.write_all(b"WAVEfmt ").unwrap();
-    buf.write_all(&16u32.to_le_bytes()).unwrap();
-    buf.write_all(&1u16.to_le_bytes()).unwrap(); // PCM
-    buf.write_all(&channels.to_le_bytes()).unwrap();
-    buf.write_all(&sample_rate.to_le_bytes()).unwrap();
-    buf.write_all(&byte_rate.to_le_bytes()).unwrap();
-    buf.write_all(&(channels * bits / 8).to_le_bytes()).unwrap();
-    buf.write_all(&bits.to_le_bytes()).unwrap();
-    buf.write_all(b"data").unwrap();
-    buf.write_all(&data_len.to_le_bytes()).unwrap();
-    for &s in samples {
-        let v = (s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
-        buf.write_all(&v.to_le_bytes()).unwrap();
-    }
-    buf
-}
-
-/// Synthesizes text to WAV using the local Piper voice and returns base64 audio.
+/// Synthesizes text to MP3 using Google Cloud TTS and the user's API key,
+/// returning base64-encoded audio. The selected voice (and its language code)
+/// are read from the settings store; both fall back to a US English default.
 #[tauri::command]
 pub async fn synthesize_speech(text: String, app: AppHandle) -> Result<String, String> {
     if text.trim().is_empty() {
         return Err("Text is empty".to_string());
     }
 
-    let (onnx, config) = voice_paths(&app)?;
-    if !onnx.exists() || !config.exists() {
-        return Err(ERR_NOT_DOWNLOADED.to_string());
+    let key = api_key()?;
+
+    let store = app
+        .store("settings.json")
+        .map_err(|e| format!("Store error: {e}"))?;
+    let voice = store
+        .get("tts_voice")
+        .and_then(|v| v.as_str().map(str::to_string))
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_VOICE.to_string());
+    let lang = store
+        .get("tts_voice_lang")
+        .and_then(|v| v.as_str().map(str::to_string))
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_LANG.to_string());
+
+    let body = serde_json::json!({
+        "input": { "text": text.trim() },
+        "voice": { "languageCode": lang, "name": voice },
+        "audioConfig": { "audioEncoding": "MP3" }
+    });
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post("https://texttospeech.googleapis.com/v1/text:synthesize")
+        .query(&[("key", key.as_str())])
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("TTS API request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let err_body = resp.text().await.unwrap_or_default();
+        return Err(format!("TTS API error {status}: {err_body}"));
     }
 
-    // Piper inference is CPU-bound and blocking; run it off the async runtime.
-    let wav = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, String> {
-        let mut piper =
-            Piper::new(&onnx, &config).map_err(|e| format!("Failed to load voice: {e}"))?;
-        let (samples, sample_rate) = piper
-            .create(text.trim(), false, None, None, None, None)
-            .map_err(|e| format!("Synthesis failed: {e}"))?;
-        Ok(samples_to_wav(&samples, sample_rate))
-    })
-    .await
-    .map_err(|e| format!("Synthesis task failed: {e}"))??;
-
-    Ok(base64::engine::general_purpose::STANDARD.encode(&wav))
+    // Google returns the audio already base64-encoded; pass it straight through.
+    let tts: TtsResponse = resp
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse TTS response: {e}"))?;
+    Ok(tts.audio_content)
 }

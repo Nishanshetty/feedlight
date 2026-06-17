@@ -29,4 +29,3 @@ base64 = "0.22"
 url = "2"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }
 security-framework = "3"
-piper-rs = "0.2"

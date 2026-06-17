@@ -4,7 +4,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Readability } from "@mozilla/readability";
 import DOMPurify from "dompurify";
 import ReactMarkdown from "react-markdown";
-import { getOllamaSettings, getObsidianVaultPath, type OllamaSettings } from "../lib/settings";
+import { getOllamaSettings, getObsidianVaultPath, getTtsEngine, getGoogleTtsApiKey, type OllamaSettings, type TtsEngine } from "../lib/settings";
 import {
   upsertItemState, getItemProgress,
   getHighlightsForItem, addHighlight, updateHighlightNote, deleteHighlight,
@@ -188,7 +188,7 @@ function b64ToAudioUrl(b64: string): string {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  return URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
 }
 
 // ─── PaneHeader ───────────────────────────────────────────────────────────────
@@ -663,6 +663,11 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   const [speed, setSpeed] = useState(1);
   const speedRef = useRef(1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Web Speech utterance for the free "system" engine.
+  const utterRef = useRef<SpeechSynthesisUtterance | null>(null);
+  // Engine resolved once per playback session: "google" only when selected AND
+  // a key exists, otherwise "system".
+  const engineRef = useRef<TtsEngine>("system");
   const isPlayingRef = useRef(false);
   // Incremented on stop/jump so stale in-flight synthesis results are discarded
   const playSessionRef = useRef(0);
@@ -984,6 +989,7 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     return () => {
       isPlayingRef.current = false;
       audioRef.current?.pause();
+      window.speechSynthesis.cancel();
       cancelAnimationFrame(progressRafRef.current);
     };
   }, []);
@@ -1142,6 +1148,8 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     playSessionRef.current++;
     isPlayingRef.current = false;
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    window.speechSynthesis.cancel();
+    utterRef.current = null;
     setSpeechState("idle");
     setCurrentParagraphIndex(null);
   }
@@ -1151,6 +1159,7 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     isPlayingRef.current = false;
     audioRef.current?.pause();
     audioRef.current = null;
+    window.speechSynthesis.cancel();
     playParagraph(index);
   }
 
@@ -1161,6 +1170,22 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     speedRef.current = next;
     if (audioRef.current) audioRef.current.playbackRate = next;
     saveSettings({ speed: next });
+    // A speaking system-voice utterance can't change rate mid-flight; restart
+    // the current paragraph so the new speed takes effect immediately.
+    if (engineRef.current === "system" && speechState === "playing" && currentParagraphIndex !== null) {
+      jumpToParagraph(currentParagraphIndex);
+    }
+  }
+
+  /** Resolves the engine once, then starts reading from the top. */
+  async function startSpeech() {
+    try {
+      const [pref, key] = await Promise.all([getTtsEngine(), getGoogleTtsApiKey()]);
+      engineRef.current = pref === "google" && key.trim() ? "google" : "system";
+    } catch {
+      engineRef.current = "system";
+    }
+    playParagraph(0);
   }
 
   async function playParagraph(index: number) {
@@ -1171,6 +1196,21 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     setSpeechState("playing");
     isPlayingRef.current = true;
 
+    // Free, offline system voice via the webview's Web Speech API.
+    if (engineRef.current === "system") {
+      const utter = new SpeechSynthesisUtterance(paragraphs[index]);
+      utter.rate = speedRef.current;
+      utterRef.current = utter;
+      const advance = () => {
+        if (isPlayingRef.current && playSessionRef.current === session) playParagraph(index + 1);
+      };
+      utter.onend = advance;
+      utter.onerror = advance;
+      window.speechSynthesis.speak(utter);
+      return;
+    }
+
+    // Google Cloud TTS via the user's API key.
     try {
       const b64 = await invoke<string>("synthesize_speech", { text: paragraphs[index] });
       if (!isPlayingRef.current || playSessionRef.current !== session) return;
@@ -1192,11 +1232,10 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
       if (isPlayingRef.current) await audio.play();
       else URL.revokeObjectURL(audioUrl);
     } catch (err) {
-      if (String(err).includes("voice_not_downloaded")) {
-        stopSpeech();
-        window.alert(
-          "The read-aloud voice isn't installed yet.\n\nOpen Settings → Read Aloud and download the offline voice (~61 MB) to start listening.",
-        );
+      // Key missing/invalid — fall back to the free system voice for this session.
+      if (String(err).includes("no_api_key")) {
+        engineRef.current = "system";
+        if (isPlayingRef.current && playSessionRef.current === session) playParagraph(index);
         return;
       }
       console.error("TTS error:", err);
@@ -1207,13 +1246,17 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   function pauseSpeech() {
     isPlayingRef.current = false;
     audioRef.current?.pause();
+    if (engineRef.current === "system") window.speechSynthesis.pause();
     setSpeechState("paused");
   }
 
   function resumeSpeech() {
     setSpeechState("playing");
     isPlayingRef.current = true;
-    if (audioRef.current) {
+    if (engineRef.current === "system") {
+      if (utterRef.current) window.speechSynthesis.resume();
+      else playParagraph(currentParagraphIndex ?? 0);
+    } else if (audioRef.current) {
       audioRef.current.play().catch(() => stopSpeech());
     } else {
       playParagraph(currentParagraphIndex ?? 0);
@@ -1236,7 +1279,7 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
       ? {
           state: speechState,
           speed,
-          onPlay: () => speechState === "paused" ? resumeSpeech() : playParagraph(0),
+          onPlay: () => speechState === "paused" ? resumeSpeech() : startSpeech(),
           onPause: pauseSpeech,
           onStop: stopSpeech,
           onCycleSpeed: cycleSpeed,

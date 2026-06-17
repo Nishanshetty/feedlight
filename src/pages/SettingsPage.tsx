@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
-import { invoke, Channel } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { Link } from "@tanstack/react-router";
 import {
   getYouTubeApiKey, setYouTubeApiKey,
   getOllamaSettings, setOllamaSettings,
   getAppTheme, setAppTheme,
   getObsidianVaultPath, setObsidianVaultPath,
-  type OllamaSettings, type AppTheme,
+  getGoogleTtsApiKey, setGoogleTtsApiKey,
+  getTtsEngine, setTtsEngine,
+  getGoogleTtsVoice, setGoogleTtsVoice,
+  type OllamaSettings, type AppTheme, type TtsEngine,
 } from "../lib/settings";
 import { applyTheme } from "../lib/theme";
 
@@ -216,71 +219,171 @@ function OllamaSection() {
   );
 }
 
-type VoiceStatus = "checking" | "downloaded" | "missing";
+type GoogleVoice = {
+  name: string;
+  languageCodes: string[];
+  ssmlGender: string;
+  naturalSampleRateHertz?: number;
+};
+
+const TTS_ENGINES: { value: TtsEngine; label: string; description: string }[] = [
+  { value: "system", label: "System", description: "Free, offline" },
+  { value: "google", label: "Google", description: "Your API key" },
+];
+
+function uniqueLangs(list: GoogleVoice[]): string[] {
+  return Array.from(new Set(list.flatMap((v) => v.languageCodes))).sort();
+}
 
 function TtsSection() {
-  const [status, setStatus] = useState<VoiceStatus>("checking");
-  const [progress, setProgress] = useState<number | null>(null); // 0–100, or null
-  const [error, setError] = useState<string | null>(null);
+  const [engine, setEngine] = useState<TtsEngine>("system");
+  const [key, setKey] = useState("");
+  const [keySave, setKeySave] = useState<SaveState>("idle");
+
+  const [voices, setVoices] = useState<GoogleVoice[] | null>(null);
+  const [loadingVoices, setLoadingVoices] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [lang, setLang] = useState("en-US");
+  const [voiceName, setVoiceName] = useState("");
 
   useEffect(() => {
-    invoke<boolean>("tts_voice_status")
-      .then((ok) => setStatus(ok ? "downloaded" : "missing"))
-      .catch(() => setStatus("missing"));
+    getTtsEngine().then(setEngine).catch(console.error);
+    getGoogleTtsApiKey().then(setKey).catch(console.error);
+    getGoogleTtsVoice()
+      .then((v) => { if (v) { setLang(v.lang); setVoiceName(v.name); } })
+      .catch(console.error);
   }, []);
 
-  async function download() {
-    setError(null);
-    setProgress(0);
-    const onEvent = new Channel<{ downloaded: number; total: number | null }>();
-    onEvent.onmessage = ({ downloaded, total }) => {
-      if (total && total > 0) setProgress(Math.round((downloaded / total) * 100));
-    };
+  function chooseEngine(next: TtsEngine) {
+    setEngine(next);
+    setTtsEngine(next).catch(console.error);
+  }
+
+  async function loadVoices() {
+    setLoadingVoices(true);
+    setVoiceError(null);
     try {
-      await invoke("download_tts_voice", { onEvent });
-      setProgress(null);
-      setStatus("downloaded");
+      const list = await invoke<GoogleVoice[]>("list_tts_voices");
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      setVoices(list);
+      const langs = uniqueLangs(list);
+      if (!langs.includes(lang)) setLang(langs.includes("en-US") ? "en-US" : langs[0] ?? "en-US");
     } catch (e) {
-      console.error("voice download failed:", e);
-      setError(String(e));
-      setProgress(null);
+      setVoiceError(String(e));
+    } finally {
+      setLoadingVoices(false);
     }
   }
 
-  const downloading = progress !== null;
+  async function saveKey() {
+    setKeySave("saving");
+    try {
+      await setGoogleTtsApiKey(key.trim());
+      setKeySave("saved");
+      setTimeout(() => setKeySave("idle"), 2000);
+      if (key.trim()) loadVoices();
+    } catch {
+      setKeySave("error");
+    }
+  }
+
+  function chooseVoice(name: string, voiceLang: string) {
+    setVoiceName(name);
+    setGoogleTtsVoice({ name, lang: voiceLang }).catch(console.error);
+  }
+
+  function chooseLang(next: string) {
+    setLang(next);
+    const first = (voices ?? []).find((v) => v.languageCodes.includes(next));
+    if (first) chooseVoice(first.name, next);
+  }
+
+  const langs = voices ? uniqueLangs(voices) : [];
+  const voicesForLang = voices ? voices.filter((v) => v.languageCodes.includes(lang)) : [];
 
   return (
     <section className="space-y-3">
       <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Read Aloud</h2>
-      <div className="border border-outline-variant/40 p-5 space-y-3">
+      <div className="border border-outline-variant/40 p-5 space-y-4">
         <div>
-          <p className="text-sm font-headline font-semibold text-on-surface">Offline Voice</p>
+          <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
           <p className="text-xs font-body text-on-surface-variant mt-0.5">
-            Article read-aloud runs entirely on your machine — no account or internet needed once the
-            voice is downloaded. The voice (Lessac, US English) is a one-time ~61&nbsp;MB download.
+            System voices are free and work offline. Google Cloud voices are higher quality and billed
+            to your own Google account via an API key.
           </p>
         </div>
 
-        {status === "downloaded" ? (
-          <p className="text-[11px] font-label text-primary">✓ Voice installed — ready to listen</p>
-        ) : (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={download}
-              disabled={downloading || status === "checking"}
-              className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
-            >
-              {downloading ? `Downloading… ${progress}%` : status === "checking" ? "Checking…" : "Download voice (~61 MB)"}
+        <div className="flex gap-2">
+          {TTS_ENGINES.map((opt) => (
+            <button key={opt.value} onClick={() => chooseEngine(opt.value)} aria-pressed={engine === opt.value}
+              className={["flex-1 px-3 py-2 text-[11px] font-label font-bold uppercase tracking-widest transition-colors",
+                engine === opt.value
+                  ? "bg-primary-container text-on-primary-container"
+                  : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
+              ].join(" ")}>
+              {opt.label}
+              <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal opacity-70">{opt.description}</span>
             </button>
-            {downloading && (
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-outline/20">
-                <div className="h-full bg-primary transition-[width] duration-200" style={{ width: `${progress}%` }} />
+          ))}
+        </div>
+
+        {engine === "system" ? (
+          <p className="text-xs font-body text-on-surface-variant">
+            Uses your Mac's built-in speech voices. Pick or download higher-quality system voices in
+            macOS System Settings → Accessibility → Spoken Content → System Voice.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm font-headline font-semibold text-on-surface">Google Cloud TTS API Key</p>
+              <p className="text-xs font-body text-on-surface-variant">
+                In Google Cloud: enable the Text-to-Speech API, create an API key (restrict it to that
+                API), then paste it here. Set a quota on the key to cap spend.
+              </p>
+              <div className="flex gap-2">
+                <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="AIzaSy..."
+                  className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary" />
+                <button onClick={saveKey} disabled={keySave === "saving"}
+                  className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
+                  {keySave === "saving" ? "Saving…" : keySave === "saved" ? "Saved ✓" : keySave === "error" ? "Error" : "Save"}
+                </button>
               </div>
-            )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
+                <button onClick={loadVoices} disabled={loadingVoices || !key.trim()}
+                  className="shrink-0 ghost-border px-3 py-1.5 text-[10px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-opacity hover:opacity-90 disabled:opacity-40">
+                  {loadingVoices ? "Loading…" : voices ? "Reload" : "Load voices"}
+                </button>
+              </div>
+
+              {!voices && !voiceError && (
+                <p className="text-xs font-body text-on-surface-variant">
+                  {key.trim() ? "Load voices to choose one." : "Save your API key to load voices."}
+                </p>
+              )}
+
+              {voices && (
+                <div className="flex gap-2">
+                  <select value={lang} onChange={(e) => chooseLang(e.target.value)}
+                    className="ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+                    {langs.map((l) => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                  <select value={voiceName} onChange={(e) => chooseVoice(e.target.value, lang)}
+                    className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+                    {voicesForLang.map((v) => (
+                      <option key={v.name} value={v.name}>{v.name} · {v.ssmlGender.toLowerCase()}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {voiceError && <p className="text-[11px] font-body text-error">✗ {voiceError}</p>}
+            </div>
           </div>
         )}
-
-        {error && <p className="text-[11px] font-body text-error">✗ {error}</p>}
       </div>
     </section>
   );

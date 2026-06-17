@@ -19,6 +19,48 @@ export async function setYouTubeApiKey(key: string): Promise<void> {
   await invoke("set_credential", { key: "youtube_api_key", value: key });
 }
 
+// ── Read-aloud (TTS) ──────────────────────────────────────────────────────────
+
+/** Google Cloud TTS API key — stored in the OS keychain, not the plaintext store. */
+export async function getGoogleTtsApiKey(): Promise<string> {
+  return (await invoke<string | null>("get_credential", { key: "gcp_tts_api_key" })) ?? "";
+}
+
+export async function setGoogleTtsApiKey(key: string): Promise<void> {
+  await invoke("set_credential", { key: "gcp_tts_api_key", value: key });
+}
+
+/** Which voice engine read-aloud uses. "system" = free built-in Web Speech. */
+export type TtsEngine = "system" | "google";
+
+export async function getTtsEngine(): Promise<TtsEngine> {
+  const store = await getStore();
+  const v = await store.get<string>("tts_engine");
+  return v === "google" ? "google" : "system";
+}
+
+export async function setTtsEngine(engine: TtsEngine): Promise<void> {
+  const store = await getStore();
+  await store.set("tts_engine", engine);
+  await store.save();
+}
+
+export type GoogleTtsVoice = { name: string; lang: string };
+
+export async function getGoogleTtsVoice(): Promise<GoogleTtsVoice | null> {
+  const store = await getStore();
+  const name = await store.get<string>("tts_voice");
+  const lang = await store.get<string>("tts_voice_lang");
+  return name && lang ? { name, lang } : null;
+}
+
+export async function setGoogleTtsVoice(voice: GoogleTtsVoice): Promise<void> {
+  const store = await getStore();
+  await store.set("tts_voice", voice.name);
+  await store.set("tts_voice_lang", voice.lang);
+  await store.save();
+}
+
 export type AppTheme = "light" | "dark" | "system";
 
 export async function getAppTheme(): Promise<AppTheme> {
