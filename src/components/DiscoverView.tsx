@@ -17,7 +17,7 @@ type Category = {
 
 const RECOMMENDED: Category[] = [
   {
-    label: "Engineering Blogs",
+    label: "Tech & Engineering",
     feeds: [
       { name: "Cloudflare Blog", url: "https://blog.cloudflare.com/rss/", tagline: "How Cloudflare builds at scale" },
       { name: "Engineering at Meta", url: "https://engineering.fb.com/feed/", tagline: "Infrastructure and systems at Meta" },
@@ -25,6 +25,34 @@ const RECOMMENDED: Category[] = [
       { name: "Stripe Blog", url: "https://stripe.com/blog/feed.rss", tagline: "Building financial infrastructure" },
       { name: "Netflix Tech Blog", url: "https://netflixtechblog.medium.com/feed", tagline: "Streaming at planet scale" },
       { name: "Airbnb Engineering", url: "https://medium.com/feed/airbnb-engineering", tagline: "Engineering and data science at Airbnb" },
+      { name: "Fireship", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA", tagline: "Fast-paced web dev and tech" },
+      { name: "ThePrimeagen", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC8ENHE5xdFSwx71u3fDH5Xw", tagline: "Programming, editors, and hot takes" },
+      { name: "Computerphile", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC9-y-6csu5WGm29I7JiwpnA", tagline: "Computer science, explained" },
+      { name: "Marques Brownlee", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCBJycsmduvYEL83R_U4JriQ", tagline: "Quality tech reviews (MKBHD)" },
+    ],
+  },
+  {
+    label: "AI",
+    feeds: [
+      { name: "Andrej Karpathy", url: "https://karpathy.github.io/feed.xml", tagline: "Deep learning, from the ground up" },
+      { name: "Lilian Weng", url: "https://lilianweng.github.io/index.xml", tagline: "Deep dives into ML research" },
+      { name: "Simon Willison", url: "https://simonwillison.net/atom/everything/", tagline: "LLMs, tools, and building in public" },
+      { name: "Ahead of AI", url: "https://magazine.sebastianraschka.com/feed", tagline: "Sebastian Raschka on ML research" },
+      { name: "Import AI", url: "https://importai.substack.com/feed", tagline: "Jack Clark's weekly AI digest" },
+      { name: "Two Minute Papers", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg", tagline: "Latest AI research, distilled" },
+      { name: "Yannic Kilcher", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCZHmQk67mSJgfCCTn7xBfew", tagline: "ML paper breakdowns" },
+    ],
+  },
+  {
+    label: "Science & Math",
+    feeds: [
+      { name: "Veritasium", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCHnyfMqiRRG1u-2MsSQLbXA", tagline: "Science and engineering, deeply explained" },
+      { name: "Kurzgesagt", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCsXVk37bltHxD1rDPwtNM8Q", tagline: "Big questions, beautiful animation" },
+      { name: "3Blue1Brown", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCYO_jab_esuFRV4b17AJtAw", tagline: "Mathematics, visualized" },
+      { name: "Numberphile", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCoxcjq-8xIDTYp3uz647V5A", tagline: "Curious stories about numbers" },
+      { name: "PBS Space Time", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC7_gcs09iThXybpVgjHZ_7g", tagline: "Physics and the cosmos" },
+      { name: "Vsauce", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC6nSFpj9HTCZ5t-N3Rm3-HA", tagline: "The why, what, and how of everything" },
+      { name: "SmarterEveryDay", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC6107grRI4m0o2-emgoDnAA", tagline: "Exploring the world through science" },
     ],
   },
   {
@@ -39,22 +67,14 @@ const RECOMMENDED: Category[] = [
     ],
   },
   {
-    label: "AI Leaders",
-    feeds: [
-      { name: "Andrej Karpathy", url: "https://karpathy.github.io/feed.xml", tagline: "Deep learning, from the ground up" },
-      { name: "Lilian Weng", url: "https://lilianweng.github.io/index.xml", tagline: "Deep dives into ML research" },
-      { name: "Simon Willison", url: "https://simonwillison.net/atom/everything/", tagline: "LLMs, tools, and building in public" },
-      { name: "Ahead of AI", url: "https://magazine.sebastianraschka.com/feed", tagline: "Sebastian Raschka on ML research" },
-      { name: "Import AI", url: "https://importai.substack.com/feed", tagline: "Jack Clark's weekly AI digest" },
-    ],
-  },
-  {
     label: "Psychology & Mind",
     feeds: [
       { name: "Astral Codex Ten", url: "https://www.astralcodexten.com/feed", tagline: "Scott Alexander on mind and society" },
       { name: "Psyche", url: "https://psyche.co/feed", tagline: "How to live well, from Aeon" },
       { name: "Nautilus", url: "https://nautil.us/feed/", tagline: "Science, philosophy, and human nature" },
       { name: "Farnam Street", url: "https://fs.blog/feed/", tagline: "Mental models and clear thinking" },
+      { name: "The School of Life", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC7IcJI8PUf5Z3zKxnZvTBog", tagline: "Emotional intelligence and philosophy" },
+      { name: "Academy of Ideas", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCiRiQGCHGjDLT9FQXFW0I3A", tagline: "Philosophy and psychology" },
     ],
   },
   {
@@ -65,6 +85,10 @@ const RECOMMENDED: Category[] = [
       { name: "Wait But Why", url: "https://waitbutwhy.com/feed", tagline: "Long-form essays on everything" },
       { name: "Stratechery", url: "https://stratechery.com/feed/", tagline: "Ben Thompson on tech strategy" },
       { name: "Aeon", url: "https://aeon.co/feed.rss", tagline: "Big questions in philosophy and culture" },
+      { name: "TED", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCAuUUnT6oDeKwE6v1NGQxug", tagline: "Ideas worth spreading" },
+      { name: "Big Think", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCvQECJukTDE2i6aCoMnS-Vg", tagline: "Experts on the big questions" },
+      { name: "Lex Fridman", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCSHZKyawb77ixDdsGog4iWA", tagline: "Long-form conversations" },
+      { name: "Wendover Productions", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC9RM-iSvTu1uPJb8X5yp3EQ", tagline: "How the world actually works" },
     ],
   },
 ];
@@ -93,6 +117,18 @@ function Favicon({ url, name }: { url: string; name: string }) {
   const [failed, setFailed] = useState(false);
   let host = "";
   try { host = new URL(url).hostname; } catch { /* ignore */ }
+
+  // YouTube feeds all share one favicon, so show the YouTube play mark instead —
+  // an unmistakable "this is a video channel" signal next to the article feeds.
+  if (host.endsWith("youtube.com")) {
+    return (
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-[#FF0000] text-white">
+        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </div>
+    );
+  }
 
   if (failed || !host) {
     return (
@@ -124,7 +160,7 @@ export default function DiscoverView({ feeds, onFeedAdded }: Props) {
     setStatuses((prev) => ({ ...prev, [url]: status }));
   }
 
-  async function handleSubscribe(rec: RecommendedFeed) {
+  async function handleSubscribe(rec: RecommendedFeed, folder: string) {
     setStatus(rec.url, "pending");
     try {
       const parsed = await invoke<ParsedFeed>("fetch_feed", { url: rec.url });
@@ -132,7 +168,7 @@ export default function DiscoverView({ feeds, onFeedAdded }: Props) {
       const subscriptionId = uuidv4();
       await addFeed(
         { id: feedId, url: rec.url, title: parsed.title ?? rec.name, site_url: parsed.site_url },
-        null,
+        folder,
         subscriptionId
       );
       await upsertFeedItems(parsed.items.map((item) => ({ ...item, feed_id: feedId })));
@@ -182,12 +218,12 @@ export default function DiscoverView({ feeds, onFeedAdded }: Props) {
                             Subscribed
                           </span>
                         ) : status === "error" ? (
-                          <button onClick={() => handleSubscribe(rec)}
+                          <button onClick={() => handleSubscribe(rec, label)}
                             className="text-[11px] font-label font-bold text-error hover:underline">
                             Retry
                           </button>
                         ) : (
-                          <button onClick={() => handleSubscribe(rec)} disabled={status === "pending"}
+                          <button onClick={() => handleSubscribe(rec, label)} disabled={status === "pending"}
                             className="border border-outline-variant/60 px-3 py-1.5 text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-colors hover:border-primary hover:text-primary disabled:opacity-40">
                             {status === "pending" ? "Adding…" : "+ Add"}
                           </button>
