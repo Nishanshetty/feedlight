@@ -19,6 +19,13 @@ jobs:
     runs-on: macos-latest
     permissions:
       contents: write
+    env:
+      # Relocate the Cargo build dir to a short path. The vendored espeak-ng in
+      # espeak-rs-sys compiles phoneme data into a fixed ~180-char buffer
+      # (N_PATH_HOME 160 + 20); the default universal-build path on the runner
+      # exceeds it and truncates vowel filenames ("Bad vowel file"). See
+      # espeak-ng issue #2048 / PR #2220.
+      CARGO_TARGET_DIR: /private/tmp/ft
 
     steps:
       - name: Checkout
@@ -63,6 +70,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Feedlight-macOS-universal
-          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          path: /private/tmp/ft/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: ignore
           retention-days: 14
