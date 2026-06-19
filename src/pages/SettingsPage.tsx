@@ -238,6 +238,7 @@ function uniqueLangs(list: GoogleVoice[]): string[] {
 function TtsSection() {
   const [engine, setEngine] = useState<TtsEngine>("system");
   const [key, setKey] = useState("");
+  const [hasKey, setHasKey] = useState(false);
   const [keySave, setKeySave] = useState<SaveState>("idle");
 
   const [voices, setVoices] = useState<GoogleVoice[] | null>(null);
@@ -248,7 +249,7 @@ function TtsSection() {
 
   useEffect(() => {
     getTtsEngine().then(setEngine).catch(console.error);
-    getGoogleTtsApiKey().then(setKey).catch(console.error);
+    getGoogleTtsApiKey().then((k) => setHasKey(!!k.trim())).catch(console.error);
     getGoogleTtsVoice()
       .then((v) => { if (v) { setLang(v.lang); setVoiceName(v.name); } })
       .catch(console.error);
@@ -276,12 +277,16 @@ function TtsSection() {
   }
 
   async function saveKey() {
+    const trimmed = key.trim();
+    if (!trimmed) return;
     setKeySave("saving");
     try {
-      await setGoogleTtsApiKey(key.trim());
+      await setGoogleTtsApiKey(trimmed);
+      setHasKey(true);
+      setKey("");
       setKeySave("saved");
       setTimeout(() => setKeySave("idle"), 2000);
-      if (key.trim()) loadVoices();
+      loadVoices();
     } catch {
       setKeySave("error");
     }
@@ -341,7 +346,8 @@ function TtsSection() {
                 API), then paste it here. Set a quota on the key to cap spend.
               </p>
               <div className="flex gap-2">
-                <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="AIzaSy..."
+                <input type="password" value={key} onChange={(e) => setKey(e.target.value)}
+                  placeholder={hasKey ? "••••••••  saved — enter a new key to replace" : "AIzaSy..."}
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary" />
                 <button onClick={saveKey} disabled={keySave === "saving"}
                   className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
@@ -353,7 +359,7 @@ function TtsSection() {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
-                <button onClick={loadVoices} disabled={loadingVoices || !key.trim()}
+                <button onClick={loadVoices} disabled={loadingVoices || (!hasKey && !key.trim())}
                   className="shrink-0 ghost-border px-3 py-1.5 text-[10px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-opacity hover:opacity-90 disabled:opacity-40">
                   {loadingVoices ? "Loading…" : voices ? "Reload" : "Load voices"}
                 </button>
@@ -391,12 +397,13 @@ function TtsSection() {
 
 export default function SettingsPage() {
   const [ytKey, setYtKey] = useState("");
+  const [ytHasKey, setYtHasKey] = useState(false);
   const [ytSave, setYtSave] = useState<SaveState>("idle");
   const [vaultPath, setVaultPath] = useState("");
   const [vaultSave, setVaultSave] = useState<SaveState>("idle");
 
   useEffect(() => {
-    getYouTubeApiKey().then(setYtKey).catch(console.error);
+    getYouTubeApiKey().then((k) => setYtHasKey(!!k.trim())).catch(console.error);
     getObsidianVaultPath().then(setVaultPath).catch(console.error);
   }, []);
 
@@ -407,8 +414,10 @@ export default function SettingsPage() {
   }
 
   async function saveYtKey() {
+    const trimmed = ytKey.trim();
+    if (!trimmed) return;
     setYtSave("saving");
-    try { await setYouTubeApiKey(ytKey); setYtSave("saved"); setTimeout(() => setYtSave("idle"), 2000); }
+    try { await setYouTubeApiKey(trimmed); setYtHasKey(true); setYtKey(""); setYtSave("saved"); setTimeout(() => setYtSave("idle"), 2000); }
     catch { setYtSave("error"); }
   }
 
@@ -434,8 +443,8 @@ export default function SettingsPage() {
             <SettingField
               label="YouTube Data API Key"
               description="Required to subscribe to YouTube @handle channels. Get a key from Google Cloud Console."
-              value={ytKey} onChange={setYtKey} onSave={saveYtKey}
-              placeholder="AIzaSy..." saveState={ytSave} />
+              value={ytKey} onChange={setYtKey} onSave={saveYtKey} type="password"
+              placeholder={ytHasKey ? "••••••••  saved — enter a new key to replace" : "AIzaSy..."} saveState={ytSave} />
           </section>
 
           <TtsSection />
