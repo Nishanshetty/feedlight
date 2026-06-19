@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { Link } from "@tanstack/react-router";
 import {
   getYouTubeApiKey, setYouTubeApiKey,
@@ -407,10 +408,15 @@ export default function SettingsPage() {
     getObsidianVaultPath().then(setVaultPath).catch(console.error);
   }, []);
 
-  async function saveVaultPath() {
+  async function persistVaultPath(next: string) {
     setVaultSave("saving");
-    try { await setObsidianVaultPath(vaultPath.trim()); setVaultSave("saved"); setTimeout(() => setVaultSave("idle"), 2000); }
+    try { await setObsidianVaultPath(next); setVaultPath(next); setVaultSave("saved"); setTimeout(() => setVaultSave("idle"), 2000); }
     catch { setVaultSave("error"); }
+  }
+
+  async function chooseVaultFolder() {
+    const selected = await open({ directory: true, title: "Choose Obsidian vault folder" });
+    if (typeof selected === "string") await persistVaultPath(selected);
   }
 
   async function saveYtKey() {
@@ -453,11 +459,29 @@ export default function SettingsPage() {
 
           <section className="space-y-3">
             <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Export</h2>
-            <SettingField
-              label="Obsidian Vault Folder"
-              description='Absolute path to a folder inside your vault. "Send to Obsidian" writes one markdown file per article with your highlights and notes.'
-              value={vaultPath} onChange={setVaultPath} onSave={saveVaultPath}
-              placeholder="/Users/you/Documents/Vault/Feedlight" saveState={vaultSave} />
+            <div className="border border-outline-variant/40 p-5 space-y-3">
+              <div>
+                <p className="text-sm font-headline font-semibold text-on-surface">Obsidian Vault Folder</p>
+                <p className="text-xs font-body text-on-surface-variant mt-0.5">
+                  Choose a folder inside your vault. "Send to Obsidian" writes one markdown file per article with your highlights and notes.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="flex-1 truncate ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface" title={vaultPath || undefined}>
+                  {vaultPath || <span className="text-outline">No folder selected</span>}
+                </p>
+                <button onClick={chooseVaultFolder} disabled={vaultSave === "saving"}
+                  className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
+                  {vaultSave === "saving" ? "Saving…" : vaultSave === "saved" ? "Saved ✓" : vaultSave === "error" ? "Error" : "Choose Folder…"}
+                </button>
+                {vaultPath && (
+                  <button onClick={() => persistVaultPath("")} disabled={vaultSave === "saving"}
+                    className="shrink-0 px-2 py-2 text-[11px] font-label text-on-surface-variant transition-colors hover:text-error disabled:opacity-40">
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
           </section>
 
         </div>
