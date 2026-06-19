@@ -184,11 +184,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
         </ul>
 
         <figure>
-          <div class="shot-placeholder">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
-            <span class="file">screenshots/add-feed.png</span>
-            <span class="hint">Screenshot coming soon</span>
-          </div>
+          <img src={`${base}/screenshots/add-feed.png`} alt="Adding a feed — paste a site or feed URL and, optionally, a folder" loading="lazy" />
           <figcaption>Adding a feed — paste a site or feed URL and, optionally, a folder.</figcaption>
         </figure>
 
@@ -209,16 +205,13 @@ npm run tauri build    # production .dmg + .app</code></pre>
         <h2 id="discover">Discover</h2>
         <p>
           The <strong>Discover</strong> view is a hand-picked catalog of quality feeds grouped by topic —
-          <em>Tech</em>, <em>Science</em>, <em>Design &amp; Dev</em>, <em>News</em>, and <em>Culture</em>.
+          <em>Tech &amp; Engineering</em>, <em>AI</em>, <em>Science &amp; Math</em>, <em>Founders &amp; CEOs</em>,
+          <em>Psychology &amp; Mind</em>, and <em>Thinkers &amp; Essays</em>.
           Click <strong>+ Add</strong> next to any feed to subscribe instantly; feeds you already follow are marked
           <strong>Subscribed</strong>. It's the fastest way to seed a fresh install with good sources.
         </p>
         <figure>
-          <div class="shot-placeholder">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
-            <span class="file">screenshots/discover.png</span>
-            <span class="hint">Screenshot coming soon</span>
-          </div>
+          <img src={`${base}/screenshots/discover.png`} alt="Discover — a curated catalog of feeds grouped by topic" loading="lazy" />
           <figcaption>Discover — a curated catalog of feeds, one click to subscribe.</figcaption>
         </figure>
 
@@ -301,26 +294,27 @@ npm run tauri build    # production .dmg + .app</code></pre>
           or <strong>Send to Obsidian</strong> (see <a href="#export">Obsidian export</a>).
         </p>
         <figure>
-          <div class="shot-placeholder">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
-            <span class="file">screenshots/highlights.png</span>
-            <span class="hint">Screenshot coming soon</span>
-          </div>
+          <img src={`${base}/screenshots/highlights.png`} alt="The reader selection toolbar — highlight, note, ask, and listen options" loading="lazy" />
           <figcaption>Highlights — every saved passage and note, grouped by article.</figcaption>
         </figure>
 
         <!-- ════════════════════ TTS ════════════════════ -->
         <h2 id="tts">Text to speech</h2>
         <p>
-          Feedlight can read articles aloud using Google Cloud's <strong>Neural2</strong> voices, with the current paragraph
-          highlighted as it plays. This is an optional feature that needs Google Cloud TTS credentials.
+          Feedlight can read articles aloud, highlighting the current paragraph as it plays. You can pick a voice
+          engine in <a href="#settings">Settings → Read Aloud</a>:
         </p>
-        <h3>Set it up</h3>
+        <ul>
+          <li><strong>System</strong> — the voices built into macOS. Free, offline, and need no setup.</li>
+          <li><strong>Google</strong> — Google Cloud's higher-quality voices (including <strong>Neural2</strong>). Needs a Google Cloud API key and is billed to your own Google account.</li>
+        </ul>
+        <h3>Using Google Cloud voices</h3>
+        <p>System voices work out of the box. To use Google's higher-quality voices instead:</p>
         <ol>
           <li>In the <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">Google Cloud Console</a>, enable the <strong>Cloud Text-to-Speech API</strong>.</li>
-          <li>Create a <strong>service account</strong> (IAM &amp; Admin → Service Accounts) and add a <strong>JSON key</strong>.</li>
-          <li>Open the downloaded JSON file, copy its entire contents, and paste it into <a href="#settings">Settings → Text to Speech → Google Cloud TTS Credentials</a>.</li>
-          <li>Pick a <strong>Voice</strong> from the nine Neural2 options (the default is a female voice).</li>
+          <li>Create an <strong>API key</strong> (APIs &amp; Services → Credentials → <strong>Create credentials → API key</strong>).</li>
+          <li>Paste the key into <a href="#settings">Settings → Read Aloud</a>, then choose the <strong>Google</strong> engine.</li>
+          <li>Pick a <strong>language</strong> and <strong>voice</strong> — any voice Google offers is available (the default is <code>en-US-Neural2-F</code>, a female voice).</li>
         </ol>
         <h3>Listen</h3>
         <p>
@@ -329,8 +323,8 @@ npm run tauri build    # production .dmg + .app</code></pre>
           <strong>Listen</strong> button in the selection toolbar — to jump playback to that spot.
         </p>
         <p class="callout">
-          Credentials are stored locally on your Mac via <code>tauri-plugin-store</code>; audio is synthesized through your
-          own Google Cloud project. Standard Google Cloud TTS pricing applies.
+          Your API key is stored locally on your Mac via <code>tauri-plugin-store</code>; audio is synthesized through your
+          own Google Cloud project, and standard Google Cloud TTS pricing applies. System voices stay entirely on your Mac.
         </p>
 
         <!-- ════════════════════ AI ════════════════════ -->
@@ -353,11 +347,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
           <li><strong>Explain / Ask from a selection</strong> — select text and choose <strong>Explain</strong> for an instant explanation, or <strong>Ask</strong> to quote it into a question.</li>
         </ul>
         <figure>
-          <div class="shot-placeholder">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
-            <span class="file">screenshots/summary.png</span>
-            <span class="hint">Screenshot coming soon</span>
-          </div>
+          <img src={`${base}/screenshots/summary.png`} alt="AI summary with key points, generated locally by Ollama" loading="lazy" />
           <figcaption>AI summary and chat — generated locally by Ollama.</figcaption>
         </figure>
 
@@ -388,11 +378,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
         </ul>
         <p>You can unsubscribe straight from each flagged feed to declutter in seconds.</p>
         <figure>
-          <div class="shot-placeholder">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
-            <span class="file">screenshots/analytics.png</span>
-            <span class="hint">Screenshot coming soon</span>
-          </div>
+          <img src={`${base}/screenshots/analytics.png`} alt="Analytics — engagement metrics and feeds worth pruning" loading="lazy" />
           <figcaption>Analytics — engagement metrics and feeds worth pruning.</figcaption>
         </figure>
 
@@ -422,8 +408,9 @@ npm run tauri build    # production .dmg + .app</code></pre>
             <tbody>
               <tr><td>Appearance</td><td>Theme</td><td>App-wide Light, Dark, or System (follows macOS). The reader keeps its own theme setting.</td></tr>
               <tr><td>YouTube</td><td>YouTube Data API Key</td><td>Lets you subscribe to <code>@handle</code> YouTube channels.</td></tr>
-              <tr><td>Text to Speech</td><td>Google Cloud TTS Credentials</td><td>Paste your GCP service-account JSON to enable read-aloud.</td></tr>
-              <tr><td>Text to Speech</td><td>Voice</td><td>Choose one of nine Google Neural2 voices.</td></tr>
+              <tr><td>Read Aloud</td><td>Voice engine</td><td>Choose <strong>System</strong> (free, offline) or <strong>Google</strong> Cloud voices.</td></tr>
+              <tr><td>Read Aloud</td><td>Google API Key</td><td>Paste a Google Cloud API key to use Google's voices.</td></tr>
+              <tr><td>Read Aloud</td><td>Voice</td><td>Pick any available Google voice (default <code>en-US-Neural2-F</code>).</td></tr>
               <tr><td>AI Summarization</td><td>Enable Ollama</td><td>Turns on local AI summaries, chat, and digest.</td></tr>
               <tr><td>AI Summarization</td><td>Base URL &amp; Model</td><td>Where Ollama runs and which model to use; <strong>Test</strong> verifies the connection.</td></tr>
               <tr><td>Export</td><td>Obsidian Vault Folder</td><td>Destination folder for <strong>Send to Obsidian</strong>.</td></tr>
@@ -483,7 +470,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
         <p>Confirm Ollama is running (<code>ollama serve</code>) and the model is pulled (<code>ollama pull llama3.2</code>). In <a href="#settings">Settings → AI Summarization</a>, check the Base URL and press <strong>Test</strong> — it tells you whether Ollama is reachable and whether the model is installed.</p>
 
         <h3>Read-aloud does nothing.</h3>
-        <p>Read-aloud needs valid Google Cloud TTS credentials with the Text-to-Speech API enabled on that project. Re-paste the full service-account JSON in <a href="#settings">Settings → Text to Speech</a>.</p>
+        <p>System voices need no setup. For Google voices, make sure the Text-to-Speech API is enabled on your project and the engine is set to <strong>Google</strong>. Re-paste the API key in <a href="#settings">Settings → Read Aloud</a>.</p>
 
         <h3>Send to Obsidian fails.</h3>
         <p>The vault folder must be an existing absolute path. Double-check the path in <a href="#settings">Settings → Export</a>.</p>
