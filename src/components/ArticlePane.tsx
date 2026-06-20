@@ -671,6 +671,10 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   const isPlayingRef = useRef(false);
   // Incremented on stop/jump so stale in-flight synthesis results are discarded
   const playSessionRef = useRef(0);
+  // Google TTS only: paragraph index -> in-flight/resolved base64 audio promise.
+  // Lets us synthesize the next paragraph while the current one plays, hiding
+  // the network round-trip. Cleared on stop/jump (see stopSpeech/jumpToParagraph).
+  const ttsCacheRef = useRef(new Map<number, Promise<string>>());
   const titleRef = useRef<HTMLHeadingElement>(null);
   const articleContentRef = useRef<HTMLDivElement>(null);
 
@@ -1146,6 +1150,7 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
 
   function stopSpeech() {
     playSessionRef.current++;
+    ttsCacheRef.current.clear();
     isPlayingRef.current = false;
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     window.speechSynthesis.cancel();
@@ -1156,11 +1161,25 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
 
   function jumpToParagraph(index: number) {
     playSessionRef.current++;
+    ttsCacheRef.current.clear();
     isPlayingRef.current = false;
     audioRef.current?.pause();
     audioRef.current = null;
     window.speechSynthesis.cancel();
     playParagraph(index);
+  }
+
+  /**
+   * Google TTS: returns a cached or freshly-started synthesis promise for the
+   * given paragraph. Failed requests are evicted so they can be retried.
+   */
+  function synthParagraph(index: number): Promise<string> {
+    const cached = ttsCacheRef.current.get(index);
+    if (cached) return cached;
+    const promise = invoke<string>("synthesize_speech", { text: paragraphs[index] });
+    promise.catch(() => ttsCacheRef.current.delete(index));
+    ttsCacheRef.current.set(index, promise);
+    return promise;
   }
 
   function cycleSpeed() {
@@ -1212,8 +1231,15 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
 
     // Google Cloud TTS via the user's API key.
     try {
-      const b64 = await invoke<string>("synthesize_speech", { text: paragraphs[index] });
+      const b64 = await synthParagraph(index);
       if (!isPlayingRef.current || playSessionRef.current !== session) return;
+
+      // Prefetch the next paragraph so its synthesis overlaps current playback,
+      // hiding the API round-trip. Swallow rejections (e.g. no_api_key) here;
+      // they're handled when that paragraph actually plays.
+      if (index + 1 < paragraphs.length) {
+        synthParagraph(index + 1).catch(() => {});
+      }
 
       const audioUrl = b64ToAudioUrl(b64);
       const audio = new Audio(audioUrl);
