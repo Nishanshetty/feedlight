@@ -113,3 +113,18 @@ export async function setOllamaSettings(settings: OllamaSettings): Promise<void>
   await store.set("ollama_model", settings.model);
   await store.save();
 }
+
+// ── Reset ───────────────────────────────────────────────────────────────────
+
+/**
+ * Resets all app settings to their defaults: clears the settings store (theme,
+ * TTS, Ollama, Obsidian path) and removes stored API keys from the OS keychain.
+ * Does not touch feeds/articles — see `eraseAllData` in lib/db for those.
+ */
+export async function resetSettings(): Promise<void> {
+  const store = await getStore();
+  await store.clear();
+  await store.save();
+  await setYouTubeApiKey("");
+  await setGoogleTtsApiKey("");
+}
