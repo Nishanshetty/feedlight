@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { addFeed, upsertFeedItems, getSubscribedFeeds } from "../lib/db";
+import { exportFeedsToOpml } from "../lib/opml";
 import { v4 as uuidv4 } from "uuid";
 
 type OpmlFeed = { url: string; title: string; folder: string };
@@ -48,32 +49,6 @@ function parseOpml(xml: string): OpmlFeed[] {
   Array.from(body.children).forEach((child) => walk(child, ""));
   const seen = new Set<string>();
   return feeds.filter((f) => { if (seen.has(f.url)) return false; seen.add(f.url); return true; });
-}
-
-function escapeXml(s: string) {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function buildOpml(groups: Map<string, Array<{ title: string; url: string; siteUrl: string | null }>>): string {
-  const lines = [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<opml version="2.0">',
-    "  <head>",
-    "    <title>Feedlight Subscriptions</title>",
-    `    <dateCreated>${new Date().toUTCString()}</dateCreated>`,
-    "  </head>",
-    "  <body>",
-  ];
-  for (const [folder, entries] of groups) {
-    lines.push(`    <outline text="${escapeXml(folder)}" title="${escapeXml(folder)}">`);
-    for (const e of entries) {
-      const htmlAttr = e.siteUrl ? ` htmlUrl="${escapeXml(e.siteUrl)}"` : "";
-      lines.push(`      <outline type="rss" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"${htmlAttr}/>`);
-    }
-    lines.push("    </outline>");
-  }
-  lines.push("  </body>", "</opml>");
-  return lines.join("\n");
 }
 
 type Props = { onImportComplete: () => void };
@@ -138,19 +113,7 @@ export default function OpmlControls({ onImportComplete }: Props) {
   async function handleExport() {
     setState({ status: "exporting" });
     try {
-      const feeds = await getSubscribedFeeds();
-      const groups = new Map<string, Array<{ title: string; url: string; siteUrl: string | null }>>();
-      for (const feed of feeds) {
-        const folder = feed.folder ?? "Uncategorized";
-        if (!groups.has(folder)) groups.set(folder, []);
-        groups.get(folder)!.push({ title: feed.title ?? feed.url, url: feed.url, siteUrl: feed.site_url });
-      }
-      const xml = buildOpml(groups);
-      const blob = new Blob([xml], { type: "text/xml;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `feedlight-${new Date().toISOString().slice(0, 10)}.opml`; a.click();
-      URL.revokeObjectURL(url);
+      await exportFeedsToOpml();
       setState({ status: "idle" });
     } catch (err) {
       setState({ status: "error", message: err instanceof Error ? err.message : "Export failed" });

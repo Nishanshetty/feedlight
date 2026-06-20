@@ -10,8 +10,11 @@ import {
   getGoogleTtsApiKey, setGoogleTtsApiKey,
   getTtsEngine, setTtsEngine,
   getGoogleTtsVoice, setGoogleTtsVoice,
+  resetSettings,
   type OllamaSettings, type AppTheme, type TtsEngine,
 } from "../lib/settings";
+import { eraseAllData } from "../lib/db";
+import { exportFeedsToOpml } from "../lib/opml";
 import { applyTheme } from "../lib/theme";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -396,6 +399,78 @@ function TtsSection() {
   );
 }
 
+type ResetState = "idle" | "backing-up" | "erasing" | "error";
+
+function DangerZoneSection() {
+  const [confirmText, setConfirmText] = useState("");
+  const [state, setState] = useState<ResetState>("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const armed = confirmText.trim().toLowerCase() === "confirm";
+  const busy = state === "backing-up" || state === "erasing";
+
+  async function handleReset() {
+    if (!armed || busy) return;
+    setErrorMsg("");
+    // Back up feeds first — if this fails, abort without erasing anything.
+    setState("backing-up");
+    try {
+      await exportFeedsToOpml();
+    } catch (err) {
+      setState("error");
+      setErrorMsg(`Backup failed, nothing was erased: ${err instanceof Error ? err.message : String(err)}`);
+      return;
+    }
+    setState("erasing");
+    try {
+      await eraseAllData();
+      await resetSettings();
+      window.location.reload();
+    } catch (err) {
+      setState("error");
+      setErrorMsg(`Reset failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-error">Danger Zone</h2>
+      <div className="border border-error/40 p-5 space-y-4">
+        <div>
+          <p className="text-sm font-headline font-semibold text-on-surface">Factory Reset</p>
+          <p className="text-xs font-body text-on-surface-variant mt-0.5">
+            Permanently erases all feeds, articles, read state, highlights, settings, and API keys —
+            returning the app to its first-launch state. A backup of your feed list (.opml) is
+            downloaded automatically before erasing, so you can re-import it later.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <label className="text-xs font-body text-on-surface-variant">
+            Type <code className="bg-surface-container px-1 py-0.5 rounded text-[11px] text-on-surface">confirm</code> to enable the button.
+          </label>
+          <div className="flex gap-2">
+            <input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="confirm"
+              disabled={busy}
+              className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-error disabled:opacity-50"
+            />
+            <button
+              onClick={handleReset}
+              disabled={!armed || busy}
+              className="shrink-0 bg-error px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-background transition-opacity hover:opacity-90 disabled:opacity-30"
+            >
+              {state === "backing-up" ? "Backing up…" : state === "erasing" ? "Erasing…" : "Erase all data & reset"}
+            </button>
+          </div>
+        </div>
+        {state === "error" && <p className="text-[11px] font-body text-error">✗ {errorMsg}</p>}
+      </div>
+    </section>
+  );
+}
+
 export default function SettingsPage() {
   const [ytKey, setYtKey] = useState("");
   const [ytHasKey, setYtHasKey] = useState(false);
@@ -483,6 +558,8 @@ export default function SettingsPage() {
               </div>
             </div>
           </section>
+
+          <DangerZoneSection />
 
         </div>
       </div>

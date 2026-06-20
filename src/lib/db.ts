@@ -58,12 +58,16 @@ export async function addFeed(
   subscriptionId: string
 ): Promise<void> {
   const db = await getDb();
+  // Stamp last_fetched_at now: addFeed is only ever called right after a
+  // successful fetch_feed, so the feed has been fetched and shouldn't be flagged
+  // as a sync failure before the first background crawl.
   await db.execute(
-    `INSERT INTO feeds (id, url, title, site_url)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO feeds (id, url, title, site_url, last_fetched_at)
+     VALUES ($1, $2, $3, $4, strftime('%Y-%m-%dT%H:%M:%SZ','now'))
      ON CONFLICT (url) DO UPDATE SET
-       title    = excluded.title,
-       site_url = excluded.site_url`,
+       title           = excluded.title,
+       site_url        = excluded.site_url,
+       last_fetched_at = excluded.last_fetched_at`,
     [feedData.id, feedData.url, feedData.title, feedData.site_url]
   );
   await db.execute(
@@ -88,6 +92,18 @@ export async function deleteFeed(feedId: string): Promise<void> {
 export async function updateFeedFolder(feedId: string, folder: string | null): Promise<void> {
   const db = await getDb();
   await db.execute(`UPDATE subscriptions SET folder = $1 WHERE feed_id = $2`, [folder, feedId]);
+}
+
+/**
+ * Factory reset: removes every row from all data tables, returning the database
+ * to its first-launch (empty) state. Deletes are run in FK-safe dependency order
+ * so the wipe is complete regardless of whether the `foreign_keys` pragma is on.
+ */
+export async function eraseAllData(): Promise<void> {
+  const db = await getDb();
+  for (const table of ["highlights", "item_content", "item_states", "feed_items", "subscriptions", "feeds"]) {
+    await db.execute(`DELETE FROM ${table}`);
+  }
 }
 
 // ─── Timeline ─────────────────────────────────────────────────────────────────

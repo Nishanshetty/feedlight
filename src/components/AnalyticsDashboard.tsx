@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { AnalyticsResult, ClassifiedFeed } from "../lib/analytics";
 import { deleteFeed } from "../lib/db";
 
@@ -11,13 +12,12 @@ export default function AnalyticsDashboard({ data, onFeedDeleted }: Props) {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (data.overallReadRate / 100) * circumference;
 
-  async function handleUnsubscribe(feedId: string, title: string) {
-    if (!window.confirm(`Unsubscribe from "${title}"?`)) return;
+  async function handleUnsubscribe(feedId: string) {
     try {
       await deleteFeed(feedId);
       onFeedDeleted(feedId);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to unsubscribe");
+      console.error("Failed to unsubscribe:", err);
     }
   }
 
@@ -127,7 +127,7 @@ function FeedColumn({ title, dot, description, feeds, statFn, badgeFn, emptyLabe
   feeds: ClassifiedFeed[]; statFn: (f: ClassifiedFeed) => string;
   badgeFn?: (f: ClassifiedFeed) => string | undefined;
   emptyLabel: string; emptyNote: string;
-  onUnsubscribe: (feedId: string, title: string) => void;
+  onUnsubscribe: (feedId: string) => void;
 }) {
   return (
     <div className="border border-outline-variant/40 bg-surface-container-lowest p-5 flex flex-col min-h-[400px]">
@@ -150,7 +150,7 @@ function FeedColumn({ title, dot, description, feeds, statFn, badgeFn, emptyLabe
               <FeedStatRow key={f.feedId} feed={f}
                 statText={statFn(f)}
                 badgeColor={badgeFn?.(f) ?? "text-outline bg-outline/10 border-outline/20"}
-                onUnsubscribe={() => onUnsubscribe(f.feedId, f.feedTitle)} />
+                onUnsubscribe={() => onUnsubscribe(f.feedId)} />
             ))}
           </ul>
         )}
@@ -162,6 +162,8 @@ function FeedColumn({ title, dot, description, feeds, statFn, badgeFn, emptyLabe
 function FeedStatRow({ feed, statText, badgeColor, onUnsubscribe }: {
   feed: ClassifiedFeed; statText: string; badgeColor: string; onUnsubscribe: () => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
+
   return (
     <li className="flex items-center justify-between gap-3 border border-outline-variant/30 bg-background/50 hover:bg-surface-container-low transition-colors px-3 py-2.5 group">
       <div className="flex flex-col min-w-0 flex-1">
@@ -175,12 +177,25 @@ function FeedStatRow({ feed, statText, badgeColor, onUnsubscribe }: {
           </span>
         </div>
       </div>
-      <button onClick={onUnsubscribe} aria-label={`Unsubscribe from ${feed.feedTitle}`}
-        className="text-outline hover:text-error hover:bg-error/10 p-1.5 opacity-0 group-hover:opacity-100 transition-all duration-150">
-        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" clipRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" />
-        </svg>
-      </button>
+      {confirming ? (
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={onUnsubscribe} aria-label={`Confirm unsubscribe from ${feed.feedTitle}`}
+            className="text-[9px] font-label font-bold uppercase tracking-wider px-2 py-1 bg-error text-background transition-opacity hover:opacity-90">
+            Unsubscribe
+          </button>
+          <button onClick={() => setConfirming(false)} aria-label="Cancel"
+            className="text-[9px] font-label font-bold uppercase tracking-wider px-2 py-1 ghost-border text-on-surface-variant hover:text-on-surface">
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button onClick={() => setConfirming(true)} aria-label={`Unsubscribe from ${feed.feedTitle}`}
+          className="text-outline hover:text-error hover:bg-error/10 p-1.5 opacity-0 group-hover:opacity-100 transition-all duration-150">
+          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" clipRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" />
+          </svg>
+        </button>
+      )}
     </li>
   );
 }
