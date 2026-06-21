@@ -8,7 +8,7 @@ const SHORTCUTS: [string, string][] = [
   ["k", "Previous item"],
   ["o / Enter", "Open article pane"],
   ["m", "Toggle read / unread"],
-  ["s", "Toggle star"],
+  ["s", "Toggle saved"],
   ["Shift+A", "Mark all visible items as read"],
   ["Escape", "Close article pane"],
   ["?", "Show this help"],
