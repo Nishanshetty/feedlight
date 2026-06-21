@@ -102,7 +102,7 @@ export async function updateFeedFolder(feedId: string, folder: string | null): P
  */
 export async function eraseAllData(): Promise<void> {
   const db = await getDb();
-  for (const table of ["highlights", "item_content", "item_states", "feed_items", "subscriptions", "feeds"]) {
+  for (const table of ["highlights", "item_takeaways", "item_content", "item_states", "feed_items", "subscriptions", "feeds"]) {
     await db.execute(`DELETE FROM ${table}`);
   }
 }
@@ -402,6 +402,41 @@ export async function setItemContent(itemId: string, content: ArchivedContent): 
     `INSERT INTO item_content (item_id, content_json) VALUES ($1, $2)
      ON CONFLICT (item_id) DO NOTHING`,
     [itemId, JSON.stringify(content)]
+  );
+}
+
+// ─── Key takeaways cache ────────────────────────────────────────────────────────
+
+export async function getItemTakeaways(
+  itemId: string
+): Promise<{ takeaways: string[]; model: string | null } | null> {
+  const db = await getDb();
+  const rows = await db.select<Array<{ takeaways_json: string; model: string | null }>>(
+    `SELECT takeaways_json, model FROM item_takeaways WHERE item_id = $1`,
+    [itemId]
+  );
+  if (!rows[0]) return null;
+  try {
+    return { takeaways: JSON.parse(rows[0].takeaways_json) as string[], model: rows[0].model };
+  } catch {
+    return null;
+  }
+}
+
+export async function setItemTakeaways(
+  itemId: string,
+  takeaways: string[],
+  model: string | null
+): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `INSERT INTO item_takeaways (item_id, takeaways_json, model, created_at)
+     VALUES ($1, $2, $3, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+     ON CONFLICT (item_id) DO UPDATE SET
+       takeaways_json = excluded.takeaways_json,
+       model          = excluded.model,
+       created_at     = excluded.created_at`,
+    [itemId, JSON.stringify(takeaways), model]
   );
 }
 

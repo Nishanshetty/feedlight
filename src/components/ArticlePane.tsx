@@ -9,6 +9,7 @@ import {
   upsertItemState, getItemProgress,
   getHighlightsForItem, addHighlight, updateHighlightNote, deleteHighlight,
   getItemContent, setItemContent,
+  getItemTakeaways, setItemTakeaways,
   isArticleSaved, saveExternalArticle, removeSavedArticleByUrl,
 } from "../lib/db";
 import { anchorFromRange, findRange, wrapRangeWithMarks, unwrapHighlights, type TextAnchor } from "../lib/highlight-anchor";
@@ -1083,24 +1084,47 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     getObsidianVaultPath().then(setObsidianPath).catch(() => {});
   }, [itemId]);
 
-  // Auto-generate key takeaways in the background once the article is extracted
+  // Auto-generate key takeaways in the background once the article is extracted.
+  // Cached per item (keyed by itemId) so reopening the same article reuses them;
+  // a model change invalidates the cache and regenerates.
   useEffect(() => {
     if (isYT || result.state !== "ok" || !ollamaSettings?.enabled) return;
     let stale = false;
     setTakeaways(null);
     setTakeawaysOpen(false);
     setTakeawaysLoading(true);
-    const text = getParagraphs(result.content).join(" ");
-    invoke<string[]>("key_takeaways", {
-      baseUrl: ollamaSettings.url,
-      model: ollamaSettings.model,
-      text,
-    })
-      .then((t) => { if (!stale && t.length > 0) setTakeaways(t); })
-      .catch(() => { /* ambient feature: fail silently */ })
-      .finally(() => { if (!stale) setTakeawaysLoading(false); });
+
+    (async () => {
+      if (itemId) {
+        try {
+          const cached = await getItemTakeaways(itemId);
+          if (cached && cached.model === ollamaSettings.model && cached.takeaways.length > 0) {
+            if (!stale) { setTakeaways(cached.takeaways); setTakeawaysLoading(false); }
+            return;
+          }
+        } catch { /* fall through to generation */ }
+      }
+
+      const text = getParagraphs(result.content).join(" ");
+      try {
+        const t = await invoke<string[]>("key_takeaways", {
+          baseUrl: ollamaSettings.url,
+          model: ollamaSettings.model,
+          text,
+        });
+        if (!stale && t.length > 0) {
+          setTakeaways(t);
+          if (itemId) setItemTakeaways(itemId, t, ollamaSettings.model).catch(() => {});
+        }
+      } catch {
+        /* ambient feature: fail silently */
+      } finally {
+        if (!stale) setTakeawaysLoading(false);
+      }
+    })();
+
     return () => { stale = true; };
-  }, [result, ollamaSettings, isYT]);
+  }, [result, ollamaSettings, isYT, itemId]);
 
   // Ambient accent: dominant hue of the article's first image
   useEffect(() => {
