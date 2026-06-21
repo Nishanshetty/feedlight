@@ -9,6 +9,7 @@ import {
   upsertItemState, getItemProgress,
   getHighlightsForItem, addHighlight, updateHighlightNote, deleteHighlight,
   getItemContent, setItemContent,
+  isArticleSaved, saveExternalArticle, removeSavedArticleByUrl,
 } from "../lib/db";
 import { anchorFromRange, findRange, wrapRangeWithMarks, unwrapHighlights, type TextAnchor } from "../lib/highlight-anchor";
 import type { Highlight } from "../types/database";
@@ -74,6 +75,11 @@ type ChatControls = {
 type SummarizeControls = {
   state: SummarizeState;
   onSummarize: () => void;
+};
+
+type SaveControls = {
+  saved: boolean;
+  onToggle: () => void;
 };
 
 type ReaderTheme = "auto" | "light" | "sepia" | "slate" | "dark";
@@ -193,10 +199,10 @@ function b64ToAudioUrl(b64: string): string {
 
 // ─── PaneHeader ───────────────────────────────────────────────────────────────
 
-function PaneHeader({ title, url, onClose, speech, summarize, chat, settings, highlights }: {
+function PaneHeader({ title, url, onClose, speech, summarize, chat, settings, highlights, save }: {
   title: string | null; url: string; onClose: () => void;
   speech?: SpeechControls; summarize?: SummarizeControls; chat?: ChatControls; settings?: ReaderSettings;
-  highlights?: HighlightControls;
+  highlights?: HighlightControls; save?: SaveControls;
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -224,6 +230,20 @@ function PaneHeader({ title, url, onClose, speech, summarize, chat, settings, hi
         {title && <span className="truncate text-[12px] font-headline font-semibold leading-tight">{title}</span>}
         <span className="truncate text-[9px] font-label uppercase tracking-widest text-reader-text-muted">{domain}</span>
       </div>
+
+      {/* Save (bookmark) button */}
+      {save && (
+        <button
+          onClick={save.onToggle}
+          aria-label={save.saved ? "Remove from Saved" : "Save article"}
+          title={save.saved ? "Remove from Saved" : "Save article"}
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded transition-colors hover:bg-reader-hover ${save.saved ? "text-reader-text" : "text-reader-text-muted hover:text-reader-text"}`}
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill={save.saved ? "currentColor" : "none"} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          </svg>
+        </button>
+      )}
 
       {/* Summarize button */}
       {summarize && (
@@ -639,6 +659,9 @@ function LoadingSkeleton() {
 
 export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   const [result, setResult] = useState<ExtractResult>({ state: "loading" });
+  // Save state — only meaningful for external (⌘L) reads, which have no itemId.
+  const isExternal = !itemId;
+  const [isSaved, setIsSaved] = useState(false);
   const [theme, setTheme] = useState<ReaderTheme>("auto");
   const [appDark, setAppDark] = useState(() => document.documentElement.classList.contains("dark"));
   const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">("sans");
@@ -1044,6 +1067,14 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
 
     return () => { stale = true; };
   }, [url, isYT, itemId]);
+
+  // Track whether this external article is already saved
+  useEffect(() => {
+    if (!isExternal) return;
+    let stale = false;
+    isArticleSaved(url).then((s) => { if (!stale) setIsSaved(s); }).catch(() => {});
+    return () => { stale = true; };
+  }, [url, isExternal]);
 
   // Load persisted highlights for this item
   useEffect(() => {
@@ -1511,6 +1542,27 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
         }
       : undefined;
 
+  async function handleToggleSave() {
+    const next = !isSaved;
+    setIsSaved(next); // optimistic
+    try {
+      if (next) {
+        const content = result.state === "ok"
+          ? { title: result.title, byline: result.byline, siteName: result.siteName, content: result.content }
+          : null;
+        await saveExternalArticle({ url, title: result.state === "ok" ? result.title : title, content });
+      } else {
+        await removeSavedArticleByUrl(url);
+      }
+    } catch (err) {
+      setIsSaved(!next); // revert on failure
+      console.error("Failed to toggle saved state:", err);
+    }
+  }
+
+  const saveControls: SaveControls | undefined =
+    isExternal ? { saved: isSaved, onToggle: handleToggleSave } : undefined;
+
   const resolvedTheme = theme === "auto" ? (appDark ? "dark" : "light") : theme;
 
   // Ambient accent: fixed saturation/lightness per theme keeps text contrast safe
@@ -1533,6 +1585,7 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
           speech={speechControls}
           summarize={summarizeControls}
           chat={chatControls}
+          save={saveControls}
           settings={isYT ? undefined : settingsControls}
           highlights={itemId && !isYT ? {
             count: highlights.length,

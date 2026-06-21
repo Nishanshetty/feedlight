@@ -1,4 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
+import { v4 as uuidv4 } from "uuid";
 import type {
   SubscribedFeed,
   TimelineItem,
@@ -447,4 +448,127 @@ export async function get24hItems(): Promise<DigestItem[]> {
      ORDER BY fi.published_at DESC`,
     [since]
   );
+}
+
+// ─── Saved articles ─────────────────────────────────────────────────────────────
+// "Saved" unifies starred feed items and saved external (⌘L) articles. External
+// articles are stored as feed_items under a reserved, never-subscribed feed so
+// they share the existing item_states (is_starred) and item_content machinery —
+// which keeps them out of the sidebar feed list, analytics, and unread counts.
+
+export const SAVED_FEED_ID = "__saved__";
+
+async function ensureSavedFeed(db: Database): Promise<void> {
+  await db.execute(
+    `INSERT OR IGNORE INTO feeds (id, url, title, last_fetched_at)
+     VALUES ($1, $2, $3, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))`,
+    [SAVED_FEED_ID, "feedlight://saved", "Saved"]
+  );
+}
+
+/**
+ * Saves an external article (one with no feed item of its own) so it appears in
+ * the Saved view. Idempotent per URL: re-saving reuses the existing row. The
+ * extracted content is archived so reopening is instant and survives link rot.
+ */
+export async function saveExternalArticle(article: {
+  url: string;
+  title: string | null;
+  content: ArchivedContent | null;
+}): Promise<string> {
+  const db = await getDb();
+  await ensureSavedFeed(db);
+  const existing = await db.select<Array<{ id: string }>>(
+    `SELECT id FROM feed_items WHERE feed_id = $1 AND guid = $2`,
+    [SAVED_FEED_ID, article.url]
+  );
+  const id = existing[0]?.id ?? uuidv4();
+  await db.execute(
+    `INSERT INTO feed_items (id, feed_id, title, link, content, published_at, guid)
+     VALUES ($1, $2, $3, $4, NULL, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), $5)
+     ON CONFLICT (feed_id, guid) DO UPDATE SET
+       title = excluded.title,
+       link  = excluded.link`,
+    [id, SAVED_FEED_ID, article.title, article.url, article.url]
+  );
+  await upsertItemState(id, { is_starred: true });
+  if (article.content) await setItemContent(id, article.content);
+  return id;
+}
+
+export async function isArticleSaved(url: string): Promise<boolean> {
+  const db = await getDb();
+  const rows = await db.select<Array<{ c: number }>>(
+    `SELECT COUNT(*) AS c FROM feed_items fi
+     JOIN item_states ist ON ist.item_id = fi.id
+     WHERE fi.feed_id = $1 AND fi.guid = $2 AND ist.is_starred = 1`,
+    [SAVED_FEED_ID, url]
+  );
+  return (rows[0]?.c ?? 0) > 0;
+}
+
+export async function removeSavedArticleByUrl(url: string): Promise<void> {
+  const db = await getDb();
+  // Cascade clears item_states + item_content for this saved article.
+  await db.execute(
+    `DELETE FROM feed_items WHERE feed_id = $1 AND guid = $2`,
+    [SAVED_FEED_ID, url]
+  );
+}
+
+/**
+ * Removes an item from the Saved view. External saved articles are deleted
+ * outright (cleanup); real feed items just have their saved flag cleared so they
+ * remain in their feed.
+ */
+export async function unsaveItem(item: { id: string; feed_id: string }): Promise<void> {
+  if (item.feed_id === SAVED_FEED_ID) {
+    const db = await getDb();
+    await db.execute(`DELETE FROM feed_items WHERE id = $1`, [item.id]);
+  } else {
+    await upsertItemState(item.id, { is_starred: false });
+  }
+}
+
+/** All saved items (starred feed items + external saves), most recently saved first. */
+export async function getSavedItems(): Promise<TimelineItem[]> {
+  const db = await getDb();
+  const rows = await db.select<
+    Array<{
+      id: string;
+      title: string | null;
+      link: string | null;
+      content: string | null;
+      published_at: string | null;
+      feed_id: string;
+      author: string | null;
+      thumbnail_url: string | null;
+      feed_title: string | null;
+      is_read: number;
+      is_saved: number;
+      is_starred: number;
+      read_progress: number;
+    }>
+  >(
+    `SELECT
+       fi.id, fi.title, fi.link, fi.content, fi.published_at,
+       fi.feed_id, fi.author, fi.thumbnail_url,
+       CASE WHEN fi.feed_id = $1 THEN NULL ELSE f.title END AS feed_title,
+       COALESCE(ist.is_read,    0) AS is_read,
+       COALESCE(ist.is_saved,   0) AS is_saved,
+       COALESCE(ist.is_starred, 0) AS is_starred,
+       COALESCE(ist.read_progress, 0) AS read_progress
+     FROM feed_items fi
+     JOIN feeds f ON f.id = fi.feed_id
+     JOIN item_states ist ON ist.item_id = fi.id
+     WHERE ist.is_starred = 1
+     ORDER BY ist.updated_at DESC`,
+    [SAVED_FEED_ID]
+  );
+  return rows.map((r) => ({
+    ...r,
+    is_read: r.is_read === 1,
+    is_saved: r.is_saved === 1,
+    is_starred: r.is_starred === 1,
+  }));
 }

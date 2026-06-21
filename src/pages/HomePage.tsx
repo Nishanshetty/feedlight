@@ -14,6 +14,7 @@ import AnalyticsDashboard from "../components/AnalyticsDashboard";
 import DigestView from "../components/DigestView";
 import DiscoverView from "../components/DiscoverView";
 import HighlightsView from "../components/HighlightsView";
+import SavedView from "../components/SavedView";
 
 export default function HomePage() {
   const [feeds, setFeeds] = useState<SubscribedFeed[]>([]);
@@ -107,7 +108,7 @@ export default function HomePage() {
 
   const filterLabel = useMemo(() => {
     if (activeToday) return "Today";
-    if (activeStarred) return "Starred";
+    if (activeStarred) return "Saved";
     if (activeFeedId) return feeds.find((f) => f.id === activeFeedId)?.title ?? "Feed";
     if (activeFolder) return activeFolder;
     return "All Articles";
@@ -133,6 +134,8 @@ export default function HomePage() {
 
   const main = activeHighlights ? (
     <HighlightsView />
+  ) : activeStarred ? (
+    <SavedView refreshKey={timelineRefreshKey} onStatesChanged={handleStatesChanged} />
   ) : activeDiscover ? (
     <DiscoverView feeds={feeds} onFeedAdded={handleFeedAdded} />
   ) : activeDigest ? (
