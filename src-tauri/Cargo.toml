@@ -30,3 +30,9 @@ base64 = "0.22"
 url = "2"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }
 security-framework = "3"
+
+# macOS-only: capture uncaught AppKit/Cocoa exceptions (e.g. the wake-from-sleep
+# -[NSWindow setStyleMask:] crash) and harden window handling.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSException", "NSString"] }
