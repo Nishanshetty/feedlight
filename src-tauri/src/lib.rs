@@ -50,10 +50,15 @@ pub fn run() {
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
-                if let Ok(dir) = app.path().app_data_dir() {
-                    let _ = std::fs::create_dir_all(&dir);
-                    macos::install(dir.join("crash.log"));
-                }
+                // Always install the hardening; only the log path is conditional.
+                let log_path = match app.path().app_data_dir() {
+                    Ok(dir) => {
+                        let _ = std::fs::create_dir_all(&dir);
+                        dir.join("crash.log")
+                    }
+                    Err(_) => std::env::temp_dir().join("feedlight-crash.log"),
+                };
+                macos::install(log_path);
             }
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(crawler::run_crawler(handle));
