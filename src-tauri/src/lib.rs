@@ -1,6 +1,10 @@
 mod commands;
 mod crawler;
+#[cfg(target_os = "macos")]
+mod macos;
 
+#[cfg(target_os = "macos")]
+use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -44,6 +48,13 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            {
+                if let Ok(dir) = app.path().app_data_dir() {
+                    let _ = std::fs::create_dir_all(&dir);
+                    macos::install(dir.join("crash.log"));
+                }
+            }
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(crawler::run_crawler(handle));
             Ok(())
