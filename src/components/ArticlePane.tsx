@@ -204,8 +204,8 @@ function b64ToAudioUrl(b64: string): string {
 
 // ─── PaneHeader ───────────────────────────────────────────────────────────────
 
-function PaneHeader({ title, url, onClose, speech, summarize, chat, settings, highlights, save }: {
-  title: string | null; url: string; onClose: () => void;
+function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, settings, highlights, save }: {
+  title: string | null; url: string; onClose: () => void; onMinimize?: () => void;
   speech?: SpeechControls; summarize?: SummarizeControls; chat?: ChatControls; settings?: ReaderSettings;
   highlights?: HighlightControls; save?: SaveControls;
 }) {
@@ -230,6 +230,15 @@ function PaneHeader({ title, url, onClose, speech, summarize, chat, settings, hi
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
+
+      {onMinimize && (
+        <button onClick={onMinimize} aria-label="Minimize to mini player" title="Minimize"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col">
         {title && <span className="truncate text-[12px] font-headline font-semibold leading-tight">{title}</span>}
@@ -667,6 +676,8 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   // Save state — only meaningful for external (⌘L) reads, which have no itemId.
   const isExternal = !itemId;
   const [isSaved, setIsSaved] = useState(false);
+  // Collapse the pane into a floating mini-player (keeps TTS playing).
+  const [minimized, setMinimized] = useState(false);
   const [theme, setTheme] = useState<ReaderTheme>("auto");
   const [appDark, setAppDark] = useState(() => document.documentElement.classList.contains("dark"));
   const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">("sans");
@@ -1611,6 +1622,8 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     isExternal ? { saved: isSaved, onToggle: handleToggleSave } : undefined;
 
   const resolvedTheme = theme === "auto" ? (appDark ? "dark" : "light") : theme;
+  const paneTitle = result.state === "ok" ? result.title : title;
+  const paneDomain = (() => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } })();
 
   // Ambient accent: fixed saturation/lightness per theme keeps text contrast safe
   const accentColor = accentHue === null ? undefined
@@ -1620,15 +1633,70 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/25" onClick={onClose} aria-hidden="true" />
+      {!minimized && <div className="fixed inset-0 z-40 bg-black/25" onClick={onClose} aria-hidden="true" />}
+
+      {minimized && (
+        <div
+          className={`fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] items-center gap-2 rounded-lg border px-3 py-2 shadow-2xl reader-theme-${resolvedTheme} bg-reader-bg border-reader-border text-reader-text`}
+          style={accentColor ? ({ "--reader-primary": accentColor } as React.CSSProperties) : undefined}
+        >
+          <button onClick={() => setMinimized(false)} aria-label="Expand article" title="Expand"
+            className="flex min-w-0 flex-1 items-center gap-2 text-left">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-reader-primary/15 text-reader-primary">
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4.03v8.05A4.5 4.5 0 0016.5 12z" />
+              </svg>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[12px] font-headline font-semibold leading-tight">{paneTitle ?? "Reading"}</span>
+              <span className="block truncate text-[9px] font-label uppercase tracking-widest text-reader-text-muted">{paneDomain}</span>
+            </span>
+          </button>
+
+          {speechControls && (
+            <div className="flex shrink-0 items-center gap-0.5">
+              <button onClick={speechControls.onCycleSpeed} aria-label="Playback speed" title="Playback speed"
+                className="flex h-7 min-w-7 items-center justify-center rounded px-1 text-[10px] font-bold text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
+                {speechControls.speed}×
+              </button>
+              {speechControls.state === "playing" ? (
+                <button onClick={speechControls.onPause} aria-label="Pause"
+                  className="flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
+                  <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+                </button>
+              ) : (
+                <button onClick={speechControls.onPlay} aria-label="Listen"
+                  className="flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
+                  <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                </button>
+              )}
+              {speechControls.state !== "idle" && (
+                <button onClick={speechControls.onStop} aria-label="Stop"
+                  className="flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
+                  <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z" /></svg>
+                </button>
+              )}
+            </div>
+          )}
+
+          <button onClick={onClose} aria-label="Close article"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       <div
-        className={`fixed right-0 top-0 bottom-0 z-50 flex w-full flex-col border-l shadow-2xl sm:w-[65vw] xl:w-[58vw] reader-theme-${resolvedTheme} bg-reader-bg border-reader-border text-reader-text transition-colors duration-200`}
+        className={`fixed right-0 top-0 bottom-0 z-50 flex w-full flex-col border-l shadow-2xl sm:w-[65vw] xl:w-[58vw] reader-theme-${resolvedTheme} bg-reader-bg border-reader-border text-reader-text transition-colors duration-200 ${minimized ? "hidden" : ""}`}
         style={accentColor ? ({ "--reader-primary": accentColor } as React.CSSProperties) : undefined}
       >
         <PaneHeader
-          title={result.state === "ok" ? result.title : title}
+          title={paneTitle}
           url={url}
           onClose={onClose}
+          onMinimize={() => setMinimized(true)}
           speech={speechControls}
           summarize={summarizeControls}
           chat={chatControls}
