@@ -106,11 +106,6 @@ function isYouTubeWatch(url: string): boolean {
   } catch { return false; }
 }
 
-function toYouTubeEmbed(url: string): string {
-  const videoId = new URL(url).searchParams.get("v")!;
-  return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-}
-
 function getParagraphs(html: string): string[] {
   if (typeof window === "undefined") return [];
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -744,6 +739,25 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   const [accentHue, setAccentHue] = useState<number | null>(null);
 
   const isYT = isYouTubeWatch(url);
+
+  // YouTube can't be embedded in the production app (tauri:// origin → no
+  // referrer → playback error 153), so play it top-level in its own window.
+  async function openVideoWindow() {
+    try {
+      await invoke("open_video_window", { url, title });
+    } catch (e) {
+      console.error("Failed to open video window:", e);
+    }
+  }
+
+  // Auto-open the video window once per YouTube article.
+  const openedVideoUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isYT || openedVideoUrlRef.current === url) return;
+    openedVideoUrlRef.current = url;
+    openVideoWindow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isYT, url]);
 
   const paragraphs = useMemo(() => {
     if (result.state !== "ok") return [];
@@ -1625,9 +1639,23 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
         )}
         <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto min-h-0">
           {isYT ? (
-            <iframe key={url} src={toYouTubeEmbed(url)} className="h-full w-full border-0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen title={title ?? "Video"} />
+            <div className="flex h-full flex-col items-center justify-center gap-5 p-8 text-center text-reader-text">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15">
+                <svg className="h-7 w-7 translate-x-0.5 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-headline font-semibold">{title ?? "Video"}</p>
+                <p className="mt-1 text-[10px] font-label uppercase tracking-widest text-reader-text-muted">
+                  Plays in a separate window
+                </p>
+              </div>
+              <button onClick={openVideoWindow}
+                className="ghost-border bg-primary px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary transition-opacity hover:opacity-90">
+                Play video
+              </button>
+            </div>
           ) : result.state === "loading" ? (
             <LoadingSkeleton />
           ) : result.state === "error" ? (
