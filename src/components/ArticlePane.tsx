@@ -101,8 +101,17 @@ type ReaderSettings = {
 function isYouTubeWatch(url: string): boolean {
   try {
     const p = new URL(url);
-    return (p.hostname === "www.youtube.com" || p.hostname === "youtube.com") &&
-      p.pathname === "/watch" && !!p.searchParams.get("v");
+    const host = p.hostname.replace(/^www\./, "");
+    // youtu.be/<id> short links
+    if (host === "youtu.be") return p.pathname.length > 1;
+    // youtube.com and subdomains (m., music., …): the common video URL forms
+    if (host === "youtube.com" || host.endsWith(".youtube.com")) {
+      return (p.pathname === "/watch" && !!p.searchParams.get("v")) ||
+        p.pathname.startsWith("/shorts/") ||
+        p.pathname.startsWith("/live/") ||
+        p.pathname.startsWith("/embed/");
+    }
+    return false;
   } catch { return false; }
 }
 
