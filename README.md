@@ -112,6 +112,9 @@ src-tauri/            # Rust / Tauri backend
   migrations/         # SQLite schema
 ```
 
+For a deeper dive — architecture, full DB schema, the Rust command/IPC surface, and
+a feature → code map — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ---
 
 ## License
