@@ -6,6 +6,7 @@ import {
   getYouTubeApiKey, setYouTubeApiKey,
   getOllamaSettings, setOllamaSettings,
   getAppTheme, setAppTheme,
+  getRefreshIntervalSecs, setRefreshIntervalSecs,
   getObsidianVaultPath, setObsidianVaultPath,
   getGoogleTtsApiKey, setGoogleTtsApiKey,
   getTtsEngine, setTtsEngine,
@@ -90,6 +91,91 @@ function AppearanceSection() {
             </button>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+const SYNC_PRESETS: { label: string; secs: number }[] = [
+  { label: "Manual only", secs: 0 },
+  { label: "Every 15 minutes", secs: 900 },
+  { label: "Every 30 minutes", secs: 1800 },
+  { label: "Every hour", secs: 3600 },
+  { label: "Every 3 hours", secs: 10800 },
+  { label: "Every 6 hours", secs: 21600 },
+];
+
+function FeedSyncingSection() {
+  const [secs, setSecs] = useState(900);
+  const [isCustom, setIsCustom] = useState(false);
+  const [customMins, setCustomMins] = useState("30");
+
+  useEffect(() => {
+    getRefreshIntervalSecs().then((s) => {
+      setSecs(s);
+      if (!SYNC_PRESETS.some((p) => p.secs === s)) {
+        setIsCustom(true);
+        setCustomMins(String(Math.max(1, Math.round(s / 60))));
+      }
+    }).catch(console.error);
+  }, []);
+
+  function save(next: number) {
+    setSecs(next);
+    setRefreshIntervalSecs(next).catch(console.error);
+  }
+
+  function onSelect(value: string) {
+    if (value === "custom") {
+      const mins = secs > 0 ? Math.max(1, Math.round(secs / 60)) : 30;
+      setIsCustom(true);
+      setCustomMins(String(mins));
+      save(mins * 60);
+    } else {
+      setIsCustom(false);
+      save(Number(value));
+    }
+  }
+
+  function saveCustom() {
+    const mins = Math.max(1, Math.floor(Number(customMins) || 0));
+    setCustomMins(String(mins));
+    save(mins * 60);
+  }
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Feed Syncing</h2>
+      <div className="border border-outline-variant/40 p-5 space-y-3">
+        <div>
+          <p className="text-sm font-headline font-semibold text-on-surface">Auto-refresh interval</p>
+          <p className="text-xs font-body text-on-surface-variant mt-0.5">
+            How often Feedlight checks your feeds for new articles in the background.
+            "Manual only" turns off auto-refresh — you can still refresh anytime with the
+            toolbar button. Changes take effect within a minute.
+          </p>
+        </div>
+        <select
+          value={isCustom ? "custom" : String(secs)}
+          onChange={(e) => onSelect(e.target.value)}
+          className="w-full ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+          {SYNC_PRESETS.map((p) => <option key={p.secs} value={p.secs}>{p.label}</option>)}
+          <option value="custom">Custom…</option>
+        </select>
+        {isCustom && (
+          <div className="flex items-center gap-2">
+            <input
+              type="number" min={1} value={customMins}
+              onChange={(e) => setCustomMins(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") saveCustom(); }}
+              className="w-24 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary" />
+            <span className="text-xs font-body text-on-surface-variant">minutes</span>
+            <button onClick={saveCustom}
+              className="ml-auto shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90">
+              Set
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -518,6 +604,8 @@ export default function SettingsPage() {
         <div className="mx-auto max-w-2xl space-y-8">
 
           <AppearanceSection />
+
+          <FeedSyncingSection />
 
           <section className="space-y-3">
             <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">YouTube</h2>
