@@ -1,10 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import ShortcutsModal from "./ShortcutsModal";
 import ReadUrlModal from "./ReadUrlModal";
 import ArticlePane from "./ArticlePane";
 import { useKeyboardShortcuts } from "../lib/hooks/use-keyboard-shortcuts";
+import { useFeedRefresh } from "../lib/hooks/use-feed-refresh";
+import { getLastSyncedAt } from "../lib/db";
 import { Link } from "@tanstack/react-router";
+
+function formatSynced(iso: string | null, now: number): string | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return null;
+  const m = Math.floor(Math.max(0, now - t) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
 
 type Props = {
   sidebar: React.ReactNode;
@@ -19,9 +33,24 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
   const [quickReadUrl, setQuickReadUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useKeyboardShortcuts({ "?": () => setShowShortcuts((v) => !v) });
+
+  // "Synced X ago" indicator: seed from the DB, refresh the relative label every
+  // 30s, and update on any sync (manual or background — both emit the event).
+  useEffect(() => {
+    getLastSyncedAt().then(setLastSyncedAt).catch(() => {});
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  useFeedRefresh(useCallback(() => {
+    setLastSyncedAt(new Date().toISOString());
+    setNow(Date.now());
+  }, []));
+  const syncedLabel = formatSynced(lastSyncedAt, now);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -71,6 +100,14 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
         <span className="font-headline text-lg font-bold tracking-[0.2em] text-primary uppercase">FEEDLIGHT</span>
 
         <div className="flex-1" />
+
+        {syncedLabel && (
+          <span
+            title={lastSyncedAt ? `Last synced ${new Date(lastSyncedAt).toLocaleString()}` : undefined}
+            className="hidden sm:inline text-[10px] font-label uppercase tracking-wide text-outline">
+            Synced {syncedLabel}
+          </span>
+        )}
 
         <button onClick={handleRefresh} disabled={isRefreshing} aria-label="Refresh feeds"
           className="rounded p-1.5 text-on-surface-variant transition-colors hover:text-primary disabled:opacity-30">
