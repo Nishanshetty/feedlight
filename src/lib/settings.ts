@@ -75,6 +75,22 @@ export async function setAppTheme(theme: AppTheme): Promise<void> {
   await store.save();
 }
 
+/**
+ * Background auto-refresh interval, in seconds. `0` means manual only
+ * (auto-refresh disabled). Defaults to 900 (15 min). Read by the Rust crawler.
+ */
+export async function getRefreshIntervalSecs(): Promise<number> {
+  const store = await getStore();
+  const v = await store.get<number>("refresh_interval_secs");
+  return typeof v === "number" && v >= 0 ? v : 900;
+}
+
+export async function setRefreshIntervalSecs(secs: number): Promise<void> {
+  const store = await getStore();
+  await store.set("refresh_interval_secs", secs);
+  await store.save();
+}
+
 export async function getObsidianVaultPath(): Promise<string> {
   const store = await getStore();
   return (await store.get<string>("obsidian_vault_path")) ?? "";
