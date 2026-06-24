@@ -107,6 +107,17 @@ export async function eraseAllData(): Promise<void> {
   }
 }
 
+/** Most recent successful sync time across subscribed feeds (excludes the reserved
+ *  saved-articles feed, which has no subscription). Null if nothing has synced. */
+export async function getLastSyncedAt(): Promise<string | null> {
+  const db = await getDb();
+  const rows = await db.select<Array<{ t: string | null }>>(
+    `SELECT MAX(f.last_fetched_at) AS t
+     FROM feeds f JOIN subscriptions s ON s.feed_id = f.id`
+  );
+  return rows[0]?.t ?? null;
+}
+
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
 export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineItem[]> {
