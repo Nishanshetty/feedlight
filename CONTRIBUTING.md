@@ -8,29 +8,29 @@ Thanks for your interest in contributing! Here's everything you need to get star
 # 1. Install Rust (if you don't have it)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# 2. Install CMake — required to build the local text-to-speech engine
-#    (piper-rs compiles espeak-ng from C source).
-brew install cmake
-
-# 3. Clone and install
+# 2. Clone and install
 git clone https://github.com/nishanshetty/feedlight.git
 cd feedlight
 npm install
 
-# 4. Start the dev server
+# 3. Start the dev server
 npm run tauri dev
 ```
 
-> **Note:** CMake is a build-time dependency only — end users never need it. The
-> read-aloud engine (onnxruntime + espeak-ng) is statically linked into the app
-> binary, and the voice model is downloaded on demand at runtime.
-
 The Vite frontend hot-reloads on save. Rust changes trigger a recompile (a few seconds).
+
+> **Text-to-speech** uses the system voice (WebView `speechSynthesis`) or Google
+> Cloud TTS (with your own API key) — no local speech engine is compiled, so there's
+> no CMake/espeak build dependency.
 
 ## Project layout
 
+For a full architecture overview, the DB schema, the Rust command surface, and a
+feature → code map, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
 | Path | What lives here |
 |------|----------------|
+| `docs/ARCHITECTURE.md` | Architecture, DB schema, command/IPC surface, feature map |
 | `src/components/` | React UI components |
 | `src/lib/` | `db.ts` (SQLite queries), `settings.ts` (API keys), `analytics.ts`, hooks |
 | `src/pages/` | TanStack Router pages |
