@@ -5,9 +5,11 @@ use serde::Serialize;
 use sqlx::{sqlite::SqlitePool, Row};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_store::StoreExt;
 use uuid::Uuid;
 
-const REFRESH_INTERVAL_SECS: u64 = 900; // 15 minutes
+const DEFAULT_REFRESH_INTERVAL_SECS: u64 = 900; // 15 minutes
+const TICK_SECS: u64 = 60; // how often we re-check the configured interval
 const MAX_ITEMS_PER_FEED: i64 = 50;
 const MAX_ITEM_AGE_DAYS: i64 = 30;
 
@@ -247,10 +249,36 @@ pub async fn do_refresh(app: &AppHandle) -> Result<RefreshResult, String> {
     Ok(RefreshResult { new_items, feeds_checked })
 }
 
-/// Background loop — spawned once on app startup.
+/// Reads the user's auto-refresh interval (seconds) from the settings store.
+/// `0` means manual only. Falls back to the default if unset/unreadable.
+fn refresh_interval_secs(app: &AppHandle) -> u64 {
+    app.store("settings.json")
+        .ok()
+        .and_then(|s| s.get("refresh_interval_secs"))
+        .and_then(|v| v.as_u64().or_else(|| v.as_f64().map(|f| f as u64)))
+        .unwrap_or(DEFAULT_REFRESH_INTERVAL_SECS)
+}
+
+/// Background loop — spawned once on app startup. Ticks every `TICK_SECS` and
+/// refreshes once the user-configured interval has elapsed, so interval changes
+/// (including "manual only") take effect within a minute without a restart.
 pub async fn run_crawler(app: AppHandle) {
+    let mut elapsed: u64 = 0;
     loop {
-        tokio::time::sleep(Duration::from_secs(REFRESH_INTERVAL_SECS)).await;
+        tokio::time::sleep(Duration::from_secs(TICK_SECS)).await;
+
+        let interval = refresh_interval_secs(&app);
+        if interval == 0 {
+            elapsed = 0; // manual only — auto-refresh disabled
+            continue;
+        }
+
+        elapsed += TICK_SECS;
+        if elapsed < interval {
+            continue;
+        }
+        elapsed = 0;
+
         match do_refresh(&app).await {
             Ok(result) => {
                 let _ = app.emit("feedlight://feeds-refreshed", result);
