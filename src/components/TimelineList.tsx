@@ -17,6 +17,7 @@ type Props = {
   range: DateRange;
   since: string | null;
   starredOnly: boolean;
+  tagId?: string;
   lockRange?: boolean;
   pageSize: number;
   onRangeChange: (r: DateRange) => void;
@@ -46,7 +47,7 @@ function setToggle(prev: Set<string>, id: string): Set<string> {
 }
 
 export default function TimelineList({
-  feedIds, filterLabel, filterKey, range, since, starredOnly, lockRange, pageSize,
+  feedIds, filterLabel, filterKey, range, since, starredOnly, tagId, lockRange, pageSize,
   onRangeChange, onStatesChanged,
 }: Props) {
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -98,8 +99,9 @@ export default function TimelineList({
     setLoadError("");
 
     Promise.all([
-      getTimelineItems({ feedIds, cursor: FIRST_PAGE_CURSOR, since, limit: pageSize, unreadOnly, starredOnly, query: searchQuery || undefined }),
-      getTotalUnreadCount(feedIds, since),
+      getTimelineItems({ feedIds, cursor: FIRST_PAGE_CURSOR, since, limit: pageSize, unreadOnly, starredOnly, tagId, query: searchQuery || undefined }),
+      // Feed-wide unread count / mark-all aren't tag-scoped, so suppress them in a tag view.
+      tagId ? Promise.resolve(0) : getTotalUnreadCount(feedIds, since),
     ]).then(([newItems, count]) => {
       setItems(newItems);
       setReadIds(new Set(newItems.filter((i) => i.is_read).map((i) => i.id)));
@@ -160,7 +162,7 @@ export default function TimelineList({
     if (!cursor) return;
     setLoadError("");
     setIsLoading(true);
-    getTimelineItems({ feedIds, cursor, since, limit: pageSize, unreadOnly, starredOnly, query: searchQuery || undefined })
+    getTimelineItems({ feedIds, cursor, since, limit: pageSize, unreadOnly, starredOnly, tagId, query: searchQuery || undefined })
       .then((more) => {
         if (more.length < pageSize) setHasMore(false);
         if (more.length > 0) setItems((prev) => [...prev, ...more]);
@@ -265,7 +267,7 @@ export default function TimelineList({
               {DATE_RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           )}
-          {totalUnread > 0 && !starredOnly && (
+          {totalUnread > 0 && !starredOnly && !tagId && (
             <button onClick={handleMarkAllRead} disabled={isMarkingAll}
               className="ghost-border bg-surface-container px-2.5 py-1 text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-40">
               {isMarkingAll ? "Marking…" : "Mark all read"}
