@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getFeedDefaultTags, setFeedDefaultTags } from "../lib/db";
 import type { Tag, TagWithCount } from "../types/database";
 
@@ -95,6 +95,12 @@ function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUns
   const [newFolder, setNewFolder] = useState("");
   const [defaultTags, setDefaultTags] = useState<Tag[]>([]);
   const [tagInput, setTagInput] = useState("");
+  // tagsRef holds the latest set so payloads are never built from a stale render;
+  // writeLock serializes writes so rapid add/remove can't overwrite each other.
+  const tagsRef = useRef<Tag[]>([]);
+  const writeLock = useRef<Promise<unknown>>(Promise.resolve());
+
+  function applyTags(t: Tag[]) { tagsRef.current = t; setDefaultTags(t); }
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -104,21 +110,30 @@ function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUns
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
-  useEffect(() => { getFeedDefaultTags(entry.feedId).then(setDefaultTags).catch(() => {}); }, [entry.feedId]);
+  useEffect(() => { getFeedDefaultTags(entry.feedId).then(applyTags).catch(() => {}); }, [entry.feedId]);
 
-  async function addDefaultTag() {
-    const name = tagInput.trim();
-    if (!name || defaultTags.some((t) => t.name.toLowerCase() === name.toLowerCase())) { setTagInput(""); return; }
-    setTagInput("");
-    await setFeedDefaultTags(entry.feedId, [...defaultTags.map((t) => t.name), name]).catch(() => {});
-    getFeedDefaultTags(entry.feedId).then(setDefaultTags).catch(() => {});
+  // Persist the full current set, queued behind any in-flight write, then
+  // reconcile from storage (also fixes the optimistic temp ids).
+  function persistDefaultTags() {
+    const names = tagsRef.current.map((t) => t.name);
+    writeLock.current = writeLock.current
+      .then(() => setFeedDefaultTags(entry.feedId, names))
+      .then(() => getFeedDefaultTags(entry.feedId))
+      .then(applyTags)
+      .catch(() => {});
   }
 
-  async function removeDefaultTag(tag: Tag) {
-    const next = defaultTags.filter((t) => t.id !== tag.id);
-    setDefaultTags(next);
-    await setFeedDefaultTags(entry.feedId, next.map((t) => t.name)).catch(() => {});
-    getFeedDefaultTags(entry.feedId).then(setDefaultTags).catch(() => {}); // converge to stored state
+  function addDefaultTag() {
+    const name = tagInput.trim();
+    setTagInput("");
+    if (!name || tagsRef.current.some((t) => t.name.toLowerCase() === name.toLowerCase())) return;
+    applyTags([...tagsRef.current, { id: `tmp:${name.toLowerCase()}`, name }]);
+    persistDefaultTags();
+  }
+
+  function removeDefaultTag(tag: Tag) {
+    applyTags(tagsRef.current.filter((t) => t.id !== tag.id));
+    persistDefaultTags();
   }
 
   const moveTargets = existingFolders.filter((f) => f !== currentFolder);
