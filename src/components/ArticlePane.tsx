@@ -11,9 +11,10 @@ import {
   getItemContent, setItemContent,
   getItemTakeaways, setItemTakeaways,
   isArticleSaved, saveExternalArticle, removeSavedArticleByUrl,
+  getTagsForItem, addTagToItem, removeTagFromItem, listTags,
 } from "../lib/db";
 import { anchorFromRange, findRange, wrapRangeWithMarks, unwrapHighlights, type TextAnchor } from "../lib/highlight-anchor";
-import type { Highlight } from "../types/database";
+import type { Highlight, Tag } from "../types/database";
 
 type Props = {
   url: string;
@@ -200,6 +201,58 @@ function b64ToAudioUrl(b64: string): string {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
+}
+
+// ─── TagBar ───────────────────────────────────────────────────────────────────
+
+function TagBar({ itemId }: { itemId: string }) {
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [allNames, setAllNames] = useState<string[]>([]);
+  const [input, setInput] = useState("");
+
+  useEffect(() => { getTagsForItem(itemId).then(setTags).catch(() => {}); }, [itemId]);
+  useEffect(() => { listTags().then((ts) => setAllNames(ts.map((t) => t.name))).catch(() => {}); }, []);
+
+  async function add() {
+    const name = input.trim();
+    if (!name) return;
+    setInput("");
+    if (tags.some((t) => t.name.toLowerCase() === name.toLowerCase())) return;
+    const tag = await addTagToItem(itemId, name);
+    if (tag) setTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag]));
+  }
+
+  async function remove(tag: Tag) {
+    setTags((prev) => prev.filter((t) => t.id !== tag.id));
+    try { await removeTagFromItem(itemId, tag.id); } catch { /* ignore */ }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 border-b border-reader-border bg-reader-header-bg px-4 py-2 shrink-0 text-reader-text">
+      <svg className="h-3.5 w-3.5 shrink-0 text-reader-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M7 7h.01M7 3h5a2 2 0 011.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A2 2 0 014 9V4a1 1 0 011-1z" />
+      </svg>
+      {tags.map((t) => (
+        <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-reader-hover px-1.5 py-0.5 text-[10px] font-label">
+          #{t.name}
+          <button onClick={() => remove(t)} aria-label={`Remove tag ${t.name}`}
+            className="text-reader-text-muted transition-colors hover:text-reader-text">×</button>
+        </span>
+      ))}
+      <input
+        list="feedlight-tag-suggestions"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); } }}
+        onBlur={add}
+        placeholder="Add tag…"
+        className="min-w-[6rem] flex-1 bg-transparent text-[11px] placeholder:text-reader-text-muted focus:outline-none"
+      />
+      <datalist id="feedlight-tag-suggestions">
+        {allNames.map((n) => <option key={n} value={n} />)}
+      </datalist>
+    </div>
+  );
 }
 
 // ─── PaneHeader ───────────────────────────────────────────────────────────────
@@ -1708,6 +1761,7 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
             onToggle: () => setHighlightsOpen((o) => !o),
           } : undefined}
         />
+        {itemId && <TagBar itemId={itemId} />}
         {!isYT && result.state === "ok" && (
           <div className="h-0.5 shrink-0">
             <div ref={progressBarRef} className="h-full bg-reader-primary transition-[width] duration-150 ease-out"

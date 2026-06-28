@@ -58,6 +58,16 @@ export interface TimelineItem {
   is_saved: boolean;
   is_starred: boolean;
   read_progress: number; // 0..1 scroll progress in the article pane
+  tags: string[];        // tag names applied to this item
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+}
+
+export interface TagWithCount extends Tag {
+  count: number;
 }
 
 export interface TimelineOptions {
@@ -68,6 +78,7 @@ export interface TimelineOptions {
   unreadOnly: boolean;
   starredOnly?: boolean;
   query?: string;       // title/content substring search
+  tagId?: string;       // restrict to items carrying this tag
 }
 
 // Shape returned by getFeedAnalytics()

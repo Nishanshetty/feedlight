@@ -30,6 +30,8 @@ export default function HomePage() {
   const [activeStarred, setActiveStarred] = useState(false);
   const [activeToday, setActiveToday] = useState(false);
   const [activeHighlights, setActiveHighlights] = useState(false);
+  const [activeTagId, setActiveTagId] = useState<string | null>(null);
+  const [activeTagName, setActiveTagName] = useState<string | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsResult | null>(null);
   const [analyticsError, setAnalyticsError] = useState("");
   const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
@@ -66,7 +68,9 @@ export default function HomePage() {
     setActiveStarred(!!filter.starred);
     setActiveToday(!!filter.today);
     setActiveHighlights(!!filter.highlights);
-    if (filter.analytics || filter.digest || filter.discover || filter.starred || filter.today || filter.highlights) {
+    setActiveTagId(filter.tagId ?? null);
+    setActiveTagName(filter.tagName ?? null);
+    if (filter.analytics || filter.digest || filter.discover || filter.starred || filter.today || filter.highlights || filter.tagId) {
       setActiveFeedId(null);
       setActiveFolder(null);
     } else {
@@ -107,12 +111,13 @@ export default function HomePage() {
   }, [feeds, activeFeedId, activeFolder]);
 
   const filterLabel = useMemo(() => {
+    if (activeTagId) return `#${activeTagName ?? "Tag"}`;
     if (activeToday) return "Today";
     if (activeStarred) return "Saved";
     if (activeFeedId) return feeds.find((f) => f.id === activeFeedId)?.title ?? "Feed";
     if (activeFolder) return activeFolder;
     return "All Articles";
-  }, [feeds, activeFeedId, activeFolder, activeStarred, activeToday]);
+  }, [feeds, activeFeedId, activeFolder, activeStarred, activeToday, activeTagId, activeTagName]);
 
   const sidebar = (
     <SidebarContent
@@ -125,6 +130,7 @@ export default function HomePage() {
       activeStarred={activeStarred}
       activeToday={activeToday}
       activeHighlights={activeHighlights}
+      activeTagId={activeTagId}
       refreshKey={sidebarRefreshKey}
       onNavigate={handleNavigate}
       onFeedAdded={handleFeedAdded}
@@ -160,6 +166,7 @@ export default function HomePage() {
       filterLabel={filterLabel}
       range={activeToday ? "1d" : range}
       starredOnly={activeStarred}
+      tagId={activeTagId ?? undefined}
       lockRange={activeToday}
       refreshKey={timelineRefreshKey}
       onRangeChange={setRange}

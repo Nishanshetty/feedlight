@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { deleteFeed, getTotalUnreadCount, getUnreadCountsByFeed, updateFeedFolder } from "../lib/db";
+import { deleteFeed, getTotalUnreadCount, getUnreadCountsByFeed, listTags, updateFeedFolder } from "../lib/db";
 import { rangeToSince } from "../lib/date-range";
-import type { SubscribedFeed } from "../types/database";
+import type { SubscribedFeed, TagWithCount } from "../types/database";
 import AddFeedForm from "./AddFeedForm";
 import OpmlControls from "./OpmlControls";
 import SidebarNav from "./SidebarNav";
@@ -17,6 +17,7 @@ type Props = {
   activeStarred: boolean;
   activeToday: boolean;
   activeHighlights: boolean;
+  activeTagId: string | null;
   refreshKey: number;
   onNavigate: (filter: NavFilter) => void;
   onFeedAdded: () => void;
@@ -24,14 +25,16 @@ type Props = {
 };
 
 export default function SidebarContent({
-  feeds, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, activeStarred, activeToday, activeHighlights,
+  feeds, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, activeStarred, activeToday, activeHighlights, activeTagId,
   refreshKey, onNavigate, onFeedAdded, onFeedDeleted,
 }: Props) {
   const [unreadByFeed, setUnreadByFeed] = useState<Record<string, number>>({});
   const [todayUnread, setTodayUnread] = useState(0);
+  const [tags, setTags] = useState<TagWithCount[]>([]);
   const [opmlOpen, setOpmlOpen] = useState(false);
 
   useEffect(() => {
+    listTags().then(setTags).catch(console.error);
     if (feeds.length === 0) { setUnreadByFeed({}); setTodayUnread(0); return; }
     const feedIds = feeds.map((f) => f.id);
     Promise.all([
@@ -94,6 +97,8 @@ export default function SidebarContent({
         activeStarred={activeStarred}
         activeToday={activeToday}
         activeHighlights={activeHighlights}
+        activeTagId={activeTagId}
+        tags={tags}
         todayUnread={todayUnread}
         onNavigate={onNavigate}
         onUnsubscribe={handleUnsubscribe}

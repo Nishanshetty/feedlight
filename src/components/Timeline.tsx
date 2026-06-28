@@ -7,6 +7,7 @@ type Props = {
   filterLabel: string;
   range: DateRange;
   starredOnly: boolean;
+  tagId?: string;
   lockRange?: boolean;
   refreshKey: number;
   onRangeChange: (r: DateRange) => void;
@@ -15,9 +16,9 @@ type Props = {
 
 const PAGE_SIZE = 20;
 
-export default function Timeline({ feedIds, filterLabel, range, starredOnly, lockRange, refreshKey, onRangeChange, onStatesChanged }: Props) {
+export default function Timeline({ feedIds, filterLabel, range, starredOnly, tagId, lockRange, refreshKey, onRangeChange, onStatesChanged }: Props) {
   const since = rangeToSince(range);
-  const filterKey = `${feedIds.join(",")}|${range}|${starredOnly}|${refreshKey}`;
+  const filterKey = `${feedIds.join(",")}|${range}|${starredOnly}|${tagId ?? ""}|${refreshKey}`;
 
   return (
     <TimelineList
@@ -27,6 +28,7 @@ export default function Timeline({ feedIds, filterLabel, range, starredOnly, loc
       range={range}
       since={since}
       starredOnly={starredOnly}
+      tagId={tagId}
       lockRange={lockRange}
       pageSize={PAGE_SIZE}
       onRangeChange={onRangeChange}

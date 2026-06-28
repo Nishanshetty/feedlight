@@ -79,6 +79,23 @@ function StarButton({ isStarred, onToggleStar }: { isStarred: boolean; onToggleS
   );
 }
 
+function TagChips({ tags, max = 3 }: { tags: string[]; max?: number }) {
+  if (!tags || tags.length === 0) return null;
+  const shown = tags.slice(0, max);
+  return (
+    <div className="flex flex-wrap items-center gap-1 min-w-0">
+      {shown.map((t) => (
+        <span key={t} className="truncate rounded-sm bg-surface-container px-1.5 py-0.5 text-[9px] font-label uppercase tracking-wide text-on-surface-variant">
+          #{t}
+        </span>
+      ))}
+      {tags.length > shown.length && (
+        <span className="text-[9px] font-label text-outline">+{tags.length - shown.length}</span>
+      )}
+    </div>
+  );
+}
+
 function YouTubeCard({
   item, isRead, isStarred, isSelected, accent, onActivate, onOpen, onToggleStar,
 }: Omit<Props, "accentIndex" | "elRef" | "layout" | "hero"> & { accent: (typeof ACCENT_STYLES)[number] }) {
@@ -149,6 +166,9 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, acce
         <span className={`min-w-0 flex-1 truncate text-[13px] font-body text-on-surface transition-colors ${accent.titleHover}`}>
           {item.title ?? "Untitled"}
         </span>
+        {item.tags.length > 0 && (
+          <div className="hidden lg:flex shrink-0 max-w-[12rem]"><TagChips tags={item.tags} max={2} /></div>
+        )}
         <span className="shrink-0 text-[9px] font-label text-outline uppercase">
           {minutes ? `${minutes} min · ` : ""}{formatRelative(item.published_at)}
         </span>
@@ -204,6 +224,7 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, acce
             {preview && (
               <p className={`font-body text-on-surface-variant leading-relaxed mb-6 ${isHero ? "text-sm line-clamp-3 max-w-3xl" : imageUrl ? "text-xs line-clamp-2" : "text-xs line-clamp-3"}`}>{preview}</p>
             )}
+            {item.tags.length > 0 && <div className="mb-3"><TagChips tags={item.tags} /></div>}
             <div className="mt-auto pt-4 border-t border-outline-variant/30 flex items-center justify-between gap-2">
               <span className="text-[9px] font-label text-outline uppercase truncate">
                 {item.author ?? item.feed_title ?? ""}

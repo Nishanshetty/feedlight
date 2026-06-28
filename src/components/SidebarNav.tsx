@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { getFeedDefaultTags, setFeedDefaultTags } from "../lib/db";
+import type { Tag, TagWithCount } from "../types/database";
 
 export type FeedEntry = {
   subId: string;
@@ -17,6 +19,8 @@ export type NavFilter = {
   starred?: boolean;
   today?: boolean;
   highlights?: boolean;
+  tagId?: string;
+  tagName?: string;
 };
 
 type Props = {
@@ -30,6 +34,8 @@ type Props = {
   activeStarred: boolean;
   activeToday: boolean;
   activeHighlights: boolean;
+  activeTagId: string | null;
+  tags: TagWithCount[];
   todayUnread: number;
   onNavigate: (filter: NavFilter) => void;
   onUnsubscribe: (subId: string, feedId: string, title: string) => void;
@@ -87,6 +93,8 @@ type FeedMenuProps = {
 function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUnsubscribe, onClose }: FeedMenuProps) {
   const [confirmingUnsub, setConfirmingUnsub] = useState(false);
   const [newFolder, setNewFolder] = useState("");
+  const [defaultTags, setDefaultTags] = useState<Tag[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -95,6 +103,22 @@ function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUns
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
+
+  useEffect(() => { getFeedDefaultTags(entry.feedId).then(setDefaultTags).catch(() => {}); }, [entry.feedId]);
+
+  async function addDefaultTag() {
+    const name = tagInput.trim();
+    if (!name || defaultTags.some((t) => t.name.toLowerCase() === name.toLowerCase())) { setTagInput(""); return; }
+    setTagInput("");
+    await setFeedDefaultTags(entry.feedId, [...defaultTags.map((t) => t.name), name]).catch(() => {});
+    getFeedDefaultTags(entry.feedId).then(setDefaultTags).catch(() => {});
+  }
+
+  async function removeDefaultTag(tag: Tag) {
+    const next = defaultTags.filter((t) => t.id !== tag.id);
+    setDefaultTags(next);
+    await setFeedDefaultTags(entry.feedId, next.map((t) => t.name)).catch(() => {});
+  }
 
   const moveTargets = existingFolders.filter((f) => f !== currentFolder);
 
@@ -135,6 +159,24 @@ function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUns
         />
       </form>
       <div className="mx-3 my-1 border-t border-outline-variant/20" />
+      <p className="px-3 pb-1 text-[10px] font-label font-bold uppercase tracking-widest text-outline">
+        Default tags
+      </p>
+      <p className="px-3 pb-1 text-[10px] font-body text-outline">Applied to new articles from this feed.</p>
+      <div className="flex flex-wrap items-center gap-1 px-3 pb-2">
+        {defaultTags.map((t) => (
+          <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-surface-container px-1.5 py-0.5 text-[10px] text-on-surface-variant">
+            #{t.name}
+            <button onClick={() => removeDefaultTag(t)} aria-label={`Remove ${t.name}`} className="hover:text-on-surface">×</button>
+          </span>
+        ))}
+        <input
+          value={tagInput} onChange={(e) => setTagInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDefaultTag(); } }}
+          placeholder="Add…"
+          className="min-w-[4rem] flex-1 ghost-border bg-surface-container px-2 py-1 text-[10px] text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary font-body" />
+      </div>
+      <div className="mx-3 my-1 border-t border-outline-variant/20" />
       {confirmingUnsub ? (
         <button
           onClick={() => { onUnsubscribe(entry.subId, entry.feedId, entry.title); onClose(); }}
@@ -150,7 +192,7 @@ function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUns
   );
 }
 
-export default function SidebarNav({ groups, existingFolders, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, activeStarred, activeToday, activeHighlights, todayUnread, onNavigate, onUnsubscribe, onMoveToFolder }: Props) {
+export default function SidebarNav({ groups, existingFolders, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, activeStarred, activeToday, activeHighlights, activeTagId, tags, todayUnread, onNavigate, onUnsubscribe, onMoveToFolder }: Props) {
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [menuFor, setMenuFor] = useState<string | null>(null);
 
@@ -162,7 +204,7 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
     });
   }
 
-  const isAllActive = !activeFeedId && !activeFolder && !activeAnalytics && !activeDigest && !activeDiscover && !activeStarred && !activeToday && !activeHighlights;
+  const isAllActive = !activeFeedId && !activeFolder && !activeAnalytics && !activeDigest && !activeDiscover && !activeStarred && !activeToday && !activeHighlights && !activeTagId;
   const totalUnread = Object.values(groups).flat().reduce((sum, e) => sum + e.unread, 0);
 
   const sectionLabel = (label: string) => (
@@ -201,6 +243,28 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
       {navRow("Digest", "digest", activeDigest, null, () => onNavigate({ digest: true }))}
       {navRow("Discover", "discover", activeDiscover, null, () => onNavigate({ discover: true }))}
       {navRow("Analytics & Stats", "analytics", activeAnalytics, null, () => onNavigate({ analytics: true }))}
+
+      {tags.length > 0 && (
+        <div className="mt-5">
+          {sectionLabel("Tags")}
+          {tags.map((tag) => (
+            <button key={tag.id} onClick={() => onNavigate({ tagId: tag.id, tagName: tag.name })}
+              className={["flex w-full items-center justify-between px-3 py-1.5 text-[13px] font-body transition-all duration-200",
+                activeTagId === tag.id
+                  ? "border-l-2 border-primary bg-surface-container-low text-primary font-bold"
+                  : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface border-l-2 border-transparent",
+              ].join(" ")}>
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="text-outline">#</span>
+                <span className="truncate">{tag.name}</span>
+              </span>
+              <span className="shrink-0 rounded-full bg-surface-container-high px-1.5 py-0.5 text-[10px] font-label text-on-surface-variant">
+                {tag.count}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {Object.keys(groups).length === 0 ? (
         <p className="px-4 py-3 text-xs text-outline font-label">No feeds yet. Add one above.</p>

@@ -9,6 +9,8 @@ import type {
   DigestItem,
   Highlight,
   HighlightWithArticle,
+  Tag,
+  TagWithCount,
 } from "../types/database";
 
 const DB_PATH = "sqlite:feedlight.db";
@@ -118,10 +120,91 @@ export async function getLastSyncedAt(): Promise<string | null> {
   return rows[0]?.t ?? null;
 }
 
+// ─── Tags ─────────────────────────────────────────────────────────────────────
+
+/** Find-or-create a tag by its normalized (lowercased/trimmed) name. */
+export async function upsertTag(name: string): Promise<Tag | null> {
+  const norm = name.trim().toLowerCase();
+  if (!norm) return null;
+  const db = await getDb();
+  const found = await db.select<Tag[]>(`SELECT id, name FROM tags WHERE name_norm = $1`, [norm]);
+  if (found[0]) return found[0];
+  await db.execute(
+    `INSERT INTO tags (id, name, name_norm) VALUES ($1, $2, $3) ON CONFLICT(name_norm) DO NOTHING`,
+    [uuidv4(), name.trim(), norm]
+  );
+  const rows = await db.select<Tag[]>(`SELECT id, name FROM tags WHERE name_norm = $1`, [norm]);
+  return rows[0] ?? null;
+}
+
+/** All tags currently applied to at least one item, with usage counts. */
+export async function listTags(): Promise<TagWithCount[]> {
+  const db = await getDb();
+  return db.select<TagWithCount[]>(
+    `SELECT t.id, t.name, COUNT(it.item_id) AS count
+     FROM tags t LEFT JOIN item_tags it ON it.tag_id = t.id
+     GROUP BY t.id
+     HAVING count > 0
+     ORDER BY count DESC, t.name COLLATE NOCASE`
+  );
+}
+
+export async function getTagsForItem(itemId: string): Promise<Tag[]> {
+  const db = await getDb();
+  return db.select<Tag[]>(
+    `SELECT t.id, t.name FROM item_tags it JOIN tags t ON t.id = it.tag_id
+     WHERE it.item_id = $1 ORDER BY t.name COLLATE NOCASE`,
+    [itemId]
+  );
+}
+
+/** Add a manual tag to an item (find-or-create the tag first). */
+export async function addTagToItem(itemId: string, name: string): Promise<Tag | null> {
+  const tag = await upsertTag(name);
+  if (!tag) return null;
+  const db = await getDb();
+  await db.execute(
+    `INSERT OR IGNORE INTO item_tags (item_id, tag_id, source) VALUES ($1, $2, 'manual')`,
+    [itemId, tag.id]
+  );
+  return tag;
+}
+
+export async function removeTagFromItem(itemId: string, tagId: string): Promise<void> {
+  const db = await getDb();
+  await db.execute(`DELETE FROM item_tags WHERE item_id = $1 AND tag_id = $2`, [itemId, tagId]);
+}
+
+export async function getFeedDefaultTags(feedId: string): Promise<Tag[]> {
+  const db = await getDb();
+  return db.select<Tag[]>(
+    `SELECT t.id, t.name FROM feed_default_tags fdt JOIN tags t ON t.id = fdt.tag_id
+     WHERE fdt.feed_id = $1 ORDER BY t.name COLLATE NOCASE`,
+    [feedId]
+  );
+}
+
+/** Replace a feed's default tags with the given set (find-or-create each). */
+export async function setFeedDefaultTags(feedId: string, names: string[]): Promise<void> {
+  const db = await getDb();
+  const ids: string[] = [];
+  for (const n of names) {
+    const tag = await upsertTag(n);
+    if (tag) ids.push(tag.id);
+  }
+  await db.execute(`DELETE FROM feed_default_tags WHERE feed_id = $1`, [feedId]);
+  for (const id of ids) {
+    await db.execute(
+      `INSERT OR IGNORE INTO feed_default_tags (feed_id, tag_id) VALUES ($1, $2)`,
+      [feedId, id]
+    );
+  }
+}
+
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
 export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineItem[]> {
-  const { feedIds, cursor, since, limit, unreadOnly, starredOnly, query } = opts;
+  const { feedIds, cursor, since, limit, unreadOnly, starredOnly, query, tagId } = opts;
 
   if (feedIds.length === 0) return [];
 
@@ -157,6 +240,12 @@ export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineI
     idx++;
   }
 
+  let tagClause = "";
+  if (tagId) {
+    baseParams.push(tagId);
+    tagClause = `AND EXISTS (SELECT 1 FROM item_tags itf WHERE itf.item_id = fi.id AND itf.tag_id = $${idx++})`;
+  }
+
   const rows = await db.select<
     Array<{
       id: string;
@@ -172,6 +261,7 @@ export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineI
       is_saved: number;
       is_starred: number;
       read_progress: number;
+      tags: string | null;
     }>
   >(
     `SELECT
@@ -181,16 +271,21 @@ export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineI
        COALESCE(ist.is_read,    0) AS is_read,
        COALESCE(ist.is_saved,   0) AS is_saved,
        COALESCE(ist.is_starred, 0) AS is_starred,
-       COALESCE(ist.read_progress, 0) AS read_progress
+       COALESCE(ist.read_progress, 0) AS read_progress,
+       GROUP_CONCAT(t.name, char(31)) AS tags
      FROM feed_items fi
      JOIN feeds f ON f.id = fi.feed_id
      LEFT JOIN item_states ist ON ist.item_id = fi.id
+     LEFT JOIN item_tags it ON it.item_id = fi.id
+     LEFT JOIN tags t ON t.id = it.tag_id
      WHERE fi.feed_id IN (${placeholders})
        AND fi.published_at < ${cursorParam}
        ${sinceClause}
        ${unreadClause}
        ${starredClause}
        ${searchClause}
+       ${tagClause}
+     GROUP BY fi.id
      ORDER BY fi.published_at DESC
      LIMIT $${idx}`,
     [...baseParams, limit]
@@ -201,6 +296,7 @@ export async function getTimelineItems(opts: TimelineOptions): Promise<TimelineI
     is_read: r.is_read === 1,
     is_saved: r.is_saved === 1,
     is_starred: r.is_starred === 1,
+    tags: r.tags ? r.tags.split(String.fromCharCode(31)) : [],
   }));
 }
 
@@ -594,6 +690,7 @@ export async function getSavedItems(): Promise<TimelineItem[]> {
       is_saved: number;
       is_starred: number;
       read_progress: number;
+      tags: string | null;
     }>
   >(
     `SELECT
@@ -603,11 +700,15 @@ export async function getSavedItems(): Promise<TimelineItem[]> {
        COALESCE(ist.is_read,    0) AS is_read,
        COALESCE(ist.is_saved,   0) AS is_saved,
        COALESCE(ist.is_starred, 0) AS is_starred,
-       COALESCE(ist.read_progress, 0) AS read_progress
+       COALESCE(ist.read_progress, 0) AS read_progress,
+       GROUP_CONCAT(t.name, char(31)) AS tags
      FROM feed_items fi
      JOIN feeds f ON f.id = fi.feed_id
      JOIN item_states ist ON ist.item_id = fi.id
+     LEFT JOIN item_tags it ON it.item_id = fi.id
+     LEFT JOIN tags t ON t.id = it.tag_id
      WHERE ist.is_starred = 1
+     GROUP BY fi.id
      ORDER BY ist.updated_at DESC`,
     [SAVED_FEED_ID]
   );
@@ -616,5 +717,6 @@ export async function getSavedItems(): Promise<TimelineItem[]> {
     is_read: r.is_read === 1,
     is_saved: r.is_saved === 1,
     is_starred: r.is_starred === 1,
+    tags: r.tags ? r.tags.split(String.fromCharCode(31)) : [],
   }));
 }

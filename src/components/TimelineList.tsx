@@ -17,6 +17,7 @@ type Props = {
   range: DateRange;
   since: string | null;
   starredOnly: boolean;
+  tagId?: string;
   lockRange?: boolean;
   pageSize: number;
   onRangeChange: (r: DateRange) => void;
@@ -46,7 +47,7 @@ function setToggle(prev: Set<string>, id: string): Set<string> {
 }
 
 export default function TimelineList({
-  feedIds, filterLabel, filterKey, range, since, starredOnly, lockRange, pageSize,
+  feedIds, filterLabel, filterKey, range, since, starredOnly, tagId, lockRange, pageSize,
   onRangeChange, onStatesChanged,
 }: Props) {
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -98,7 +99,7 @@ export default function TimelineList({
     setLoadError("");
 
     Promise.all([
-      getTimelineItems({ feedIds, cursor: FIRST_PAGE_CURSOR, since, limit: pageSize, unreadOnly, starredOnly, query: searchQuery || undefined }),
+      getTimelineItems({ feedIds, cursor: FIRST_PAGE_CURSOR, since, limit: pageSize, unreadOnly, starredOnly, tagId, query: searchQuery || undefined }),
       getTotalUnreadCount(feedIds, since),
     ]).then(([newItems, count]) => {
       setItems(newItems);
@@ -160,7 +161,7 @@ export default function TimelineList({
     if (!cursor) return;
     setLoadError("");
     setIsLoading(true);
-    getTimelineItems({ feedIds, cursor, since, limit: pageSize, unreadOnly, starredOnly, query: searchQuery || undefined })
+    getTimelineItems({ feedIds, cursor, since, limit: pageSize, unreadOnly, starredOnly, tagId, query: searchQuery || undefined })
       .then((more) => {
         if (more.length < pageSize) setHasMore(false);
         if (more.length > 0) setItems((prev) => [...prev, ...more]);
