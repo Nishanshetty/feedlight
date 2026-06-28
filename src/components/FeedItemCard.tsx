@@ -129,6 +129,7 @@ function YouTubeCard({
         <h3 className={`text-sm font-headline font-semibold leading-snug text-on-surface transition-colors ${accent.titleHover} ${isRead && !isSelected ? "opacity-50" : ""}`}>
           {item.title ?? "Untitled"}
         </h3>
+        {item.tags.length > 0 && <div className="mt-3"><TagChips tags={item.tags} /></div>}
         <div className="mt-auto pt-3 flex items-center justify-end gap-2">
           <StarButton isStarred={isStarred} onToggleStar={onToggleStar} />
           <button onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="Open video"

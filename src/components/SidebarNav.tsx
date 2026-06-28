@@ -118,6 +118,7 @@ function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUns
     const next = defaultTags.filter((t) => t.id !== tag.id);
     setDefaultTags(next);
     await setFeedDefaultTags(entry.feedId, next.map((t) => t.name)).catch(() => {});
+    getFeedDefaultTags(entry.feedId).then(setDefaultTags).catch(() => {}); // converge to stored state
   }
 
   const moveTargets = existingFolders.filter((f) => f !== currentFolder);
@@ -244,10 +245,10 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
       {navRow("Discover", "discover", activeDiscover, null, () => onNavigate({ discover: true }))}
       {navRow("Analytics & Stats", "analytics", activeAnalytics, null, () => onNavigate({ analytics: true }))}
 
-      {tags.length > 0 && (
+      {tags.some((t) => t.count > 0) && (
         <div className="mt-5">
           {sectionLabel("Tags")}
-          {tags.map((tag) => (
+          {tags.filter((t) => t.count > 0).map((tag) => (
             <button key={tag.id} onClick={() => onNavigate({ tagId: tag.id, tagName: tag.name })}
               className={["flex w-full items-center justify-between px-3 py-1.5 text-[13px] font-body transition-all duration-200",
                 activeTagId === tag.id

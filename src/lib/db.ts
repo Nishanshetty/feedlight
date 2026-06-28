@@ -137,14 +137,15 @@ export async function upsertTag(name: string): Promise<Tag | null> {
   return rows[0] ?? null;
 }
 
-/** All tags currently applied to at least one item, with usage counts. */
+/** All tags with usage counts (count may be 0, e.g. an unused feed default).
+ *  Callers that only want in-use tags (the sidebar) filter on count themselves;
+ *  autocomplete wants the full list. */
 export async function listTags(): Promise<TagWithCount[]> {
   const db = await getDb();
   return db.select<TagWithCount[]>(
     `SELECT t.id, t.name, COUNT(it.item_id) AS count
      FROM tags t LEFT JOIN item_tags it ON it.tag_id = t.id
      GROUP BY t.id
-     HAVING count > 0
      ORDER BY count DESC, t.name COLLATE NOCASE`
   );
 }
@@ -163,8 +164,10 @@ export async function addTagToItem(itemId: string, name: string): Promise<Tag | 
   const tag = await upsertTag(name);
   if (!tag) return null;
   const db = await getDb();
+  // Manual wins: promote an existing feed / feed_default row to 'manual'.
   await db.execute(
-    `INSERT OR IGNORE INTO item_tags (item_id, tag_id, source) VALUES ($1, $2, 'manual')`,
+    `INSERT INTO item_tags (item_id, tag_id, source) VALUES ($1, $2, 'manual')
+     ON CONFLICT(item_id, tag_id) DO UPDATE SET source = 'manual'`,
     [itemId, tag.id]
   );
   return tag;
@@ -192,12 +195,20 @@ export async function setFeedDefaultTags(feedId: string, names: string[]): Promi
     const tag = await upsertTag(n);
     if (tag) ids.push(tag.id);
   }
-  await db.execute(`DELETE FROM feed_default_tags WHERE feed_id = $1`, [feedId]);
-  for (const id of ids) {
-    await db.execute(
-      `INSERT OR IGNORE INTO feed_default_tags (feed_id, tag_id) VALUES ($1, $2)`,
-      [feedId, id]
-    );
+  // Atomic replace so a mid-way failure can't leave a partial default-tag set.
+  await db.execute("BEGIN");
+  try {
+    await db.execute(`DELETE FROM feed_default_tags WHERE feed_id = $1`, [feedId]);
+    for (const id of ids) {
+      await db.execute(
+        `INSERT OR IGNORE INTO feed_default_tags (feed_id, tag_id) VALUES ($1, $2)`,
+        [feedId, id]
+      );
+    }
+    await db.execute("COMMIT");
+  } catch (e) {
+    await db.execute("ROLLBACK");
+    throw e;
   }
 }
 

@@ -210,7 +210,11 @@ function TagBar({ itemId }: { itemId: string }) {
   const [allNames, setAllNames] = useState<string[]>([]);
   const [input, setInput] = useState("");
 
-  useEffect(() => { getTagsForItem(itemId).then(setTags).catch(() => {}); }, [itemId]);
+  useEffect(() => {
+    let stale = false;
+    getTagsForItem(itemId).then((t) => { if (!stale) setTags(t); }).catch(() => {});
+    return () => { stale = true; };
+  }, [itemId]);
   useEffect(() => { listTags().then((ts) => setAllNames(ts.map((t) => t.name))).catch(() => {}); }, []);
 
   async function add() {
@@ -223,8 +227,9 @@ function TagBar({ itemId }: { itemId: string }) {
   }
 
   async function remove(tag: Tag) {
-    setTags((prev) => prev.filter((t) => t.id !== tag.id));
-    try { await removeTagFromItem(itemId, tag.id); } catch { /* ignore */ }
+    const prev = tags;
+    setTags((p) => p.filter((t) => t.id !== tag.id));
+    try { await removeTagFromItem(itemId, tag.id); } catch { setTags(prev); } // revert on failure
   }
 
   return (

@@ -263,7 +263,9 @@ pub async fn do_refresh(app: &AppHandle) -> Result<RefreshResult, String> {
                     }
 
                     // New item — insert, then apply feed-category + per-feed default tags.
-                    let _ = sqlx::query(
+                    // Only count/tag it if the insert actually succeeded, so a failed
+                    // write can't inflate new_items or leave the item half-tagged.
+                    let inserted = sqlx::query(
                         "INSERT INTO feed_items
                            (id, feed_id, title, link, content, published_at, guid, author, thumbnail_url)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -279,6 +281,10 @@ pub async fn do_refresh(app: &AppHandle) -> Result<RefreshResult, String> {
                     .bind(&item.thumbnail_url)
                     .execute(&mut *tx)
                     .await;
+                    if let Err(e) = inserted {
+                        eprintln!("Insert failed for {feed_url}: {e}");
+                        continue;
+                    }
                     feed_new += 1;
 
                     for term in item.categories.iter().take(MAX_FEED_CATEGORY_TAGS) {
