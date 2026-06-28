@@ -169,28 +169,26 @@ async fn fetch_items(client: &Client, url: &str) -> Result<Vec<FeedItem>, String
 async fn upsert_tag(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     name: &str,
-) -> Option<String> {
+) -> Result<Option<String>, sqlx::Error> {
     let norm = name.trim().to_lowercase();
     if norm.is_empty() {
-        return None;
+        return Ok(None);
     }
     let id = Uuid::new_v4().to_string();
-    let _ = sqlx::query(
+    sqlx::query(
         "INSERT INTO tags (id, name, name_norm) VALUES (?, ?, ?) ON CONFLICT(name_norm) DO NOTHING",
     )
     .bind(&id)
     .bind(name.trim())
     .bind(&norm)
     .execute(&mut **tx)
-    .await;
+    .await?;
 
-    sqlx::query("SELECT id FROM tags WHERE name_norm = ?")
+    let row = sqlx::query("SELECT id FROM tags WHERE name_norm = ?")
         .bind(&norm)
         .fetch_optional(&mut **tx)
-        .await
-        .ok()
-        .flatten()
-        .map(|r| r.get::<String, _>("id"))
+        .await?;
+    Ok(row.map(|r| r.get::<String, _>("id")))
 }
 
 const MAX_FEED_CATEGORY_TAGS: usize = 8;
@@ -218,127 +216,131 @@ pub async fn do_refresh(app: &AppHandle) -> Result<RefreshResult, String> {
 
         match fetch_items(&client, &feed_url).await {
             Ok(items) => {
-                let default_tag_ids: Vec<String> = sqlx::query(
-                    "SELECT tag_id FROM feed_default_tags WHERE feed_id = ?",
-                )
-                .bind(&feed_id)
-                .fetch_all(&pool)
-                .await
-                .map(|rows| rows.iter().map(|r| r.get::<String, _>("tag_id")).collect())
-                .unwrap_or_default();
-
-                let mut tx = match pool.begin().await {
-                    Ok(t) => t,
-                    Err(e) => { eprintln!("TX error for {feed_url}: {e}"); continue; }
-                };
-
-                let mut feed_new = 0usize;
-                for item in &items {
-                    let existing: Option<String> = sqlx::query(
-                        "SELECT id FROM feed_items WHERE feed_id = ? AND guid = ?",
+                // Atomic per-feed refresh: any DB error propagates, the transaction
+                // is dropped uncommitted (rolled back), and last_fetched_at / counts
+                // are left unchanged — so we never commit a partial refresh. The feed
+                // is simply retried on the next crawl.
+                let result: Result<usize, sqlx::Error> = async {
+                    let default_tag_ids: Vec<String> = sqlx::query(
+                        "SELECT tag_id FROM feed_default_tags WHERE feed_id = ?",
                     )
                     .bind(&feed_id)
-                    .bind(&item.guid)
-                    .fetch_optional(&mut *tx)
-                    .await
-                    .ok()
-                    .flatten()
-                    .map(|r| r.get::<String, _>("id"));
+                    .fetch_all(&pool)
+                    .await?
+                    .iter()
+                    .map(|r| r.get::<String, _>("tag_id"))
+                    .collect();
 
-                    if existing.is_some() {
-                        // Existing item — refresh mutable fields, leave tags alone.
-                        let _ = sqlx::query(
-                            "UPDATE feed_items SET title = ?, content = ?, author = ?, thumbnail_url = ?
-                             WHERE feed_id = ? AND guid = ?",
+                    let mut tx = pool.begin().await?;
+                    let mut feed_new = 0usize;
+
+                    for item in &items {
+                        let existing: Option<String> = sqlx::query(
+                            "SELECT id FROM feed_items WHERE feed_id = ? AND guid = ?",
                         )
-                        .bind(&item.title)
-                        .bind(&item.content)
-                        .bind(&item.author)
-                        .bind(&item.thumbnail_url)
                         .bind(&feed_id)
                         .bind(&item.guid)
-                        .execute(&mut *tx)
-                        .await;
-                        continue;
-                    }
+                        .fetch_optional(&mut *tx)
+                        .await?
+                        .map(|r| r.get::<String, _>("id"));
 
-                    // New item — insert, then apply feed-category + per-feed default tags.
-                    // Only count/tag it if the insert actually succeeded, so a failed
-                    // write can't inflate new_items or leave the item half-tagged.
-                    let inserted = sqlx::query(
-                        "INSERT INTO feed_items
-                           (id, feed_id, title, link, content, published_at, guid, author, thumbnail_url)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    )
-                    .bind(&item.id)
-                    .bind(&feed_id)
-                    .bind(&item.title)
-                    .bind(&item.link)
-                    .bind(&item.content)
-                    .bind(&item.published_at)
-                    .bind(&item.guid)
-                    .bind(&item.author)
-                    .bind(&item.thumbnail_url)
-                    .execute(&mut *tx)
-                    .await;
-                    if let Err(e) = inserted {
-                        eprintln!("Insert failed for {feed_url}: {e}");
-                        continue;
-                    }
-                    feed_new += 1;
-
-                    for term in item.categories.iter().take(MAX_FEED_CATEGORY_TAGS) {
-                        if let Some(tag_id) = upsert_tag(&mut tx, term).await {
-                            let _ = sqlx::query(
-                                "INSERT OR IGNORE INTO item_tags (item_id, tag_id, source) VALUES (?, ?, 'feed')",
+                        if existing.is_some() {
+                            // Existing item — refresh mutable fields, leave tags alone.
+                            sqlx::query(
+                                "UPDATE feed_items SET title = ?, content = ?, author = ?, thumbnail_url = ?
+                                 WHERE feed_id = ? AND guid = ?",
                             )
-                            .bind(&item.id)
-                            .bind(&tag_id)
+                            .bind(&item.title)
+                            .bind(&item.content)
+                            .bind(&item.author)
+                            .bind(&item.thumbnail_url)
+                            .bind(&feed_id)
+                            .bind(&item.guid)
                             .execute(&mut *tx)
-                            .await;
+                            .await?;
+                            continue;
                         }
-                    }
-                    for tag_id in &default_tag_ids {
-                        let _ = sqlx::query(
-                            "INSERT OR IGNORE INTO item_tags (item_id, tag_id, source) VALUES (?, ?, 'feed_default')",
+
+                        // New item — insert, then apply feed-category + per-feed default tags.
+                        sqlx::query(
+                            "INSERT INTO feed_items
+                               (id, feed_id, title, link, content, published_at, guid, author, thumbnail_url)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         )
                         .bind(&item.id)
-                        .bind(tag_id)
+                        .bind(&feed_id)
+                        .bind(&item.title)
+                        .bind(&item.link)
+                        .bind(&item.content)
+                        .bind(&item.published_at)
+                        .bind(&item.guid)
+                        .bind(&item.author)
+                        .bind(&item.thumbnail_url)
                         .execute(&mut *tx)
-                        .await;
+                        .await?;
+                        feed_new += 1;
+
+                        for term in item.categories.iter().take(MAX_FEED_CATEGORY_TAGS) {
+                            if let Some(tag_id) = upsert_tag(&mut tx, term).await? {
+                                sqlx::query(
+                                    "INSERT OR IGNORE INTO item_tags (item_id, tag_id, source) VALUES (?, ?, 'feed')",
+                                )
+                                .bind(&item.id)
+                                .bind(&tag_id)
+                                .execute(&mut *tx)
+                                .await?;
+                            }
+                        }
+                        for tag_id in &default_tag_ids {
+                            sqlx::query(
+                                "INSERT OR IGNORE INTO item_tags (item_id, tag_id, source) VALUES (?, ?, 'feed_default')",
+                            )
+                            .bind(&item.id)
+                            .bind(tag_id)
+                            .execute(&mut *tx)
+                            .await?;
+                        }
                     }
-                }
 
-                let _ = sqlx::query(
-                    "UPDATE feeds SET last_fetched_at = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id = ?",
-                )
-                .bind(&feed_id)
-                .execute(&mut *tx)
-                .await;
-
-                if tx.commit().await.is_ok() {
-                    new_items += feed_new;
-                    let _ = sqlx::query(
-                        "DELETE FROM feed_items
-                         WHERE feed_id = ?
-                           AND id NOT IN (SELECT item_id FROM item_states WHERE is_starred = 1)
-                           AND id NOT IN (SELECT item_id FROM highlights)
-                           AND (
-                             published_at < datetime('now', printf('-%d days', ?))
-                             OR id NOT IN (
-                               SELECT id FROM feed_items
-                               WHERE feed_id = ?
-                               ORDER BY published_at DESC
-                               LIMIT ?
-                             )
-                           )",
+                    sqlx::query(
+                        "UPDATE feeds SET last_fetched_at = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id = ?",
                     )
                     .bind(&feed_id)
-                    .bind(MAX_ITEM_AGE_DAYS)
-                    .bind(&feed_id)
-                    .bind(MAX_ITEMS_PER_FEED)
-                    .execute(&pool)
-                    .await;
+                    .execute(&mut *tx)
+                    .await?;
+
+                    tx.commit().await?;
+                    Ok(feed_new)
+                }
+                .await;
+
+                match result {
+                    Ok(feed_new) => {
+                        new_items += feed_new;
+                        // Prune old items (best-effort; outside the refresh transaction).
+                        let _ = sqlx::query(
+                            "DELETE FROM feed_items
+                             WHERE feed_id = ?
+                               AND id NOT IN (SELECT item_id FROM item_states WHERE is_starred = 1)
+                               AND id NOT IN (SELECT item_id FROM highlights)
+                               AND (
+                                 published_at < datetime('now', printf('-%d days', ?))
+                                 OR id NOT IN (
+                                   SELECT id FROM feed_items
+                                   WHERE feed_id = ?
+                                   ORDER BY published_at DESC
+                                   LIMIT ?
+                                 )
+                               )",
+                        )
+                        .bind(&feed_id)
+                        .bind(MAX_ITEM_AGE_DAYS)
+                        .bind(&feed_id)
+                        .bind(MAX_ITEMS_PER_FEED)
+                        .execute(&pool)
+                        .await;
+                    }
+                    Err(e) => eprintln!("Refresh failed for {feed_url}: {e}"),
                 }
             }
             Err(e) => eprintln!("Failed to refresh {feed_url}: {e}"),
