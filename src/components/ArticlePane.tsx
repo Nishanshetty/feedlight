@@ -757,6 +757,7 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   // TTS state
   const [speechState, setSpeechState] = useState<SpeechState>("idle");
   const [currentParagraphIndex, setCurrentParagraphIndex] = useState<number | null>(null);
+  const lastTtsScrollRef = useRef<number | null>(null);
   const [speed, setSpeed] = useState(1);
   const speedRef = useRef(1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -873,28 +874,8 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     });
   }
 
-  useEffect(() => {
-    titleRef.current?.classList.remove("tts-active");
-    articleContentRef.current?.querySelectorAll(".tts-active").forEach((el) => {
-      el.classList.remove("tts-active");
-    });
-
-    if (currentParagraphIndex === null) return;
-
-    let target: HTMLElement | null = null;
-    if (currentParagraphIndex === 0) {
-      target = titleRef.current;
-    } else {
-      target = articleContentRef.current?.querySelector(
-        `[data-tts-idx="${currentParagraphIndex - 1}"]`
-      ) as HTMLElement | null;
-    }
-
-    if (target) {
-      target.classList.add("tts-active");
-      target.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-  }, [currentParagraphIndex]);
+  // (active-paragraph highlight is re-asserted below, after the highlight-painting
+  // effect, so a repaint can't leave it stranded — see that effect.)
 
   useEffect(() => {
     const el = articleContentRef.current;
@@ -976,6 +957,32 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
       if (range) wrapRangeWithMarks(range, h.id, !!h.note);
     }
   }, [result, highlights, taggedContent]);
+
+  // Re-assert the TTS active-paragraph highlight after every render. Defined
+  // after the highlight-painting effect so it runs last and can't be wiped by a
+  // content repaint while audio is still on the same paragraph. Only scrolls
+  // when the paragraph actually changes, so manual scrolling isn't hijacked.
+  useEffect(() => {
+    const title = titleRef.current;
+    const container = articleContentRef.current;
+    const active: HTMLElement | null =
+      currentParagraphIndex === null ? null
+      : currentParagraphIndex === 0 ? title
+      : (container?.querySelector(`[data-tts-idx="${currentParagraphIndex - 1}"]`) as HTMLElement | null);
+
+    if (title && title !== active) title.classList.remove("tts-active");
+    container?.querySelectorAll(".tts-active").forEach((el) => {
+      if (el !== active) el.classList.remove("tts-active");
+    });
+
+    if (active) {
+      active.classList.add("tts-active");
+      if (currentParagraphIndex !== lastTtsScrollRef.current) {
+        active.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+    lastTtsScrollRef.current = currentParagraphIndex;
+  });
 
   // Clicking a highlight opens its note popover
   useEffect(() => {
