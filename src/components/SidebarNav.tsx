@@ -93,6 +93,7 @@ type FeedMenuProps = {
 function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUnsubscribe, onClose }: FeedMenuProps) {
   const [confirmingUnsub, setConfirmingUnsub] = useState(false);
   const [newFolder, setNewFolder] = useState("");
+  const [expanded, setExpanded] = useState<"folder" | "tags" | null>(null);
   const [defaultTags, setDefaultTags] = useState<Tag[]>([]);
   const [tagInput, setTagInput] = useState("");
   // tagsRef holds the latest set so payloads are never built from a stale render;
@@ -146,52 +147,71 @@ function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUns
   const itemClass =
     "block w-full px-3 py-1.5 text-left text-xs font-body text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface";
 
+  const sectionHeader = (label: string, key: "folder" | "tags", meta?: string) => (
+    <button onClick={() => setExpanded((e) => (e === key ? null : key))}
+      className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs font-body text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface">
+      <span>{label}{meta ? <span className="ml-1 text-outline">· {meta}</span> : null}</span>
+      <svg className={`h-3 w-3 shrink-0 text-outline transition-transform duration-200 ${expanded === key ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </button>
+  );
+
   return (
-    <div className="border-l-2 border-primary/30 bg-surface-container-low py-2">
-      <p className="px-3 pb-1 text-[10px] font-label font-bold uppercase tracking-widest text-outline">
-        Move to folder
-      </p>
-      {moveTargets.map((folder) => (
-        <button key={folder} onClick={() => handleMove(folder)} className={itemClass}>
-          {folder}
-        </button>
-      ))}
-      {currentFolder !== null && (
-        <button onClick={() => handleMove(null)} className={itemClass}>
-          Remove from folder
-        </button>
+    <div className="border-l-2 border-primary/30 bg-surface-container-low py-1">
+      {sectionHeader("Move to folder", "folder", currentFolder ?? undefined)}
+      {expanded === "folder" && (
+        <div className="pb-1">
+          <div className="max-h-44 overflow-y-auto scrollbar-hide">
+            {moveTargets.length === 0 ? (
+              <p className="px-5 py-1 text-[11px] font-body text-outline">No other folders</p>
+            ) : moveTargets.map((folder) => (
+              <button key={folder} onClick={() => handleMove(folder)} className={`${itemClass} pl-5`}>
+                {folder}
+              </button>
+            ))}
+          </div>
+          {currentFolder !== null && (
+            <button onClick={() => handleMove(null)} className={`${itemClass} pl-5`}>
+              Remove from folder
+            </button>
+          )}
+          <form
+            className="px-3 py-1"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const folder = newFolder.trim();
+              if (folder) handleMove(folder);
+            }}>
+            <input
+              type="text" value={newFolder} onChange={(e) => setNewFolder(e.target.value)}
+              placeholder="New folder…"
+              className="w-full ghost-border bg-surface-container px-2 py-1 text-xs text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary font-body"
+            />
+          </form>
+        </div>
       )}
-      <form
-        className="px-3 py-1"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const folder = newFolder.trim();
-          if (folder) handleMove(folder);
-        }}>
-        <input
-          type="text" value={newFolder} onChange={(e) => setNewFolder(e.target.value)}
-          placeholder="New folder…"
-          className="w-full ghost-border bg-surface-container px-2 py-1 text-xs text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary font-body"
-        />
-      </form>
-      <div className="mx-3 my-1 border-t border-outline-variant/20" />
-      <p className="px-3 pb-1 text-[10px] font-label font-bold uppercase tracking-widest text-outline">
-        Default tags
-      </p>
-      <p className="px-3 pb-1 text-[10px] font-body text-outline">Applied to new articles from this feed.</p>
-      <div className="flex flex-wrap items-center gap-1 px-3 pb-2">
-        {defaultTags.map((t) => (
-          <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-surface-container px-1.5 py-0.5 text-[10px] text-on-surface-variant">
-            #{t.name}
-            <button onClick={() => removeDefaultTag(t)} aria-label={`Remove ${t.name}`} className="hover:text-on-surface">×</button>
-          </span>
-        ))}
-        <input
-          value={tagInput} onChange={(e) => setTagInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDefaultTag(); } }}
-          placeholder="Add…"
-          className="min-w-[4rem] flex-1 ghost-border bg-surface-container px-2 py-1 text-[10px] text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary font-body" />
-      </div>
+
+      {sectionHeader("Default tags", "tags", defaultTags.length ? String(defaultTags.length) : undefined)}
+      {expanded === "tags" && (
+        <div className="px-3 pb-2">
+          <p className="pb-1 text-[10px] font-body text-outline">Applied to new articles from this feed.</p>
+          <div className="flex flex-wrap items-center gap-1">
+            {defaultTags.map((t) => (
+              <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-surface-container px-1.5 py-0.5 text-[10px] text-on-surface-variant">
+                #{t.name}
+                <button onClick={() => removeDefaultTag(t)} aria-label={`Remove ${t.name}`} className="hover:text-on-surface">×</button>
+              </span>
+            ))}
+            <input
+              value={tagInput} onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDefaultTag(); } }}
+              placeholder="Add…"
+              className="min-w-[4rem] flex-1 ghost-border bg-surface-container px-2 py-1 text-[10px] text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary font-body" />
+          </div>
+        </div>
+      )}
+
       <div className="mx-3 my-1 border-t border-outline-variant/20" />
       {confirmingUnsub ? (
         <button
