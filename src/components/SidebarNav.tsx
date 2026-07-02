@@ -85,15 +85,16 @@ type FeedMenuProps = {
   entry: FeedEntry;
   currentFolder: string | null;
   existingFolders: string[];
+  anchor: { top: number; right: number } | null;
   onMoveToFolder: (feedId: string, folder: string | null) => void;
   onUnsubscribe: (subId: string, feedId: string, title: string) => void;
   onClose: () => void;
 };
 
-function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUnsubscribe, onClose }: FeedMenuProps) {
+function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolder, onUnsubscribe, onClose }: FeedMenuProps) {
   const [confirmingUnsub, setConfirmingUnsub] = useState(false);
   const [newFolder, setNewFolder] = useState("");
-  const [expanded, setExpanded] = useState<"folder" | "tags" | null>(null);
+  const [showNewFolder, setShowNewFolder] = useState(false);
   const [defaultTags, setDefaultTags] = useState<Tag[]>([]);
   const [tagInput, setTagInput] = useState("");
   // tagsRef holds the latest set so payloads are never built from a stale render;
@@ -137,100 +138,92 @@ function FeedMenu({ entry, currentFolder, existingFolders, onMoveToFolder, onUns
     persistDefaultTags();
   }
 
-  const moveTargets = existingFolders.filter((f) => f !== currentFolder);
-
   function handleMove(folder: string | null) {
     onMoveToFolder(entry.feedId, folder);
     onClose();
   }
 
-  const itemClass =
-    "block w-full px-3 py-1.5 text-left text-xs font-body text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface";
+  function onSelectFolder(value: string) {
+    if (value === "__new__") { setShowNewFolder(true); return; }
+    handleMove(value === "" ? null : value);
+  }
 
-  const sectionHeader = (label: string, key: "folder" | "tags", meta?: string) => (
-    <button onClick={() => setExpanded((e) => (e === key ? null : key))}
-      className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs font-body text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface">
-      <span>{label}{meta ? <span className="ml-1 text-outline">· {meta}</span> : null}</span>
-      <svg className={`h-3 w-3 shrink-0 text-outline transition-transform duration-200 ${expanded === key ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-      </svg>
-    </button>
-  );
+  const labelClass = "text-[10px] font-label font-bold uppercase tracking-widest text-outline";
+  const fieldClass = "w-full ghost-border bg-surface-container-low px-2 py-1.5 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary";
 
   return (
-    <div className="border-l-2 border-primary/30 bg-surface-container-low py-1">
-      {sectionHeader("Move to folder", "folder", currentFolder ?? undefined)}
-      {expanded === "folder" && (
-        <div className="pb-1">
-          <div className="max-h-44 overflow-y-auto scrollbar-hide">
-            {moveTargets.length === 0 ? (
-              <p className="px-5 py-1 text-[11px] font-body text-outline">No other folders</p>
-            ) : moveTargets.map((folder) => (
-              <button key={folder} onClick={() => handleMove(folder)} className={`${itemClass} pl-5`}>
-                {folder}
-              </button>
-            ))}
-          </div>
-          {currentFolder !== null && (
-            <button onClick={() => handleMove(null)} className={`${itemClass} pl-5`}>
-              Remove from folder
-            </button>
-          )}
-          <form
-            className="px-3 py-1"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const folder = newFolder.trim();
-              if (folder) handleMove(folder);
-            }}>
-            <input
-              type="text" value={newFolder} onChange={(e) => setNewFolder(e.target.value)}
-              placeholder="New folder…"
-              className="w-full ghost-border bg-surface-container px-2 py-1 text-xs text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary font-body"
-            />
-          </form>
-        </div>
-      )}
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
+      <div
+        role="menu"
+        className="fixed z-50 w-60 max-w-[calc(100vw-1rem)] space-y-3 rounded-lg border border-outline-variant/40 bg-surface-container p-3 shadow-xl"
+        style={{ top: anchor?.top ?? 8, right: anchor?.right ?? 8 }}
+        onClick={(e) => e.stopPropagation()}>
+        <p className="text-[10px] font-label font-bold uppercase tracking-widest text-primary">
+          Feed settings
+        </p>
 
-      {sectionHeader("Default tags", "tags", defaultTags.length ? String(defaultTags.length) : undefined)}
-      {expanded === "tags" && (
-        <div className="px-3 pb-2">
-          <p className="pb-1 text-[10px] font-body text-outline">Applied to new articles from this feed.</p>
-          <div className="flex flex-wrap items-center gap-1">
+        {/* Folder */}
+        <div className="space-y-1">
+          <p className={labelClass}>Folder</p>
+          <select value={showNewFolder ? "__new__" : (currentFolder ?? "")}
+            onChange={(e) => onSelectFolder(e.target.value)}
+            className={`${fieldClass} cursor-pointer`}>
+            <option value="">No folder</option>
+            {existingFolders.map((f) => <option key={f} value={f}>{f}</option>)}
+            <option value="__new__">＋ New folder…</option>
+          </select>
+          {showNewFolder && (
+            <form onSubmit={(e) => { e.preventDefault(); const f = newFolder.trim(); if (f) handleMove(f); }}>
+              <input autoFocus type="text" value={newFolder} onChange={(e) => setNewFolder(e.target.value)}
+                placeholder="New folder name…" className={fieldClass} />
+            </form>
+          )}
+        </div>
+
+        {/* Default tags */}
+        <div className="space-y-1">
+          <p className={labelClass}>Default tags</p>
+          <div className="flex flex-wrap items-center gap-1 ghost-border bg-surface-container-low px-2 py-1.5">
             {defaultTags.map((t) => (
-              <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-surface-container px-1.5 py-0.5 text-[10px] text-on-surface-variant">
+              <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-surface-container-high px-1.5 py-0.5 text-[10px] text-on-surface-variant">
                 #{t.name}
                 <button onClick={() => removeDefaultTag(t)} aria-label={`Remove ${t.name}`} className="hover:text-on-surface">×</button>
               </span>
             ))}
-            <input
-              value={tagInput} onChange={(e) => setTagInput(e.target.value)}
+            <input value={tagInput} onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDefaultTag(); } }}
-              placeholder="Add…"
-              className="min-w-[4rem] flex-1 ghost-border bg-surface-container px-2 py-1 text-[10px] text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary font-body" />
+              placeholder={defaultTags.length ? "Add…" : "Add a tag…"}
+              className="min-w-[4rem] flex-1 bg-transparent text-[11px] text-on-surface placeholder-outline focus:outline-none" />
           </div>
+          <p className="text-[10px] font-body text-outline">Applied to new articles from this feed.</p>
         </div>
-      )}
 
-      <div className="mx-3 my-1 border-t border-outline-variant/20" />
-      {confirmingUnsub ? (
-        <button
-          onClick={() => { onUnsubscribe(entry.subId, entry.feedId, entry.title); onClose(); }}
-          className="block w-full px-3 py-1.5 text-left text-xs font-body font-bold text-error transition-colors hover:bg-surface-container">
-          Confirm unsubscribe?
-        </button>
-      ) : (
-        <button onClick={() => setConfirmingUnsub(true)} className={`${itemClass} hover:text-error`}>
-          Unsubscribe…
-        </button>
-      )}
-    </div>
+        {/* Unsubscribe */}
+        <div className="border-t border-outline-variant/20 pt-2">
+          {confirmingUnsub ? (
+            <button onClick={() => { onUnsubscribe(entry.subId, entry.feedId, entry.title); onClose(); }}
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-body font-bold text-error transition-colors hover:bg-error/10">
+              <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              Confirm unsubscribe?
+            </button>
+          ) : (
+            <button onClick={() => setConfirmingUnsub(true)}
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-body text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-error">
+              <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              Unsubscribe
+            </button>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
 export default function SidebarNav({ groups, existingFolders, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, activeStarred, activeToday, activeHighlights, activeTagId, tags, todayUnread, onNavigate, onUnsubscribe, onMoveToFolder }: Props) {
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
 
   function toggleFolder(folder: string) {
     setCollapsedFolders((prev) => {
@@ -360,7 +353,12 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
                             </span>
                           )}
                         </button>
-                        <button onClick={() => setMenuFor(isMenuOpen ? null : entry.subId)}
+                        <button onClick={(e) => {
+                            if (isMenuOpen) { setMenuFor(null); return; }
+                            const r = e.currentTarget.getBoundingClientRect();
+                            setMenuAnchor({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+                            setMenuFor(entry.subId);
+                          }}
                           aria-label={`Feed options for ${entry.title}`} aria-expanded={isMenuOpen}
                           className={["mr-2 shrink-0 rounded p-1 text-outline transition-colors hover:text-on-surface group-hover:opacity-100",
                             isMenuOpen ? "opacity-100 text-on-surface" : "opacity-0"].join(" ")}>
@@ -374,6 +372,7 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
                           entry={entry}
                           currentFolder={folder === "Uncategorized" ? null : folder}
                           existingFolders={existingFolders}
+                          anchor={menuAnchor}
                           onMoveToFolder={onMoveToFolder}
                           onUnsubscribe={onUnsubscribe}
                           onClose={() => setMenuFor(null)}
