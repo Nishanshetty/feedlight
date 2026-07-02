@@ -241,6 +241,8 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ top: number; bottom: number; right: number } | null>(null);
+  const [showAllTags, setShowAllTags] = useState(false);
+  const TAG_LIMIT = 10;
 
   function toggleFolder(folder: string) {
     setCollapsedFolders((prev) => {
@@ -290,27 +292,46 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
       {navRow("Discover", "discover", activeDiscover, null, () => onNavigate({ discover: true }))}
       {navRow("Analytics & Stats", "analytics", activeAnalytics, null, () => onNavigate({ analytics: true }))}
 
-      {tags.some((t) => t.count > 0) && (
-        <div className="mt-5">
-          {sectionLabel("Tags")}
-          {tags.filter((t) => t.count > 0).map((tag) => (
-            <button key={tag.id} onClick={() => onNavigate({ tagId: tag.id, tagName: tag.name })}
-              className={["flex w-full items-center justify-between px-3 py-1.5 text-[13px] font-body transition-all duration-200",
-                activeTagId === tag.id
-                  ? "border-l-2 border-primary bg-surface-container-low text-primary font-bold"
-                  : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface border-l-2 border-transparent",
-              ].join(" ")}>
-              <span className="flex min-w-0 items-center gap-1.5">
-                <span className="text-outline">#</span>
-                <span className="truncate">{tag.name}</span>
-              </span>
-              <span className="shrink-0 rounded-full bg-surface-container-high px-1.5 py-0.5 text-[10px] font-label text-on-surface-variant">
-                {tag.count}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+      {(() => {
+        const inUse = tags.filter((t) => t.count > 0);
+        if (inUse.length === 0) return null;
+        const shown = showAllTags ? inUse : inUse.slice(0, TAG_LIMIT);
+        const extra = inUse.length - TAG_LIMIT;
+        return (
+          <div className="mt-5">
+            {sectionLabel("Tags")}
+            <div className={`flex flex-wrap gap-1 px-3 ${showAllTags ? "max-h-64 overflow-y-auto scrollbar-hide" : ""}`}>
+              {shown.map((tag) => {
+                const active = activeTagId === tag.id;
+                return (
+                  <button key={tag.id} onClick={() => onNavigate({ tagId: tag.id, tagName: tag.name })}
+                    title={`${tag.name} · ${tag.count}`}
+                    className={["inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-body transition-colors",
+                      active
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
+                    ].join(" ")}>
+                    <span className="truncate">#{tag.name}</span>
+                    <span className={active ? "opacity-80" : "text-outline"}>{tag.count}</span>
+                  </button>
+                );
+              })}
+              {!showAllTags && extra > 0 && (
+                <button onClick={() => setShowAllTags(true)}
+                  className="rounded-full px-2 py-0.5 text-[11px] font-body text-outline transition-colors hover:text-on-surface">
+                  +{extra} more
+                </button>
+              )}
+              {showAllTags && inUse.length > TAG_LIMIT && (
+                <button onClick={() => setShowAllTags(false)}
+                  className="rounded-full px-2 py-0.5 text-[11px] font-body text-outline transition-colors hover:text-on-surface">
+                  Show less
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {Object.keys(groups).length === 0 ? (
         <p className="px-4 py-3 text-xs text-outline font-label">No feeds yet. Add one above.</p>
