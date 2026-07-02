@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getFeedDefaultTags, setFeedDefaultTags } from "../lib/db";
 import type { Tag, TagWithCount } from "../types/database";
 
@@ -85,7 +85,7 @@ type FeedMenuProps = {
   entry: FeedEntry;
   currentFolder: string | null;
   existingFolders: string[];
-  anchor: { top: number; right: number } | null;
+  anchor: { top: number; bottom: number; right: number } | null;
   onMoveToFolder: (feedId: string, folder: string | null) => void;
   onUnsubscribe: (subId: string, feedId: string, title: string) => void;
   onClose: () => void;
@@ -101,6 +101,22 @@ function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolde
   // writeLock serializes writes so rapid add/remove can't overwrite each other.
   const tagsRef = useRef<Tag[]>([]);
   const writeLock = useRef<Promise<unknown>>(Promise.resolve());
+
+  // Position the popover below the ⋯ button, but flip above it when there isn't
+  // room below (e.g. the last feeds in the list) so it never runs off-screen.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; right: number }>(
+    () => (anchor ? { top: anchor.bottom + 4, right: anchor.right } : { top: 8, right: 8 })
+  );
+  useLayoutEffect(() => {
+    if (!anchor) return;
+    const h = cardRef.current?.offsetHeight ?? 0;
+    const fitsBelow = anchor.bottom + 4 + h <= window.innerHeight - 8;
+    const roomAbove = anchor.top - 4 - h >= 8;
+    setPos(!fitsBelow && roomAbove
+      ? { bottom: window.innerHeight - anchor.top + 4, right: anchor.right }
+      : { top: anchor.bottom + 4, right: anchor.right });
+  }, [anchor, defaultTags.length, showNewFolder, confirmingUnsub]);
 
   function applyTags(t: Tag[]) { tagsRef.current = t; setDefaultTags(t); }
 
@@ -155,9 +171,10 @@ function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolde
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
       <div
+        ref={cardRef}
         role="menu"
-        className="fixed z-50 w-60 max-w-[calc(100vw-1rem)] space-y-3 rounded-lg border border-outline-variant/40 bg-surface-container p-3 shadow-xl"
-        style={{ top: anchor?.top ?? 8, right: anchor?.right ?? 8 }}
+        className="fixed z-50 w-60 max-w-[calc(100vw-1rem)] max-h-[calc(100vh-1rem)] overflow-y-auto space-y-3 rounded-lg border border-outline-variant/40 bg-surface-container p-3 shadow-xl"
+        style={pos}
         onClick={(e) => e.stopPropagation()}>
         <p className="text-[10px] font-label font-bold uppercase tracking-widest text-primary">
           Feed settings
@@ -223,7 +240,7 @@ function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolde
 export default function SidebarNav({ groups, existingFolders, activeFeedId, activeFolder, activeAnalytics, activeDigest, activeDiscover, activeStarred, activeToday, activeHighlights, activeTagId, tags, todayUnread, onNavigate, onUnsubscribe, onMoveToFolder }: Props) {
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [menuFor, setMenuFor] = useState<string | null>(null);
-  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; bottom: number; right: number } | null>(null);
 
   function toggleFolder(folder: string) {
     setCollapsedFolders((prev) => {
@@ -356,7 +373,7 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
                         <button onClick={(e) => {
                             if (isMenuOpen) { setMenuFor(null); return; }
                             const r = e.currentTarget.getBoundingClientRect();
-                            setMenuAnchor({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+                            setMenuAnchor({ top: r.top, bottom: r.bottom, right: Math.max(8, window.innerWidth - r.right) });
                             setMenuFor(entry.subId);
                           }}
                           aria-label={`Feed options for ${entry.title}`} aria-expanded={isMenuOpen}
