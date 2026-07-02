@@ -56,7 +56,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
         with:
-          args: --target universal-apple-darwin
+          # Release tags build the full DMG for distribution; routine main/PR
+          # builds only produce the .app — this skips the flaky bundle_dmg.sh
+          # step (AppleScript/hdiutil races on headless runners) so CI stays green.
+          args: >-
+            ${{ startsWith(github.ref, 'refs/tags/')
+                && '--target universal-apple-darwin'
+                || '--target universal-apple-darwin --bundles app' }}
           # On version tags, publish a GitHub Release with the .dmg attached.
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.event.inputs.release_tag }}
           releaseName: Feedlight ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
@@ -65,11 +71,11 @@ jobs:
           releaseDraft: ${{ !startsWith(github.ref, 'refs/tags/') }}
           prerelease: false
 
-      - name: Upload .dmg artifact (non-tag builds)
+      - name: Upload .app artifact (non-tag builds)
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
           name: Feedlight-macOS-universal
-          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          path: src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
           if-no-files-found: ignore
           retention-days: 14
