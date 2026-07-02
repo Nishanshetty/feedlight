@@ -11,6 +11,9 @@ import {
   getGoogleTtsApiKey, setGoogleTtsApiKey,
   getTtsEngine, setTtsEngine,
   getGoogleTtsVoice, setGoogleTtsVoice,
+  getElevenLabsApiKey, setElevenLabsApiKey,
+  getElevenLabsVoice, setElevenLabsVoice,
+  getElevenLabsModel, setElevenLabsModel, ELEVENLABS_DEFAULT_MODEL,
   resetSettings,
   type OllamaSettings, type AppTheme, type TtsEngine,
 } from "../lib/settings";
@@ -319,7 +322,125 @@ type GoogleVoice = {
 const TTS_ENGINES: { value: TtsEngine; label: string; description: string }[] = [
   { value: "system", label: "System", description: "Free, offline" },
   { value: "google", label: "Google", description: "Your API key" },
+  { value: "elevenlabs", label: "ElevenLabs", description: "Premium · paid" },
 ];
+
+const ELEVEN_MODELS: { value: string; label: string; hint: string }[] = [
+  { value: "eleven_turbo_v2_5", label: "Turbo v2.5", hint: "Fast, ~½ credits" },
+  { value: "eleven_flash_v2_5", label: "Flash v2.5", hint: "Fastest, ~½ credits" },
+  { value: "eleven_multilingual_v2", label: "Multilingual v2", hint: "Highest quality" },
+];
+
+type ElevenVoice = { voice_id: string; name: string; category?: string };
+
+function ElevenLabsVoiceSettings() {
+  const [key, setKey] = useState("");
+  const [hasKey, setHasKey] = useState(false);
+  const [keySave, setKeySave] = useState<SaveState>("idle");
+  const [voices, setVoices] = useState<ElevenVoice[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [voiceId, setVoiceId] = useState("");
+  const [model, setModel] = useState(ELEVENLABS_DEFAULT_MODEL);
+
+  useEffect(() => {
+    getElevenLabsApiKey().then((k) => setHasKey(!!k.trim())).catch(console.error);
+    getElevenLabsVoice().then((v) => { if (v) setVoiceId(v.id); }).catch(console.error);
+    getElevenLabsModel().then(setModel).catch(console.error);
+  }, []);
+
+  function chooseVoice(v: ElevenVoice) {
+    setVoiceId(v.voice_id);
+    setElevenLabsVoice({ id: v.voice_id, name: v.name }).catch(console.error);
+  }
+
+  async function loadVoices() {
+    setLoading(true);
+    setError(null);
+    try {
+      const list = await invoke<ElevenVoice[]>("list_elevenlabs_voices");
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      setVoices(list);
+      if (!voiceId && list[0]) chooseVoice(list[0]);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveKey() {
+    const trimmed = key.trim();
+    if (!trimmed) return;
+    setKeySave("saving");
+    try {
+      await setElevenLabsApiKey(trimmed);
+      setHasKey(true);
+      setKey("");
+      setKeySave("saved");
+      setTimeout(() => setKeySave("idle"), 2000);
+      loadVoices();
+    } catch {
+      setKeySave("error");
+    }
+  }
+
+  function chooseModel(m: string) {
+    setModel(m);
+    setElevenLabsModel(m).catch(console.error);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <p className="text-sm font-headline font-semibold text-on-surface">ElevenLabs API Key</p>
+        <p className="text-xs font-body text-on-surface-variant">
+          Create a key at elevenlabs.io → Profile → API Keys, then paste it here. ElevenLabs is a
+          paid, premium voice — billed per character to your own account.
+        </p>
+        <div className="flex gap-2">
+          <input type="password" value={key} onChange={(e) => setKey(e.target.value)}
+            placeholder={hasKey ? "••••••••  saved — enter a new key to replace" : "sk_..."}
+            className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary" />
+          <button onClick={saveKey} disabled={keySave === "saving"}
+            className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
+            {keySave === "saving" ? "Saving…" : keySave === "saved" ? "Saved ✓" : keySave === "error" ? "Error" : "Save"}
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-headline font-semibold text-on-surface">Model</p>
+        <select value={model} onChange={(e) => chooseModel(e.target.value)}
+          className="w-full ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+          {ELEVEN_MODELS.map((m) => <option key={m.value} value={m.value}>{m.label} — {m.hint}</option>)}
+        </select>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
+          <button onClick={loadVoices} disabled={loading || (!hasKey && !key.trim())}
+            className="shrink-0 ghost-border px-3 py-1.5 text-[10px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-opacity hover:opacity-90 disabled:opacity-40">
+            {loading ? "Loading…" : voices ? "Reload" : "Load voices"}
+          </button>
+        </div>
+        {!voices && !error && (
+          <p className="text-xs font-body text-on-surface-variant">
+            {hasKey ? "Load voices to choose one." : "Save your API key to load voices."}
+          </p>
+        )}
+        {voices && (
+          <select value={voiceId} onChange={(e) => { const v = voices.find((x) => x.voice_id === e.target.value); if (v) chooseVoice(v); }}
+            className="w-full ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+            {voices.map((v) => <option key={v.voice_id} value={v.voice_id}>{v.name}{v.category ? ` · ${v.category}` : ""}</option>)}
+          </select>
+        )}
+        {error && <p className="text-[11px] font-body text-error">✗ {error}</p>}
+      </div>
+    </div>
+  );
+}
 
 function uniqueLangs(list: GoogleVoice[]): string[] {
   return Array.from(new Set(list.flatMap((v) => v.languageCodes))).sort();
@@ -403,8 +524,9 @@ function TtsSection() {
         <div>
           <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
           <p className="text-xs font-body text-on-surface-variant mt-0.5">
-            System voices are free and work offline. Google Cloud voices are higher quality and billed
-            to your own Google account via an API key.
+            System voices are free and work offline. Google Cloud is higher quality and cheap
+            (largely free for personal use). ElevenLabs is the most natural voice but paid — both use
+            your own API key.
           </p>
         </div>
 
@@ -422,12 +544,16 @@ function TtsSection() {
           ))}
         </div>
 
-        {engine === "system" ? (
+        {engine === "system" && (
           <p className="text-xs font-body text-on-surface-variant">
             Uses your Mac's built-in speech voices. Pick or download higher-quality system voices in
             macOS System Settings → Accessibility → Spoken Content → System Voice.
           </p>
-        ) : (
+        )}
+
+        {engine === "elevenlabs" && <ElevenLabsVoiceSettings />}
+
+        {engine === "google" && (
           <div className="space-y-4">
             <div className="space-y-2">
               <p className="text-sm font-headline font-semibold text-on-surface">Google Cloud TTS API Key</p>
