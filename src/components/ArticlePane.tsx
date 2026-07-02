@@ -4,7 +4,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Readability } from "@mozilla/readability";
 import DOMPurify from "dompurify";
 import ReactMarkdown from "react-markdown";
-import { getOllamaSettings, getObsidianVaultPath, getTtsEngine, getGoogleTtsApiKey, type OllamaSettings, type TtsEngine } from "../lib/settings";
+import { getOllamaSettings, getObsidianVaultPath, getTtsEngine, getGoogleTtsApiKey, getElevenLabsApiKey, type OllamaSettings, type TtsEngine } from "../lib/settings";
 import {
   upsertItemState, getItemProgress,
   getHighlightsForItem, addHighlight, updateHighlightNote, deleteHighlight,
@@ -1330,7 +1330,8 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
   function synthParagraph(index: number): Promise<string> {
     const cached = ttsCacheRef.current.get(index);
     if (cached) return cached;
-    const promise = invoke<string>("synthesize_speech", { text: paragraphs[index] });
+    const cmd = engineRef.current === "elevenlabs" ? "synthesize_speech_elevenlabs" : "synthesize_speech";
+    const promise = invoke<string>(cmd, { text: paragraphs[index] });
     promise.catch(() => ttsCacheRef.current.delete(index));
     ttsCacheRef.current.set(index, promise);
     return promise;
@@ -1352,9 +1353,16 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
 
   /** Resolves the engine once, then starts reading from the top. */
   async function startSpeech() {
+    ttsCacheRef.current.clear(); // drop any audio synthesized with a previous engine
     try {
-      const [pref, key] = await Promise.all([getTtsEngine(), getGoogleTtsApiKey()]);
-      engineRef.current = pref === "google" && key.trim() ? "google" : "system";
+      const pref = await getTtsEngine();
+      if (pref === "google") {
+        engineRef.current = (await getGoogleTtsApiKey()).trim() ? "google" : "system";
+      } else if (pref === "elevenlabs") {
+        engineRef.current = (await getElevenLabsApiKey()).trim() ? "elevenlabs" : "system";
+      } else {
+        engineRef.current = "system";
+      }
     } catch {
       engineRef.current = "system";
     }

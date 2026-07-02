@@ -80,6 +80,8 @@ pub fn run() {
             commands::export::export_markdown,
             commands::tts::synthesize_speech,
             commands::tts::list_tts_voices,
+            commands::tts::synthesize_speech_elevenlabs,
+            commands::tts::list_elevenlabs_voices,
             commands::ollama::check_ollama,
             commands::ollama::summarize_article,
             commands::ollama::chat_article,

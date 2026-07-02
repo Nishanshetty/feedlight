@@ -31,12 +31,12 @@ export async function setGoogleTtsApiKey(key: string): Promise<void> {
 }
 
 /** Which voice engine read-aloud uses. "system" = free built-in Web Speech. */
-export type TtsEngine = "system" | "google";
+export type TtsEngine = "system" | "google" | "elevenlabs";
 
 export async function getTtsEngine(): Promise<TtsEngine> {
   const store = await getStore();
   const v = await store.get<string>("tts_engine");
-  return v === "google" ? "google" : "system";
+  return v === "google" || v === "elevenlabs" ? v : "system";
 }
 
 export async function setTtsEngine(engine: TtsEngine): Promise<void> {
@@ -58,6 +58,46 @@ export async function setGoogleTtsVoice(voice: GoogleTtsVoice): Promise<void> {
   const store = await getStore();
   await store.set("tts_voice", voice.name);
   await store.set("tts_voice_lang", voice.lang);
+  await store.save();
+}
+
+// ── ElevenLabs ────────────────────────────────────────────────────────────────
+
+/** ElevenLabs API key — stored in the OS keychain, not the plaintext store. */
+export async function getElevenLabsApiKey(): Promise<string> {
+  return (await invoke<string | null>("get_credential", { key: "elevenlabs_api_key" })) ?? "";
+}
+
+export async function setElevenLabsApiKey(key: string): Promise<void> {
+  await invoke("set_credential", { key: "elevenlabs_api_key", value: key });
+}
+
+export type ElevenLabsVoice = { id: string; name: string };
+
+export async function getElevenLabsVoice(): Promise<ElevenLabsVoice | null> {
+  const store = await getStore();
+  const id = await store.get<string>("elevenlabs_voice_id");
+  const name = await store.get<string>("elevenlabs_voice_name");
+  return id ? { id, name: name ?? id } : null;
+}
+
+export async function setElevenLabsVoice(voice: ElevenLabsVoice): Promise<void> {
+  const store = await getStore();
+  await store.set("elevenlabs_voice_id", voice.id);
+  await store.set("elevenlabs_voice_name", voice.name);
+  await store.save();
+}
+
+export const ELEVENLABS_DEFAULT_MODEL = "eleven_turbo_v2_5";
+
+export async function getElevenLabsModel(): Promise<string> {
+  const store = await getStore();
+  return (await store.get<string>("elevenlabs_model")) ?? ELEVENLABS_DEFAULT_MODEL;
+}
+
+export async function setElevenLabsModel(model: string): Promise<void> {
+  const store = await getStore();
+  await store.set("elevenlabs_model", model);
   await store.save();
 }
 
