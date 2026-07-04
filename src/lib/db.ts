@@ -649,6 +649,16 @@ export async function saveExternalArticle(article: {
   return id;
 }
 
+/** The saved item's id for a given external URL, or null if not saved. */
+export async function getSavedArticleId(url: string): Promise<string | null> {
+  const db = await getDb();
+  const rows = await db.select<Array<{ id: string }>>(
+    `SELECT id FROM feed_items WHERE feed_id = $1 AND guid = $2`,
+    [SAVED_FEED_ID, url]
+  );
+  return rows[0]?.id ?? null;
+}
+
 export async function isArticleSaved(url: string): Promise<boolean> {
   const db = await getDb();
   const rows = await db.select<Array<{ c: number }>>(

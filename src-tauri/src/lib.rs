@@ -90,6 +90,7 @@ pub fn run() {
             commands::ollama::generate_digest,
             commands::ollama::generate_discover_queries,
             commands::video::open_video_window,
+            commands::pdf::extract_pdf_text,
             crawler::refresh_feeds_now,
         ])
         .run(tauri::generate_context!())

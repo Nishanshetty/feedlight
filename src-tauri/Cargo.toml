@@ -30,6 +30,7 @@ base64 = "0.22"
 url = "2"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }
 security-framework = "3"
+pdf-extract = "0.7"
 
 # macOS-only: capture uncaught AppKit/Cocoa exceptions (e.g. the wake-from-sleep
 # -[NSWindow setStyleMask:] crash) and harden window handling.
