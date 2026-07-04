@@ -5,8 +5,24 @@ import ReadUrlModal from "./ReadUrlModal";
 import ArticlePane from "./ArticlePane";
 import { useKeyboardShortcuts } from "../lib/hooks/use-keyboard-shortcuts";
 import { useFeedRefresh } from "../lib/hooks/use-feed-refresh";
-import { getLastSyncedAt } from "../lib/db";
+import { getLastSyncedAt, type ArchivedContent } from "../lib/db";
 import { Link } from "@tanstack/react-router";
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Turn extracted PDF text into simple paragraph HTML for the reader. */
+function pdfTextToHtml(text: string): string {
+  const byBlank = text.split(/\n\s*\n/).map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const paras = byBlank.length > 1 ? byBlank : text.split(/\n/).map((s) => s.trim()).filter(Boolean);
+  return paras.map((p) => `<p>${escapeHtml(p)}</p>`).join("");
+}
+
+function pdfTitleFromPath(path: string): string {
+  const base = path.split(/[\\/]/).pop() ?? "Document";
+  return base.replace(/\.pdf$/i, "");
+}
 
 function formatSynced(iso: string | null, now: number): string | null {
   if (!iso) return null;
@@ -30,7 +46,7 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [readUrlOpen, setReadUrlOpen] = useState(false);
-  const [quickReadUrl, setQuickReadUrl] = useState<string | null>(null);
+  const [quickRead, setQuickRead] = useState<{ url: string; title: string | null; content: ArchivedContent | null } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
@@ -67,6 +83,19 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
     setToast(msg);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 5000);
+  }
+
+  async function handleReadPdf(path: string) {
+    try {
+      const text = await invoke<string>("extract_pdf_text", { path });
+      const content = pdfTextToHtml(text);
+      if (!content) { showToast("Couldn't extract any text from that PDF"); return; }
+      const title = pdfTitleFromPath(path);
+      setQuickRead({ url: path, title, content: { title, byline: null, siteName: "PDF", content } });
+    } catch (err) {
+      console.error("PDF read failed:", err);
+      showToast("Failed to read that PDF");
+    }
   }
 
   async function handleRefresh() {
@@ -152,13 +181,19 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
 
       {readUrlOpen && (
         <ReadUrlModal
-          onSubmit={(url) => setQuickReadUrl(url)}
+          onSubmit={(url) => setQuickRead({ url, title: null, content: null })}
+          onSubmitPdf={handleReadPdf}
           onClose={() => setReadUrlOpen(false)}
         />
       )}
 
-      {quickReadUrl && (
-        <ArticlePane url={quickReadUrl} title={null} onClose={() => setQuickReadUrl(null)} />
+      {quickRead && (
+        <ArticlePane
+          url={quickRead.url}
+          title={quickRead.title}
+          content={quickRead.content}
+          onClose={() => setQuickRead(null)}
+        />
       )}
 
       {toast && (

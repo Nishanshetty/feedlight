@@ -8,7 +8,7 @@ import { getOllamaSettings, getObsidianVaultPath, getTtsEngine, getGoogleTtsApiK
 import {
   upsertItemState, getItemProgress,
   getHighlightsForItem, addHighlight, updateHighlightNote, deleteHighlight,
-  getItemContent, setItemContent,
+  getItemContent, setItemContent, type ArchivedContent,
   getItemTakeaways, setItemTakeaways,
   isArticleSaved, saveExternalArticle, removeSavedArticleByUrl,
   getTagsForItem, addTagToItem, removeTagFromItem, listTags,
@@ -20,6 +20,7 @@ type Props = {
   url: string;
   title: string | null;
   itemId?: string | null; // when set, scroll progress is persisted per item
+  content?: ArchivedContent | null; // pre-extracted content (e.g. a PDF) — skip fetching
   onClose: () => void;
 };
 
@@ -729,7 +730,7 @@ function LoadingSkeleton() {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function ArticlePane({ url, title, itemId, onClose }: Props) {
+export default function ArticlePane({ url, title, itemId, content, onClose }: Props) {
   const [result, setResult] = useState<ExtractResult>({ state: "loading" });
   // Save state — only meaningful for external (⌘L) reads, which have no itemId.
   const isExternal = !itemId;
@@ -1123,6 +1124,8 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
 
   useEffect(() => {
     if (isYT) return;
+    // Pre-extracted content (e.g. an imported PDF) — render it directly, no fetch.
+    if (content) { setResult({ state: "ok", ...content }); return; }
     setResult({ state: "loading" });
     let stale = false;
 
@@ -1166,7 +1169,7 @@ export default function ArticlePane({ url, title, itemId, onClose }: Props) {
     })();
 
     return () => { stale = true; };
-  }, [url, isYT, itemId]);
+  }, [url, isYT, itemId, content]);
 
   // Track whether this external article is already saved
   useEffect(() => {
