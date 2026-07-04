@@ -1686,10 +1686,10 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
     setIsSaved(next); // optimistic
     try {
       if (next) {
-        const content = result.state === "ok"
+        const savedContent = result.state === "ok"
           ? { title: result.title, byline: result.byline, siteName: result.siteName, content: result.content }
           : null;
-        const id = await saveExternalArticle({ url, title: result.state === "ok" ? result.title : title, content });
+        const id = await saveExternalArticle({ url, title: result.state === "ok" ? result.title : title, content: savedContent });
         setSavedItemId(id); // makes the tag bar available now that it's a real item
       } else {
         await removeSavedArticleByUrl(url);

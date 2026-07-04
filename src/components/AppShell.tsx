@@ -86,12 +86,14 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
   }
 
   async function handleReadPdf(path: string) {
+    showToast("Reading PDF…");
     try {
       const text = await invoke<string>("extract_pdf_text", { path });
       const content = pdfTextToHtml(text);
       if (!content) { showToast("Couldn't extract any text from that PDF"); return; }
       const title = pdfTitleFromPath(path);
       setQuickRead({ url: path, title, content: { title, byline: null, siteName: "PDF", content } });
+      setToast(null);
     } catch (err) {
       console.error("PDF read failed:", err);
       showToast("Failed to read that PDF");
