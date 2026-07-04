@@ -10,7 +10,7 @@ import {
   getHighlightsForItem, addHighlight, updateHighlightNote, deleteHighlight,
   getItemContent, setItemContent, type ArchivedContent,
   getItemTakeaways, setItemTakeaways,
-  isArticleSaved, saveExternalArticle, removeSavedArticleByUrl,
+  getSavedArticleId, saveExternalArticle, removeSavedArticleByUrl,
   getTagsForItem, addTagToItem, removeTagFromItem, listTags,
 } from "../lib/db";
 import { anchorFromRange, findRange, wrapRangeWithMarks, unwrapHighlights, type TextAnchor } from "../lib/highlight-anchor";
@@ -735,6 +735,9 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
   // Save state — only meaningful for external (⌘L) reads, which have no itemId.
   const isExternal = !itemId;
   const [isSaved, setIsSaved] = useState(false);
+  // For external (⌘L) reads: the saved item's id once saved, so tags can attach.
+  const [savedItemId, setSavedItemId] = useState<string | null>(null);
+  const tagItemId = itemId ?? savedItemId;
   // Collapse the pane into a floating mini-player (keeps TTS playing).
   const [minimized, setMinimized] = useState(false);
   const [theme, setTheme] = useState<ReaderTheme>("auto");
@@ -1171,11 +1174,13 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
     return () => { stale = true; };
   }, [url, isYT, itemId, content]);
 
-  // Track whether this external article is already saved
+  // Track whether this external article is already saved (and its item id)
   useEffect(() => {
     if (!isExternal) return;
     let stale = false;
-    isArticleSaved(url).then((s) => { if (!stale) setIsSaved(s); }).catch(() => {});
+    getSavedArticleId(url).then((id) => {
+      if (!stale) { setSavedItemId(id); setIsSaved(!!id); }
+    }).catch(() => {});
     return () => { stale = true; };
   }, [url, isExternal]);
 
@@ -1684,9 +1689,11 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
         const content = result.state === "ok"
           ? { title: result.title, byline: result.byline, siteName: result.siteName, content: result.content }
           : null;
-        await saveExternalArticle({ url, title: result.state === "ok" ? result.title : title, content });
+        const id = await saveExternalArticle({ url, title: result.state === "ok" ? result.title : title, content });
+        setSavedItemId(id); // makes the tag bar available now that it's a real item
       } else {
         await removeSavedArticleByUrl(url);
+        setSavedItemId(null);
       }
     } catch (err) {
       setIsSaved(!next); // revert on failure
@@ -1784,7 +1791,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
             onToggle: () => setHighlightsOpen((o) => !o),
           } : undefined}
         />
-        {itemId && <TagBar itemId={itemId} />}
+        {tagItemId && <TagBar itemId={tagItemId} />}
         {!isYT && result.state === "ok" && (
           <div className="h-0.5 shrink-0">
             <div ref={progressBarRef} className="h-full bg-reader-primary transition-[width] duration-150 ease-out"
