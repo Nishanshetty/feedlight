@@ -208,11 +208,14 @@ function AiSection() {
   const [checkState, setCheckState] = useState<AiCheckState>("idle");
   const [checkMessage, setCheckMessage] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
+  const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [keySaveState, setKeySaveState] = useState<SaveState>("idle");
 
   useEffect(() => {
     getAiSettings().then(setSettings).catch(console.error);
-    getGeminiApiKey().then(setGeminiKey).catch(console.error);
+    // Only whether a key exists — never the key itself, so the secret stays out
+    // of component state and the DOM.
+    getGeminiApiKey().then((k) => setHasGeminiKey(!!k.trim())).catch(console.error);
   }, []);
 
   async function save(updated: AiSettings) {
@@ -227,9 +230,13 @@ function AiSection() {
   }
 
   async function saveGeminiKey() {
+    const trimmed = geminiKey.trim();
+    if (!trimmed) return;
     setKeySaveState("saving");
     try {
-      await setGeminiApiKey(geminiKey.trim());
+      await setGeminiApiKey(trimmed);
+      setHasGeminiKey(true);
+      setGeminiKey("");
       setKeySaveState("saved");
       setCheckState("idle");
       setCheckMessage("");
@@ -367,7 +374,7 @@ function AiSection() {
                   type="password"
                   value={geminiKey}
                   onChange={(e) => setGeminiKey(e.target.value)}
-                  placeholder="AIza…"
+                  placeholder={hasGeminiKey ? "••••••••  saved — enter a new key to replace" : "Paste your AI Studio key"}
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <button
