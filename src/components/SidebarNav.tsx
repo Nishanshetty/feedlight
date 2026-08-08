@@ -256,25 +256,27 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
   const totalUnread = Object.values(groups).flat().reduce((sum, e) => sum + e.unread, 0);
 
   const sectionLabel = (label: string) => (
-    <p className="px-4 pb-1 text-[10px] font-label font-bold uppercase tracking-[0.1em] text-outline">
+    <p className="px-4 pb-1.5 font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-outline">
       {label}
     </p>
   );
 
+  // Lumina marks the active row with a rule on the content-facing edge and a
+  // tonal fill — no pill, no shadow.
   const navRow = (label: string, icon: keyof typeof NAV_ICONS, active: boolean, badge: number | null, onClick: () => void) => (
     <button onClick={onClick}
-      className={["flex w-full items-center justify-between px-3 py-2 text-[13px] font-body transition-all duration-200",
-        active ? "border-l-2 border-primary bg-surface-container-low text-primary font-bold"
-               : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface border-l-2 border-transparent",
+      className={["flex w-full items-center justify-between px-4 py-2.5 font-label text-ui-label transition-all duration-200",
+        active ? "border-r-2 border-primary bg-secondary-container/50 font-bold text-primary"
+               : "border-r-2 border-transparent text-on-surface-variant hover:bg-secondary-container hover:text-primary",
       ].join(" ")}>
-      <span className="flex items-center gap-2.5">
-        <svg className="h-3.5 w-3.5 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <span className="flex items-center gap-3">
+        <svg className="h-4 w-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d={NAV_ICONS[icon]} />
         </svg>
         <span>{label}</span>
       </span>
       {badge !== null && badge > 0 && (
-        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-label font-bold text-primary">
+        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 font-label text-ui-small font-bold text-primary">
           {badge > 99 ? "99+" : badge}
         </span>
       )}
