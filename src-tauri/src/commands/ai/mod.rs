@@ -205,7 +205,7 @@ pub async fn generate_discover_queries(
 
     Ok(queries
         .into_iter()
-        .take(5)
         .filter(|q| !q.trim().is_empty())
+        .take(5)
         .collect())
 }

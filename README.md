@@ -69,7 +69,7 @@ Open **Settings** (gear icon in the top bar) to configure optional integrations:
 | **Ollama URL + model** | [ollama.com](https://ollama.com) — install locally, then `ollama pull llama3.2` | AI features, run locally |
 | **Gemini API key** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | AI features, run in the cloud |
 
-Credentials are stored locally in the app data directory via `tauri-plugin-store` — they never leave your machine.
+Preferences live in the app data directory via `tauri-plugin-store`; API keys live in the macOS keychain, never in the plaintext store. Each key is sent only to the service it belongs to, over HTTPS. Selecting Gemini also sends **article text** to Google — every other feature, including local Ollama, keeps article content on your machine.
 
 ### AI setup
 

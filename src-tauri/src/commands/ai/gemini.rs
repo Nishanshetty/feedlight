@@ -18,7 +18,11 @@ fn api_key() -> Result<String, String> {
     match get_generic_password(SERVICE, "gemini_api_key") {
         Ok(bytes) => {
             let key = String::from_utf8(bytes).map_err(|e| format!("Key encoding error: {e}"))?;
-            if key.trim().is_empty() {
+            // Trim before returning, not just before the check: a pasted key with
+            // a trailing newline would otherwise reach the query string verbatim
+            // and come back as an opaque auth failure.
+            let key = key.trim().to_string();
+            if key.is_empty() {
                 Err(ERR_NO_KEY.to_string())
             } else {
                 Ok(key)
