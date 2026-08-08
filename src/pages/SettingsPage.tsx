@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { Link } from "@tanstack/react-router";
 import {
   getYouTubeApiKey, setYouTubeApiKey,
-  getAiSettings, setAiSettings,
+  getAiSettings, setAiSettings, aiConfig,
   getGeminiApiKey, setGeminiApiKey, GEMINI_DEFAULT_MODEL,
   getAppTheme, setAppTheme,
   getRefreshIntervalSecs, setRefreshIntervalSecs,
@@ -255,18 +255,9 @@ function AiSection() {
   }
 
   async function checkGemini() {
-    const models = await invoke<string[]>("check_gemini");
-    if (models.includes(settings.geminiModel)) {
-      setCheckMessage(`Key valid. Model "${settings.geminiModel}" available`);
-      setCheckState("ok");
-    } else {
-      const suggestions = models.filter((m) => m.startsWith("gemini-")).slice(0, 3);
-      setCheckMessage(
-        `Key valid, but "${settings.geminiModel}" isn't available to it.` +
-        (suggestions.length > 0 ? ` Try: ${suggestions.join(", ")}` : "")
-      );
-      setCheckState("error");
-    }
+    await invoke("check_gemini", { config: aiConfig(settings) });
+    setCheckMessage(`Model "${settings.geminiModel}" responded`);
+    setCheckState("ok");
   }
 
   async function checkConnection() {

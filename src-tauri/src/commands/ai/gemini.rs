@@ -109,17 +109,6 @@ struct ApiErrorEnvelope {
     error: ApiError,
 }
 
-#[derive(Deserialize)]
-struct ModelsResponse {
-    #[serde(default)]
-    models: Vec<ModelEntry>,
-}
-
-#[derive(Deserialize)]
-struct ModelEntry {
-    name: String,
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /// Turns a failed response into the most useful message we can get. Gemini puts
@@ -277,34 +266,6 @@ async fn stream_request(
 }
 
 // ── Provider surface ─────────────────────────────────────────────────────────
-
-/// Lists the models the user's key can reach. Used by the Settings "Test" button.
-pub async fn list_models() -> Result<Vec<String>, String> {
-    let key = api_key()?;
-    let resp = client(15)?
-        .get(format!("{API_BASE}/models"))
-        .query(&[("key", key.as_str())])
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach Gemini: {e}"))?;
-
-    if !resp.status().is_success() {
-        return Err(http_error(resp).await);
-    }
-
-    let models: ModelsResponse = resp
-        .json()
-        .await
-        .map_err(|e| format!("Invalid response: {e}"))?;
-
-    // The API returns fully-qualified names ("models/gemini-3.6-flash"); the
-    // settings field holds the bare id.
-    Ok(models
-        .models
-        .into_iter()
-        .map(|m| m.name.trim_start_matches("models/").to_string())
-        .collect())
-}
 
 pub async fn complete(cfg: &AiConfig, prompt: String, timeout_secs: u64) -> Result<String, String> {
     let key = api_key()?;

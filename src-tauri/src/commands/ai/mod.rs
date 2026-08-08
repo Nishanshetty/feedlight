@@ -32,10 +32,16 @@ pub async fn check_ollama(base_url: String) -> Result<Vec<String>, String> {
     ollama::list_models(&base_url).await
 }
 
-/// Lists the Gemini models the saved API key can reach. Doubles as a key check.
+/// Verifies the saved key and the chosen model with a minimal generation.
+///
+/// Deliberately a real `generateContent` call rather than a model listing: it
+/// proves key, model and API-enablement in one shot, and when the Gemini API is
+/// disabled on the key's project this endpoint names the project and links the
+/// activation page — where `ListModels` only says "requests are blocked".
 #[tauri::command]
-pub async fn check_gemini() -> Result<Vec<String>, String> {
-    gemini::list_models().await
+pub async fn check_gemini(config: AiConfig) -> Result<(), String> {
+    provider::complete(&config, "Reply with the single word: OK".to_string(), 30).await?;
+    Ok(())
 }
 
 #[tauri::command]
