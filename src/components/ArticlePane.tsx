@@ -235,7 +235,7 @@ function TagBar({ itemId }: { itemId: string }) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M7 7h.01M7 3h5a2 2 0 011.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A2 2 0 014 9V4a1 1 0 011-1z" />
       </svg>
       {tags.map((t) => (
-        <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-reader-hover px-1.5 py-0.5 text-[10px] font-label">
+        <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-reader-hover px-1.5 py-0.5 text-ui-small font-label">
           #{t.name}
           <button onClick={() => remove(t)} aria-label={`Remove tag ${t.name}`}
             className="text-reader-text-muted transition-colors hover:text-reader-text">×</button>
@@ -248,7 +248,7 @@ function TagBar({ itemId }: { itemId: string }) {
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); } }}
         onBlur={add}
         placeholder="Add tag…"
-        className="min-w-[6rem] flex-1 bg-transparent text-[11px] placeholder:text-reader-text-muted focus:outline-none"
+        className="min-w-[6rem] flex-1 bg-transparent text-ui-small placeholder:text-reader-text-muted focus:outline-none"
       />
       <datalist id="feedlight-tag-suggestions">
         {allNames.map((n) => <option key={n} value={n} />)}
@@ -296,8 +296,8 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {title && <span className="truncate text-[12px] font-headline font-semibold leading-tight">{title}</span>}
-        <span className="truncate text-[9px] font-label uppercase tracking-widest text-reader-text-muted">{domain}</span>
+        {title && <span className="truncate text-ui-label font-headline font-semibold leading-tight">{title}</span>}
+        <span className="truncate text-ui-small font-label uppercase tracking-widest text-reader-text-muted">{domain}</span>
       </div>
 
       {/* Save (bookmark) button */}
@@ -376,7 +376,7 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
       {speech && (
         <div className="flex items-center gap-1">
           <button onClick={speech.onCycleSpeed} aria-label="Playback speed" title="Playback speed"
-            className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded px-1 text-[10px] font-bold text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
+            className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded px-1 text-ui-small font-bold text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
             {speech.speed}×
           </button>
           {speech.state === "playing" ? (
@@ -410,13 +410,13 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
         <div className="relative" ref={dropdownRef}>
           <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} aria-label="Reader settings"
             className={`flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text ${isDropdownOpen ? "bg-reader-hover text-reader-text" : ""}`}>
-            <span className="font-headline text-[13px] font-bold">Aa</span>
+            <span className="font-headline text-ui-label font-bold">Aa</span>
           </button>
           {isDropdownOpen && (
             <div className="absolute right-0 mt-2 w-72 origin-top-right rounded-lg border border-reader-border bg-reader-header-bg p-4 shadow-xl z-50 text-reader-text">
-              <h4 className="text-[10px] font-label font-bold uppercase tracking-wider text-reader-text-muted mb-3">Display settings</h4>
+              <h4 className="text-ui-small font-label font-bold uppercase tracking-wider text-reader-text-muted mb-3">Display settings</h4>
               <div className="mb-4">
-                <span className="block text-[11px] text-reader-text-muted mb-2">Font</span>
+                <span className="block text-ui-small text-reader-text-muted mb-2">Font</span>
                 <div className="grid grid-cols-3 gap-1">
                   {[{ id: "sans", label: "Sans" }, { id: "serif", label: "Serif" }, { id: "mono", label: "Mono" }].map((f) => (
                     <button key={f.id} onClick={() => settings.onChangeFontFamily(f.id as "sans" | "serif" | "mono")}
@@ -427,17 +427,17 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
                 </div>
               </div>
               <div className="mb-4">
-                <span className="block text-[11px] text-reader-text-muted mb-2">Font Size</span>
+                <span className="block text-ui-small text-reader-text-muted mb-2">Font Size</span>
                 <div className="flex items-center justify-between gap-2 border border-reader-border rounded p-1">
-                  <button onClick={() => settings.onChangeFontSize(Math.max(settings.fontSize - 1, 12))} disabled={settings.fontSize <= 12}
+                  <button onClick={() => settings.onChangeFontSize(Math.max(settings.fontSize - 1, 14))} disabled={settings.fontSize <= 14}
                     className="flex h-7 w-12 items-center justify-center rounded text-xs font-bold transition-colors hover:bg-reader-hover disabled:opacity-30">A−</button>
                   <span className="text-xs font-bold">{settings.fontSize}px</span>
-                  <button onClick={() => settings.onChangeFontSize(Math.min(settings.fontSize + 1, 22))} disabled={settings.fontSize >= 22}
+                  <button onClick={() => settings.onChangeFontSize(Math.min(settings.fontSize + 1, 28))} disabled={settings.fontSize >= 28}
                     className="flex h-7 w-12 items-center justify-center rounded text-xs font-bold transition-colors hover:bg-reader-hover disabled:opacity-30">A+</button>
                 </div>
               </div>
               <div className="mb-4">
-                <span className="block text-[11px] text-reader-text-muted mb-2">Width</span>
+                <span className="block text-ui-small text-reader-text-muted mb-2">Width</span>
                 <div className="grid grid-cols-3 gap-1">
                   {[{ id: "narrow", label: "Narrow" }, { id: "medium", label: "Medium" }, { id: "wide", label: "Wide" }].map((w) => (
                     <button key={w.id} onClick={() => settings.onChangeColumnWidth(w.id as "narrow" | "medium" | "wide")}
@@ -448,7 +448,7 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
                 </div>
               </div>
               <div>
-                <span className="block text-[11px] text-reader-text-muted mb-2">Spacing</span>
+                <span className="block text-ui-small text-reader-text-muted mb-2">Spacing</span>
                 <div className="grid grid-cols-3 gap-1">
                   {[{ id: "compact", label: "Compact" }, { id: "normal", label: "Normal" }, { id: "roomy", label: "Roomy" }].map((lh) => (
                     <button key={lh.id} onClick={() => settings.onChangeLineHeight(lh.id as "compact" | "normal" | "roomy")}
@@ -576,7 +576,7 @@ function ChatPanel({
 
       {/* Chat header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-reader-border shrink-0">
-        <span className="text-[10px] font-label font-bold uppercase tracking-widest text-reader-text-muted">
+        <span className="text-ui-small font-label font-bold uppercase tracking-widest text-reader-text-muted">
           Ask · {model}
         </span>
         <button onClick={onClose} aria-label="Close chat"
@@ -721,8 +721,11 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
   const tagItemId = itemId ?? savedItemId;
   // Collapse the pane into a floating mini-player (keeps TTS playing).
   const [minimized, setMinimized] = useState(false);
-  const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">("sans");
-  const [fontSize, setFontSize] = useState(14);
+  // Garamond at 20px is Lumina's reading default. Garamond runs small for its
+  // point size, so 20 here sits close to the old 14px sans in apparent size.
+  // Anyone with saved settings keeps theirs — this only affects a fresh reader.
+  const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">("serif");
+  const [fontSize, setFontSize] = useState(20);
   const [columnWidth, setColumnWidth] = useState<"narrow" | "medium" | "wide">("medium");
   const [lineHeight, setLineHeight] = useState<"compact" | "normal" | "roomy">("normal");
 
@@ -1691,15 +1694,15 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
               </svg>
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[12px] font-headline font-semibold leading-tight">{paneTitle ?? "Reading"}</span>
-              <span className="block truncate text-[9px] font-label uppercase tracking-widest text-reader-text-muted">{paneDomain}</span>
+              <span className="block truncate text-ui-label font-headline font-semibold leading-tight">{paneTitle ?? "Reading"}</span>
+              <span className="block truncate text-ui-small font-label uppercase tracking-widest text-reader-text-muted">{paneDomain}</span>
             </span>
           </button>
 
           {speechControls && (
             <div className="flex shrink-0 items-center gap-0.5">
               <button onClick={speechControls.onCycleSpeed} aria-label="Playback speed" title="Playback speed"
-                className="flex h-7 min-w-7 items-center justify-center rounded px-1 text-[10px] font-bold text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
+                className="flex h-7 min-w-7 items-center justify-center rounded px-1 text-ui-small font-bold text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
                 {speechControls.speed}×
               </button>
               {speechControls.state === "playing" ? (
@@ -1732,9 +1735,15 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
       )}
 
       <div
-        className={`fixed right-0 top-0 bottom-0 z-50 flex w-full flex-col border-l shadow-2xl sm:w-[65vw] xl:w-[58vw] bg-reader-bg border-reader-border text-reader-text transition-colors duration-200 ${minimized ? "hidden" : ""}`}
+        className={`fixed right-0 top-0 bottom-0 z-50 flex w-full flex-col border-l ambient-shadow sm:w-[72vw] xl:w-[64vw] bg-reader-bg border-reader-border text-reader-text transition-colors duration-200 ${minimized ? "hidden" : ""}`}
         style={accentColor ? ({ "--reader-primary": accentColor } as React.CSSProperties) : undefined}
       >
+        {!isYT && result.state === "ok" && (
+          <div className="h-[2px] shrink-0 bg-surface-container-highest">
+            <div ref={progressBarRef} className="h-full bg-tertiary transition-[width] duration-150 ease-out"
+              style={{ width: "0%" }} />
+          </div>
+        )}
         <PaneHeader
           title={paneTitle}
           url={url}
@@ -1752,12 +1761,6 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
           } : undefined}
         />
         {tagItemId && <TagBar itemId={tagItemId} />}
-        {!isYT && result.state === "ok" && (
-          <div className="h-0.5 shrink-0">
-            <div ref={progressBarRef} className="h-full bg-reader-primary transition-[width] duration-150 ease-out"
-              style={{ width: "0%" }} />
-          </div>
-        )}
         <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto min-h-0">
           {isYT ? (
             <div className="flex h-full flex-col items-center justify-center gap-5 p-8 text-center text-reader-text">
@@ -1768,12 +1771,12 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
               </div>
               <div>
                 <p className="text-sm font-headline font-semibold">{title ?? "Video"}</p>
-                <p className="mt-1 text-[10px] font-label uppercase tracking-widest text-reader-text-muted">
+                <p className="mt-1 text-ui-small font-label uppercase tracking-widest text-reader-text-muted">
                   Plays in a separate window
                 </p>
               </div>
               <button onClick={openVideoWindow}
-                className="ghost-border bg-primary px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary transition-opacity hover:opacity-90">
+                className="ghost-border bg-primary px-4 py-2 text-ui-small font-label font-bold uppercase tracking-widest text-on-primary transition-opacity hover:opacity-90">
                 Play video
               </button>
             </div>
@@ -1781,14 +1784,14 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
             <LoadingSkeleton />
           ) : result.state === "error" ? (
             <div className="flex flex-col items-center justify-center gap-4 p-12 text-center text-reader-text">
-              <p className="text-[12px] font-label text-reader-text-muted uppercase tracking-widest">{result.message}</p>
+              <p className="text-ui-label font-label text-reader-text-muted uppercase tracking-widest">{result.message}</p>
               <button onClick={() => openUrl(url)}
-                className="border border-reader-border hover:bg-reader-hover px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest transition-colors">
+                className="border border-reader-border hover:bg-reader-hover px-4 py-2 text-ui-small font-label font-bold uppercase tracking-widest transition-colors">
                 Open in browser ↗
               </button>
             </div>
           ) : (
-            <div className={`px-8 py-10 mx-auto transition-all ${columnWidth === "narrow" ? "max-w-md" : columnWidth === "wide" ? "max-w-5xl" : "max-w-2xl"} ${fontFamily === "sans" ? "font-reader-sans" : fontFamily === "mono" ? "font-reader-mono" : "font-reader-serif"} ${lineHeight === "compact" ? "leading-normal" : lineHeight === "roomy" ? "leading-loose" : "leading-relaxed"}`}>
+            <div className={`mx-auto px-reading-margin-mobile py-stack-lg transition-all md:px-16 ${columnWidth === "narrow" ? "max-w-md" : columnWidth === "wide" ? "max-w-5xl" : "max-w-reading"} ${fontFamily === "sans" ? "font-reader-sans" : fontFamily === "mono" ? "font-reader-mono" : "font-reader-serif"} ${lineHeight === "compact" ? "leading-normal" : lineHeight === "roomy" ? "leading-loose" : "leading-relaxed"}`}>
               {/* Summary card */}
               {summarizeState === "loading" && summary === null && (
                 <div className="mb-6 rounded border border-reader-border bg-reader-hover/40 px-5 py-4 animate-pulse">
@@ -1803,7 +1806,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
               {summary !== null && (
                 <div className="mb-6 rounded border border-reader-border bg-reader-hover/40 px-5 py-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[9px] font-label font-bold uppercase tracking-widest text-reader-text-muted">
+                    <span className="text-ui-small font-label font-bold uppercase tracking-widest text-reader-text-muted">
                       {summarizeState === "loading" ? "Summarizing" : "Summary"} · {aiSettings && aiConfig(aiSettings).model}
                     </span>
                     {summarizeState === "done" && (
@@ -1823,7 +1826,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
               )}
               {summarizeState === "error" && summaryError && (
                 <div className="mb-6 rounded border border-reader-border bg-reader-hover/40 px-5 py-4">
-                  <p className="text-[11px] font-body text-reader-text-muted">
+                  <p className="text-ui-small font-body text-reader-text-muted">
                     Could not summarize: {summaryError}
                   </p>
                 </div>
@@ -1831,7 +1834,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
 
               <h1 ref={titleRef} className="text-2xl font-headline font-bold leading-snug mb-3">{result.title}</h1>
               {(result.byline || result.siteName || readMinutes) && (
-                <p className="text-[10px] font-label uppercase tracking-widest text-reader-text-muted mb-8">
+                <p className="text-ui-small font-label uppercase tracking-widest text-reader-text-muted mb-8">
                   {[result.byline, result.siteName, readMinutes ? `${readMinutes} min read` : null]
                     .filter(Boolean).join(" · ")}
                 </p>
@@ -1841,7 +1844,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
               {(takeawaysLoading || takeaways) && (
                 <div className="mb-8 rounded border border-reader-border bg-reader-hover/40 px-4 py-3">
                   {takeawaysLoading ? (
-                    <span className="text-[10px] font-label font-bold uppercase tracking-widest text-reader-text-muted animate-pulse">
+                    <span className="text-ui-small font-label font-bold uppercase tracking-widest text-reader-text-muted animate-pulse">
                       ✦ Key points · generating…
                     </span>
                   ) : (
@@ -1851,7 +1854,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
                         className="flex w-full items-center justify-between text-left"
                         aria-expanded={takeawaysOpen}
                       >
-                        <span className="text-[10px] font-label font-bold uppercase tracking-widest text-reader-text-muted">
+                        <span className="text-ui-small font-label font-bold uppercase tracking-widest text-reader-text-muted">
                           ✦ Key points
                         </span>
                         <svg className={`h-3 w-3 text-reader-text-muted transition-transform ${takeawaysOpen ? "rotate-180" : ""}`}
@@ -1873,7 +1876,20 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
                   )}
                 </div>
               )}
-              <div ref={articleContentRef} className="article-content" style={{ fontSize: `${fontSize}px` }}
+              <header className="mb-stack-lg text-center">
+                {(result.siteName || paneDomain) && (
+                  <p className="mb-stack-sm font-label text-ui-small uppercase tracking-[0.18em] text-reader-text-muted">
+                    {result.siteName || paneDomain}
+                  </p>
+                )}
+                <h1 className="font-headline text-headline-lg-mobile text-reader-text md:text-headline-lg">
+                  {result.title || paneTitle || "Untitled"}
+                </h1>
+                {result.byline && (
+                  <p className="mt-stack-sm font-body text-lg italic text-reader-text-muted">{result.byline}</p>
+                )}
+              </header>
+              <div ref={articleContentRef} className="article-content article-content--dropcap" style={{ fontSize: `${fontSize}px` }}
                 dangerouslySetInnerHTML={{ __html: taggedContent }} />
             </div>
           )}
@@ -1888,14 +1904,14 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
               <img src={linkPreview.image} alt="" className="h-28 w-full object-cover" />
             )}
             <div className="p-3">
-              <p className="text-[9px] font-label uppercase tracking-widest text-reader-text-muted mb-1">
+              <p className="text-ui-small font-label uppercase tracking-widest text-reader-text-muted mb-1">
                 {linkPreview.domain}
               </p>
               <p className="text-xs font-headline font-semibold leading-snug line-clamp-2">
                 {linkPreview.title}
               </p>
               {linkPreview.description && (
-                <p className="mt-1 text-[11px] font-body text-reader-text-muted leading-snug line-clamp-3">
+                <p className="mt-1 text-ui-small font-body text-reader-text-muted leading-snug line-clamp-3">
                   {linkPreview.description}
                 </p>
               )}
@@ -1919,7 +1935,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
                     setChatOpen(true);
                     handleChatSend(`Explain this passage from the article:\n"${passage}"`);
                   }}
-                  className="rounded px-2 py-1 text-[11px] font-label font-semibold transition-colors hover:bg-reader-hover"
+                  className="rounded px-2 py-1 text-ui-small font-label font-semibold transition-colors hover:bg-reader-hover"
                 >
                   Explain
                 </button>
@@ -1929,7 +1945,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
                     dismissSelection();
                     openChatPanel();
                   }}
-                  className="rounded px-2 py-1 text-[11px] font-label font-semibold transition-colors hover:bg-reader-hover"
+                  className="rounded px-2 py-1 text-ui-small font-label font-semibold transition-colors hover:bg-reader-hover"
                 >
                   Ask
                 </button>
@@ -1942,7 +1958,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
                   dismissSelection();
                   jumpToParagraph(idx + 1);
                 }}
-                className="rounded px-2 py-1 text-[11px] font-label font-semibold transition-colors hover:bg-reader-hover"
+                className="rounded px-2 py-1 text-ui-small font-label font-semibold transition-colors hover:bg-reader-hover"
               >
                 Listen
               </button>
@@ -1951,13 +1967,13 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
               <>
                 <button
                   onClick={() => createHighlight(selToolbar.anchor!, false)}
-                  className="rounded px-2 py-1 text-[11px] font-label font-semibold transition-colors hover:bg-reader-hover"
+                  className="rounded px-2 py-1 text-ui-small font-label font-semibold transition-colors hover:bg-reader-hover"
                 >
                   Highlight
                 </button>
                 <button
                   onClick={() => createHighlight(selToolbar.anchor!, true)}
-                  className="rounded px-2 py-1 text-[11px] font-label font-semibold transition-colors hover:bg-reader-hover"
+                  className="rounded px-2 py-1 text-ui-small font-label font-semibold transition-colors hover:bg-reader-hover"
                 >
                   Note
                 </button>
@@ -1968,7 +1984,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
                 navigator.clipboard.writeText(selToolbar.text).catch(() => {});
                 dismissSelection();
               }}
-              className="rounded px-2 py-1 text-[11px] font-label font-semibold transition-colors hover:bg-reader-hover"
+              className="rounded px-2 py-1 text-ui-small font-label font-semibold transition-colors hover:bg-reader-hover"
             >
               Copy
             </button>
@@ -1987,16 +2003,16 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
             />
             <div className="mt-2 flex items-center justify-between">
               <button onClick={removeActiveHighlight}
-                className="text-[11px] font-label text-reader-text-muted transition-colors hover:text-red-500">
+                className="text-ui-small font-label text-reader-text-muted transition-colors hover:text-red-500">
                 Delete highlight
               </button>
               <div className="flex gap-2">
                 <button onClick={() => setActiveNote(null)}
-                  className="text-[11px] font-label text-reader-text-muted transition-colors hover:text-reader-text">
+                  className="text-ui-small font-label text-reader-text-muted transition-colors hover:text-reader-text">
                   Cancel
                 </button>
                 <button onClick={saveActiveNote}
-                  className="rounded bg-reader-primary px-3 py-1 text-[11px] font-label font-bold text-white transition-opacity hover:opacity-90">
+                  className="rounded bg-reader-primary px-3 py-1 text-ui-small font-label font-bold text-white transition-opacity hover:opacity-90">
                   Save
                 </button>
               </div>
@@ -2006,18 +2022,18 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
         {highlightsOpen && (
           <div className="absolute right-3 top-14 z-[55] max-h-[70vh] w-80 overflow-y-auto rounded-lg border border-reader-border bg-reader-header-bg p-3 shadow-xl text-reader-text">
             <div className="mb-2 flex items-center justify-between">
-              <h4 className="text-[10px] font-label font-bold uppercase tracking-wider text-reader-text-muted">
+              <h4 className="text-ui-small font-label font-bold uppercase tracking-wider text-reader-text-muted">
                 Highlights ({highlights.length})
               </h4>
               {highlights.length > 0 && (
                 <div className="flex items-center gap-3">
                   <button onClick={copyHighlightsMarkdown}
-                    className="text-[11px] font-label text-reader-text-muted transition-colors hover:text-reader-text">
+                    className="text-ui-small font-label text-reader-text-muted transition-colors hover:text-reader-text">
                     Copy markdown
                   </button>
                   {obsidianPath && (
                     <button onClick={sendHighlightsToObsidian}
-                      className={`text-[11px] font-label transition-colors ${
+                      className={`text-ui-small font-label transition-colors ${
                         obsidianStatus === "ok" ? "text-reader-primary"
                         : obsidianStatus === "error" ? "text-red-500"
                         : "text-reader-text-muted hover:text-reader-text"}`}>
@@ -2039,7 +2055,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
                       className="w-full rounded border border-reader-border p-2 text-left transition-colors hover:bg-reader-hover">
                       <p className="text-xs font-body leading-relaxed line-clamp-3">“{h.quote.trim()}”</p>
                       {h.note && (
-                        <p className="mt-1 text-[11px] font-body text-reader-text-muted line-clamp-2">{h.note}</p>
+                        <p className="mt-1 text-ui-small font-body text-reader-text-muted line-clamp-2">{h.note}</p>
                       )}
                     </button>
                   </li>

@@ -114,11 +114,28 @@
 }
 
 /* ── Article reader prose styles ─────────────────────────────────────────── */
+
+/* Lumina's opening flourish: the first letter of the article set large in the
+   display face. Scoped to a modifier so it only lands on real article prose,
+   never on a summary card or an error state. */
+.article-content--dropcap > p:first-of-type::first-letter {
+  float: left;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 3.4em;
+  line-height: 0.82;
+  font-weight: 700;
+  padding-right: 0.08em;
+  padding-top: 0.06em;
+  color: var(--reader-text);
+}
+
+/* Headings stay in the display face even though the column is set in the
+   reading face — the editorial contrast is the point. */
 .article-content h1,
 .article-content h2,
 .article-content h3,
 .article-content h4 {
-  font-family: inherit;
+  font-family: "Playfair Display", Georgia, serif;
   font-weight: 700;
   line-height: 1.25;
   margin-top: 1.75em;
@@ -131,12 +148,12 @@
 .article-content p  { margin-bottom: 1.1em; color: var(--reader-text); }
 .article-content a  { color: var(--reader-primary); text-decoration: underline; text-underline-offset: 3px; }
 .article-content a:hover { opacity: 0.7; }
-.article-content img { max-width: 100%; height: auto; border-radius: 2px; margin: 1.5em 0; }
+.article-content img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 2em 0; }
 .article-content ul,
 .article-content ol { padding-left: 1.5em; margin-bottom: 1em; color: var(--reader-text); }
 .article-content li { margin-bottom: 0.35em; }
 .article-content blockquote {
-  border-left: 3px solid var(--reader-primary);
+  border-left: 2px solid rgb(209 177 129);
   margin: 1.5em 0;
   padding: 0.5em 1em;
   color: var(--reader-text-muted);
@@ -153,7 +170,7 @@
 .article-content code { padding: 0.15em 0.35em; }
 .article-content pre code { padding: 0; background: transparent; color: inherit; }
 .article-content figure { margin: 1.5em 0; }
-.article-content figcaption { font-size: 0.8em; color: var(--reader-text-muted); margin-top: 0.4em; text-align: center; }
+.article-content figcaption { font-size: 0.8em; font-style: italic; color: var(--reader-text-muted); margin-top: 0.6em; text-align: center; }
 .article-content hr { border: none; border-top: 1px solid var(--reader-border); margin: 2em 0; }
 .article-content table { width: 100%; border-collapse: collapse; margin-bottom: 1em; font-size: 0.9em; color: var(--reader-text); }
 .article-content th,
