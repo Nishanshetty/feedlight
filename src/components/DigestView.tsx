@@ -64,9 +64,9 @@ export default function DigestView() {
 
   return (
     <div className="p-6 text-on-surface">
-      <div className="flex items-start justify-between gap-4 mb-8 border-b border-outline-variant/40 pb-4">
+      <div className="flex items-start justify-between gap-4 mb-8 border-b border-outline-variant pb-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-headline font-bold">Today's Digest</h1>
+          <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">Today&rsquo;s Digest</h1>
           <p className="text-xs font-label text-outline uppercase tracking-wider">
             AI summary of articles published in the last 24 hours
           </p>
@@ -74,7 +74,7 @@ export default function DigestView() {
         <button
           onClick={generate}
           disabled={state.kind === "loading"}
-          className="shrink-0 px-4 py-2 text-[12px] font-label uppercase tracking-widest border border-primary text-primary transition-colors hover:bg-primary hover:text-on-primary disabled:opacity-40 disabled:cursor-not-allowed"
+          className="shrink-0 px-4 py-2 text-ui-label font-label uppercase tracking-[0.14em] border border-primary text-primary transition-colors hover:bg-primary hover:text-on-primary disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {state.kind === "loading" ? "Generating…" : "Generate Digest"}
         </button>
@@ -92,7 +92,7 @@ export default function DigestView() {
 
       {state.kind === "loading" && (
         <div className="flex flex-col items-center justify-center py-24 gap-3">
-          <p className="text-[11px] font-label text-outline uppercase tracking-widest animate-pulse">Synthesising…</p>
+          <p className="text-ui-small font-label text-outline uppercase tracking-[0.14em] animate-pulse">Synthesising…</p>
         </div>
       )}
 
@@ -116,8 +116,8 @@ export default function DigestView() {
               <svg className="h-3.5 w-3.5 text-primary shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
-              <span className="text-[11px] font-label font-bold text-primary uppercase tracking-widest">Today's Highlights</span>
-              <span className="text-[10px] font-label text-outline ml-1">· {state.total} article{state.total !== 1 ? "s" : ""}</span>
+              <span className="text-ui-small font-label font-bold text-primary uppercase tracking-[0.14em]">Today's Highlights</span>
+              <span className="text-ui-small font-label text-outline ml-1">· {state.total} article{state.total !== 1 ? "s" : ""}</span>
             </div>
             <ul className="flex flex-col gap-3">
               {parseBullets(state.summary).map((line, i) => (
@@ -148,10 +148,10 @@ function FeedSection({ section }: { section: DigestSection }) {
         onClick={() => setCollapsed((c) => !c)}
         className="flex w-full items-center gap-2 mb-3 group"
       >
-        <span className="text-[10px] font-label font-bold uppercase tracking-[0.1em] text-outline group-hover:text-on-surface-variant transition-colors">
+        <span className="text-ui-small font-label font-bold uppercase tracking-[0.1em] text-outline group-hover:text-on-surface-variant transition-colors">
           {section.feedTitle}
         </span>
-        <span className="text-[10px] font-label text-outline/60">({section.items.length})</span>
+        <span className="text-ui-small font-label text-outline/60">({section.items.length})</span>
         <svg
           className={`h-3 w-3 text-outline transition-transform duration-150 ${collapsed ? "-rotate-90" : ""}`}
           fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -182,20 +182,20 @@ function ArticleRow({ item }: { item: DigestItem }) {
     : null;
 
   return (
-    <div className="flex items-start gap-3 bg-surface-container-lowest border border-outline-variant/40 px-4 py-3 hover:border-outline-variant transition-colors">
+    <div className="flex items-start gap-3 bg-surface-container-lowest border border-outline-variant px-4 py-3 hover:border-outline-variant transition-colors">
       {time && (
-        <span className="shrink-0 text-[10px] font-label text-outline pt-0.5 w-12 text-right">{time}</span>
+        <span className="shrink-0 text-ui-small font-label text-outline pt-0.5 w-12 text-right">{time}</span>
       )}
       <div className="flex flex-col gap-0.5 min-w-0">
         {item.link ? (
           <button
             onClick={handleOpen}
-            className="text-left text-[13px] font-body text-on-surface hover:text-primary transition-colors truncate"
+            className="text-left text-ui-label font-body text-on-surface hover:text-primary transition-colors truncate"
           >
             {item.title ?? "Untitled"}
           </button>
         ) : (
-          <span className="text-[13px] font-body text-on-surface truncate">{item.title ?? "Untitled"}</span>
+          <span className="text-ui-label font-body text-on-surface truncate">{item.title ?? "Untitled"}</span>
         )}
       </div>
     </div>

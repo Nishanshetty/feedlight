@@ -164,7 +164,7 @@ function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolde
     handleMove(value === "" ? null : value);
   }
 
-  const labelClass = "text-[10px] font-label font-bold uppercase tracking-widest text-outline";
+  const labelClass = "text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline";
   const fieldClass = "w-full ghost-border bg-surface-container-low px-2 py-1.5 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary";
 
   return (
@@ -173,10 +173,10 @@ function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolde
       <div
         ref={cardRef}
         role="menu"
-        className="fixed z-50 w-60 max-w-[calc(100vw-1rem)] max-h-[calc(100vh-1rem)] overflow-y-auto space-y-3 rounded-lg border border-outline-variant/40 bg-surface-container p-3 shadow-xl"
+        className="fixed z-50 w-60 max-w-[calc(100vw-1rem)] max-h-[calc(100vh-1rem)] overflow-y-auto space-y-3 rounded-lg border border-outline-variant bg-surface-container p-3 ambient-shadow"
         style={pos}
         onClick={(e) => e.stopPropagation()}>
-        <p className="text-[10px] font-label font-bold uppercase tracking-widest text-primary">
+        <p className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-primary">
           Feed settings
         </p>
 
@@ -203,7 +203,7 @@ function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolde
           <p className={labelClass}>Default tags</p>
           <div className="flex flex-wrap items-center gap-1 ghost-border bg-surface-container-low px-2 py-1.5">
             {defaultTags.map((t) => (
-              <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-surface-container-high px-1.5 py-0.5 text-[10px] text-on-surface-variant">
+              <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-surface-container-high px-1.5 py-0.5 text-ui-small text-on-surface-variant">
                 #{t.name}
                 <button onClick={() => removeDefaultTag(t)} aria-label={`Remove ${t.name}`} className="hover:text-on-surface">×</button>
               </span>
@@ -211,13 +211,13 @@ function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolde
             <input value={tagInput} onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDefaultTag(); } }}
               placeholder={defaultTags.length ? "Add…" : "Add a tag…"}
-              className="min-w-[4rem] flex-1 bg-transparent text-[11px] text-on-surface placeholder-outline focus:outline-none" />
+              className="min-w-[4rem] flex-1 bg-transparent text-ui-small text-on-surface placeholder-outline focus:outline-none" />
           </div>
-          <p className="text-[10px] font-body text-outline">Applied to new articles from this feed.</p>
+          <p className="text-ui-small font-body text-outline">Applied to new articles from this feed.</p>
         </div>
 
         {/* Unsubscribe */}
-        <div className="border-t border-outline-variant/20 pt-2">
+        <div className="border-t border-outline-variant pt-2">
           {confirmingUnsub ? (
             <button onClick={() => { onUnsubscribe(entry.subId, entry.feedId, entry.title); onClose(); }}
               className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-body font-bold text-error transition-colors hover:bg-error/10">
@@ -308,7 +308,7 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
                 return (
                   <button key={tag.id} onClick={() => onNavigate({ tagId: tag.id, tagName: tag.name })}
                     title={`${tag.name} · ${tag.count}`}
-                    className={["inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-body transition-colors",
+                    className={["inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-ui-small font-body transition-colors",
                       active
                         ? "bg-primary text-on-primary"
                         : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
@@ -320,13 +320,13 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
               })}
               {!showAllTags && extra > 0 && (
                 <button onClick={() => setShowAllTags(true)}
-                  className="rounded-full px-2 py-0.5 text-[11px] font-body text-outline transition-colors hover:text-on-surface">
+                  className="rounded-full px-2 py-0.5 text-ui-small font-body text-outline transition-colors hover:text-on-surface">
                   +{extra} more
                 </button>
               )}
               {showAllTags && inUse.length > TAG_LIMIT && (
                 <button onClick={() => setShowAllTags(false)}
-                  className="rounded-full px-2 py-0.5 text-[11px] font-body text-outline transition-colors hover:text-on-surface">
+                  className="rounded-full px-2 py-0.5 text-ui-small font-body text-outline transition-colors hover:text-on-surface">
                   Show less
                 </button>
               )}
@@ -354,14 +354,14 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
                 <button onClick={() => onNavigate({ folder })}
                   className={["flex flex-1 items-center gap-1.5 px-4 py-1 transition-colors",
                     isFolderActive ? "text-primary" : "text-outline hover:text-on-surface-variant"].join(" ")}>
-                  <span className="text-[10px] font-label font-bold uppercase tracking-[0.1em]">{folder}</span>
+                  <span className="text-ui-small font-label font-bold uppercase tracking-[0.1em]">{folder}</span>
                   {folderUnread > 0 && !isCollapsed && (
-                    <span className="text-[10px] font-label opacity-60">{folderUnread > 99 ? "99+" : folderUnread}</span>
+                    <span className="text-ui-small font-label opacity-60">{folderUnread > 99 ? "99+" : folderUnread}</span>
                   )}
                 </button>
               ) : (
                 <div className="flex-1 px-4 py-1">
-                  <span className="text-[10px] font-label font-bold uppercase tracking-[0.1em] text-outline">{folder}</span>
+                  <span className="text-ui-small font-label font-bold uppercase tracking-[0.1em] text-outline">{folder}</span>
                 </div>
               )}
               <button onClick={() => toggleFolder(folder)} aria-label={isCollapsed ? "Expand folder" : "Collapse folder"}
@@ -383,12 +383,12 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
                         className={["group flex items-center transition-all duration-200",
                           isActive ? "border-l-2 border-primary bg-surface-container-low" : "border-l-2 border-transparent hover:bg-surface-container"].join(" ")}>
                         <button onClick={() => onNavigate({ feedId: entry.feedId })}
-                          className={["flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-[13px] font-body",
+                          className={["flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-ui-label font-body",
                             isActive ? "text-primary font-bold" : "text-on-surface-variant hover:text-on-surface"].join(" ")}>
                           <Favicon siteUrl={entry.siteUrl} title={entry.title} />
                           <span className="min-w-0 flex-1 truncate text-left">{entry.title}</span>
                           {entry.unread > 0 && (
-                            <span className="shrink-0 rounded-full bg-surface-container-high px-1.5 py-0.5 text-[10px] font-label text-on-surface-variant">
+                            <span className="shrink-0 rounded-full bg-surface-container-high px-1.5 py-0.5 text-ui-small font-label text-on-surface-variant">
                               {entry.unread > 99 ? "99+" : entry.unread}
                             </span>
                           )}

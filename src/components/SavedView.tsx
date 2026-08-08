@@ -68,24 +68,20 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
 
   return (
     <div className="relative">
-      <div className={`h-0.5 w-full transition-all duration-300 ${isLoading ? "bg-primary/60" : "bg-transparent"}`}>
-        {isLoading && <div className="h-full w-1/3 bg-primary animate-[slide_1.2s_ease-in-out_infinite]" />}
+      <div className={`h-0.5 w-full transition-all duration-300 ${isLoading ? "bg-tertiary/30" : "bg-transparent"}`}>
+        {isLoading && <div className="h-full w-1/3 bg-tertiary animate-[slide_1.2s_ease-in-out_infinite]" />}
       </div>
 
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-outline-variant/40 bg-background/80 px-4 py-3 backdrop-blur-xl">
-        <div className="flex items-baseline gap-2">
-          <h3 className="text-[11px] font-headline font-bold uppercase tracking-widest text-outline">
-            Queue / Saved
-          </h3>
-          {items.length > 0 && (
-            <span className="text-[10px] font-label text-outline opacity-60">{items.length} saved</span>
-          )}
-        </div>
-      </div>
+      <header className="px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop pb-stack-md pt-unit">
+        <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">Saved</h1>
+        <p className="mt-2 font-label text-ui-label text-on-surface-variant">
+          {items.length > 0 ? `${items.length} article${items.length !== 1 ? "s" : ""}` : "Nothing saved yet"}
+        </p>
+      </header>
 
       {items.length === 0 && !isLoading ? (
-        <div className="px-6 py-20 text-center">
-          <p className="text-[12px] font-label text-outline uppercase tracking-widest">
+        <div className="px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop py-20 text-center">
+          <p className="text-ui-label font-label text-outline uppercase tracking-[0.14em]">
             Nothing saved yet. Bookmark an article or save one you open with ⌘L.
           </p>
         </div>
@@ -103,7 +99,7 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
                 elRef={(el) => { itemRefs.current[index] = el; }} />
             ))}
           </ul>
-          {loadError && <p className="pb-8 text-center text-[11px] font-label text-error">{loadError}</p>}
+          {loadError && <p className="pb-8 text-center text-ui-small font-label text-error">{loadError}</p>}
         </>
       )}
 

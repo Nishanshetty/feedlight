@@ -297,7 +297,7 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
 
       <div className="flex min-w-0 flex-1 flex-col">
         {title && <span className="truncate text-ui-label font-headline font-semibold leading-tight">{title}</span>}
-        <span className="truncate text-ui-small font-label uppercase tracking-widest text-reader-text-muted">{domain}</span>
+        <span className="truncate text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted">{domain}</span>
       </div>
 
       {/* Save (bookmark) button */}
@@ -413,7 +413,7 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
             <span className="font-headline text-ui-label font-bold">Aa</span>
           </button>
           {isDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-72 origin-top-right rounded-lg border border-reader-border bg-reader-header-bg p-4 shadow-xl z-50 text-reader-text">
+            <div className="absolute right-0 mt-2 w-72 origin-top-right rounded-lg border border-reader-border bg-reader-header-bg p-4 ambient-shadow z-50 text-reader-text">
               <h4 className="text-ui-small font-label font-bold uppercase tracking-wider text-reader-text-muted mb-3">Display settings</h4>
               <div className="mb-4">
                 <span className="block text-ui-small text-reader-text-muted mb-2">Font</span>
@@ -576,7 +576,7 @@ function ChatPanel({
 
       {/* Chat header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-reader-border shrink-0">
-        <span className="text-ui-small font-label font-bold uppercase tracking-widest text-reader-text-muted">
+        <span className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-reader-text-muted">
           Ask · {model}
         </span>
         <button onClick={onClose} aria-label="Close chat"
@@ -1683,7 +1683,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
 
       {minimized && (
         <div
-          className={`fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] items-center gap-2 rounded-lg border px-3 py-2 shadow-2xl bg-reader-bg border-reader-border text-reader-text`}
+          className={`fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] items-center gap-2 rounded-lg border px-3 py-2 ambient-shadow bg-reader-bg border-reader-border text-reader-text`}
           style={accentColor ? ({ "--reader-primary": accentColor } as React.CSSProperties) : undefined}
         >
           <button onClick={() => setMinimized(false)} aria-label="Expand article" title="Expand"
@@ -1695,7 +1695,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-ui-label font-headline font-semibold leading-tight">{paneTitle ?? "Reading"}</span>
-              <span className="block truncate text-ui-small font-label uppercase tracking-widest text-reader-text-muted">{paneDomain}</span>
+              <span className="block truncate text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted">{paneDomain}</span>
             </span>
           </button>
 
@@ -1771,12 +1771,12 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
               </div>
               <div>
                 <p className="text-sm font-headline font-semibold">{title ?? "Video"}</p>
-                <p className="mt-1 text-ui-small font-label uppercase tracking-widest text-reader-text-muted">
+                <p className="mt-1 text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted">
                   Plays in a separate window
                 </p>
               </div>
               <button onClick={openVideoWindow}
-                className="ghost-border bg-primary px-4 py-2 text-ui-small font-label font-bold uppercase tracking-widest text-on-primary transition-opacity hover:opacity-90">
+                className="ghost-border bg-primary px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary transition-opacity hover:opacity-90">
                 Play video
               </button>
             </div>
@@ -1784,9 +1784,9 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
             <LoadingSkeleton />
           ) : result.state === "error" ? (
             <div className="flex flex-col items-center justify-center gap-4 p-12 text-center text-reader-text">
-              <p className="text-ui-label font-label text-reader-text-muted uppercase tracking-widest">{result.message}</p>
+              <p className="text-ui-label font-label text-reader-text-muted uppercase tracking-[0.14em]">{result.message}</p>
               <button onClick={() => openUrl(url)}
-                className="border border-reader-border hover:bg-reader-hover px-4 py-2 text-ui-small font-label font-bold uppercase tracking-widest transition-colors">
+                className="border border-reader-border hover:bg-reader-hover px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] transition-colors">
                 Open in browser ↗
               </button>
             </div>
@@ -1806,7 +1806,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
               {summary !== null && (
                 <div className="mb-6 rounded border border-reader-border bg-reader-hover/40 px-5 py-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-ui-small font-label font-bold uppercase tracking-widest text-reader-text-muted">
+                    <span className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-reader-text-muted">
                       {summarizeState === "loading" ? "Summarizing" : "Summary"} · {aiSettings && aiConfig(aiSettings).model}
                     </span>
                     {summarizeState === "done" && (
@@ -1834,7 +1834,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
 
               <h1 ref={titleRef} className="text-2xl font-headline font-bold leading-snug mb-3">{result.title}</h1>
               {(result.byline || result.siteName || readMinutes) && (
-                <p className="text-ui-small font-label uppercase tracking-widest text-reader-text-muted mb-8">
+                <p className="text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted mb-8">
                   {[result.byline, result.siteName, readMinutes ? `${readMinutes} min read` : null]
                     .filter(Boolean).join(" · ")}
                 </p>
@@ -1844,7 +1844,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
               {(takeawaysLoading || takeaways) && (
                 <div className="mb-8 rounded border border-reader-border bg-reader-hover/40 px-4 py-3">
                   {takeawaysLoading ? (
-                    <span className="text-ui-small font-label font-bold uppercase tracking-widest text-reader-text-muted animate-pulse">
+                    <span className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-reader-text-muted animate-pulse">
                       ✦ Key points · generating…
                     </span>
                   ) : (
@@ -1854,7 +1854,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
                         className="flex w-full items-center justify-between text-left"
                         aria-expanded={takeawaysOpen}
                       >
-                        <span className="text-ui-small font-label font-bold uppercase tracking-widest text-reader-text-muted">
+                        <span className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-reader-text-muted">
                           ✦ Key points
                         </span>
                         <svg className={`h-3 w-3 text-reader-text-muted transition-transform ${takeawaysOpen ? "rotate-180" : ""}`}
@@ -1897,14 +1897,14 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
         {/* Link hover preview */}
         {linkPreview && (
           <div
-            className="fixed z-[60] w-72 -translate-x-1/2 overflow-hidden rounded-lg border border-reader-border bg-reader-header-bg shadow-xl pointer-events-none text-reader-text"
+            className="fixed z-[60] w-72 -translate-x-1/2 overflow-hidden rounded-lg border border-reader-border bg-reader-header-bg ambient-shadow pointer-events-none text-reader-text"
             style={{ left: linkPreview.x, top: Math.min(linkPreview.y + 8, window.innerHeight - 220) }}
           >
             {linkPreview.image && (
               <img src={linkPreview.image} alt="" className="h-28 w-full object-cover" />
             )}
             <div className="p-3">
-              <p className="text-ui-small font-label uppercase tracking-widest text-reader-text-muted mb-1">
+              <p className="text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted mb-1">
                 {linkPreview.domain}
               </p>
               <p className="text-xs font-headline font-semibold leading-snug line-clamp-2">
@@ -1922,7 +1922,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
         {/* Floating selection toolbar */}
         {selToolbar && !isYT && result.state === "ok" && (
           <div
-            className="fixed z-[60] flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-reader-border bg-reader-header-bg p-1 shadow-xl text-reader-text"
+            className="fixed z-[60] flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-reader-border bg-reader-header-bg p-1 ambient-shadow text-reader-text"
             style={{ left: selToolbar.x, top: Math.max(selToolbar.y - 44, 8) }}
             onMouseDown={(e) => e.preventDefault()}
           >
@@ -1993,7 +1993,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
         {activeNote && (
           <div
             ref={notePopoverRef}
-            className="fixed z-[60] w-72 -translate-x-1/2 rounded-lg border border-reader-border bg-reader-header-bg p-3 shadow-xl text-reader-text"
+            className="fixed z-[60] w-72 -translate-x-1/2 rounded-lg border border-reader-border bg-reader-header-bg p-3 ambient-shadow text-reader-text"
             style={{ left: activeNote.x, top: Math.min(activeNote.y + 8, window.innerHeight - 190) }}
           >
             <textarea
@@ -2020,7 +2020,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
           </div>
         )}
         {highlightsOpen && (
-          <div className="absolute right-3 top-14 z-[55] max-h-[70vh] w-80 overflow-y-auto rounded-lg border border-reader-border bg-reader-header-bg p-3 shadow-xl text-reader-text">
+          <div className="absolute right-3 top-14 z-[55] max-h-[70vh] w-80 overflow-y-auto rounded-lg border border-reader-border bg-reader-header-bg p-3 ambient-shadow text-reader-text">
             <div className="mb-2 flex items-center justify-between">
               <h4 className="text-ui-small font-label font-bold uppercase tracking-wider text-reader-text-muted">
                 Highlights ({highlights.length})
