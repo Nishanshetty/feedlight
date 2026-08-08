@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Readability } from "@mozilla/readability";
@@ -13,6 +14,7 @@ import {
   getSavedArticleId, saveExternalArticle, removeSavedArticleByUrl,
   getTagsForItem, addTagToItem, removeTagFromItem, listTags,
 } from "../lib/db";
+import { useReader } from "../lib/reader-context";
 import { anchorFromRange, findRange, wrapRangeWithMarks, unwrapHighlights, type TextAnchor } from "../lib/highlight-anchor";
 import type { Highlight, Tag } from "../types/database";
 
@@ -498,6 +500,7 @@ function ChatPanel({
   onSend,
   onClose,
   model,
+  filled = false,
 }: {
   messages: ChatMessageEntry[];
   loading: boolean;
@@ -509,6 +512,8 @@ function ChatPanel({
   onSend: (q: string) => void;
   onClose: () => void;
   model: string;
+  /** Fills its container (the shell's chat column) instead of being a drawer. */
+  filled?: boolean;
 }) {
   const [input, setInput] = useState("");
   const [panelHeight, setPanelHeight] = useState(480);
@@ -566,15 +571,21 @@ function ChatPanel({
   }
 
   return (
-    <div className="flex flex-col border-t border-reader-border bg-reader-bg" style={{ height: `${panelHeight}px` }}>
-      {/* Drag handle */}
-      <div
-        onMouseDown={onDragHandleMouseDown}
-        className="flex items-center justify-center h-3 shrink-0 cursor-ns-resize hover:bg-reader-hover/60 transition-colors group"
-        aria-label="Drag to resize"
-      >
-        <div className="w-8 h-1 rounded-full bg-reader-border group-hover:bg-reader-text-muted transition-colors" />
-      </div>
+    <div
+      className={filled
+        ? "flex h-full flex-col border-l border-reader-border bg-reader-bg"
+        : "flex flex-col border-t border-reader-border bg-reader-bg"}
+      style={filled ? undefined : { height: `${panelHeight}px` }}
+    >
+      {!filled && (
+        <div
+          onMouseDown={onDragHandleMouseDown}
+          className="flex items-center justify-center h-3 shrink-0 cursor-ns-resize hover:bg-reader-hover/60 transition-colors group"
+          aria-label="Drag to resize"
+        >
+          <div className="w-8 h-1 rounded-full bg-reader-border group-hover:bg-reader-text-muted transition-colors" />
+        </div>
+      )}
 
       {/* Chat header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-reader-border shrink-0">
@@ -771,7 +782,13 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
   // Chat state
-  const [chatOpen, setChatOpen] = useState(false);
+  const { chatOpen, setChatOpen } = useReader();
+  // The shell renders the chat column; find it once it's there.
+  const [chatSlot, setChatSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!docked || !chatOpen) { setChatSlot(null); return; }
+    setChatSlot(document.getElementById("reader-chat-slot"));
+  }, [docked, chatOpen]);
   const [chatMessages, setChatMessages] = useState<ChatMessageEntry[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatStream, setChatStream] = useState<string | null>(null);
@@ -1644,7 +1661,7 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
               const articleText = getParagraphs(result.content).join(" ");
               fetchSuggestions(articleText, []);
             }
-            setChatOpen((o) => !o);
+            setChatOpen(!chatOpen);
           },
         }
       : undefined;
@@ -2072,7 +2089,26 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
             )}
           </div>
         )}
-        {chatOpen && chatControls && aiSettings && (
+        {/* Docked, the conversation owns the right-hand column so the reading
+            column keeps its full height; otherwise it stays a bottom drawer. */}
+        {chatOpen && chatControls && aiSettings && (docked ? (
+          chatSlot && createPortal(
+            <ChatPanel
+              messages={chatMessages}
+              loading={chatLoading}
+              streaming={chatStream}
+              suggestions={suggestions}
+              suggestionsLoading={suggestionsLoading}
+              quote={pendingQuote}
+              onClearQuote={() => setPendingQuote(null)}
+              onSend={sendChat}
+              onClose={() => setChatOpen(false)}
+              model={aiConfig(aiSettings).model}
+              filled
+            />,
+            chatSlot
+          )
+        ) : (
           <ChatPanel
             messages={chatMessages}
             loading={chatLoading}
@@ -2085,7 +2121,7 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
             onClose={() => setChatOpen(false)}
             model={aiConfig(aiSettings).model}
           />
-        )}
+        ))}
       </div>
     </>
   );

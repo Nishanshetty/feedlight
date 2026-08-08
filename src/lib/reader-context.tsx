@@ -25,16 +25,25 @@ type ReaderContextValue = {
   isOpen: boolean;
   open: (request: ReaderRequest) => void;
   close: () => void;
+  /**
+   * Whether the Ask conversation is showing. Lives here, rather than in the
+   * reader, only so the shell can hand the right-hand column over to it; every
+   * other piece of chat state stays with the article text it depends on.
+   */
+  chatOpen: boolean;
+  setChatOpen: (open: boolean) => void;
 };
 
 const ReaderContext = createContext<ReaderContextValue | null>(null);
 
 export function ReaderProvider({ children }: { children: React.ReactNode }) {
   const [request, setRequest] = useState<ReaderRequest | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const open = useCallback((next: ReaderRequest) => {
     // Run the outgoing article's cleanup when replacing it directly, so opening
     // a second article from Highlights still refreshes the list behind it.
+    setChatOpen(false);
     setRequest((prev) => {
       if (prev && prev !== next) prev.onClose?.();
       return next;
@@ -42,6 +51,7 @@ export function ReaderProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const close = useCallback(() => {
+    setChatOpen(false);
     setRequest((prev) => {
       prev?.onClose?.();
       return null;
@@ -49,8 +59,8 @@ export function ReaderProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<ReaderContextValue>(
-    () => ({ request, isOpen: request !== null, open, close }),
-    [request, open, close]
+    () => ({ request, isOpen: request !== null, open, close, chatOpen, setChatOpen }),
+    [request, open, close, chatOpen]
   );
 
   return <ReaderContext.Provider value={value}>{children}</ReaderContext.Provider>;

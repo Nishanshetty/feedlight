@@ -74,6 +74,9 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
   const reader = useReader();
   const viewportWidth = useViewportWidth();
   const docked = reader.isOpen && viewportWidth >= DOCK_MIN;
+  // Chat takes the right column while it's open; 340px is tight for a
+  // conversation, so it widens a little.
+  const chatInColumn = docked && reader.chatOpen;
   // Auto-collapse is a default, not a lock: toggling the rail by hand clears it
   // for as long as the article stays open.
   const [railOverride, setRailOverride] = useState(false);
@@ -226,9 +229,21 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
           />
         )}
 
-        <main className={`overflow-y-auto scrollbar-hide bg-background ${docked ? "w-[340px] shrink-0" : "flex-1"}`}>
+        {/* The list stays mounted behind the chat rather than unmounting, so
+            its scroll position and loaded pages survive the round trip. */}
+        <main
+          className={[
+            "overflow-y-auto scrollbar-hide bg-background",
+            docked ? "w-[340px] shrink-0" : "flex-1",
+            chatInColumn ? "hidden" : "",
+          ].join(" ")}
+        >
           {main}
         </main>
+
+        {chatInColumn && (
+          <div id="reader-chat-slot" className="w-[400px] shrink-0 overflow-hidden bg-reader-bg" />
+        )}
       </div>
 
       <ShortcutsModal open={showShortcuts} onClose={() => setShowShortcuts(false)} />

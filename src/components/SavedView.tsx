@@ -62,7 +62,8 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
     k: () => setSelectedIndex((prev) => (prev < 0 ? 0 : Math.max(prev - 1, 0))),
     o: () => { if (selectedIndex >= 0) selectAndRead(selectedIndex); },
     Enter: () => { if (selectedIndex >= 0) selectAndRead(selectedIndex); },
-    Escape: () => reader.close(),
+    // Peel one layer at a time: the conversation closes before the article.
+    Escape: () => { if (reader.chatOpen) reader.setChatOpen(false); else reader.close(); },
     s: () => { if (selectedIndex >= 0) handleUnsave(selectedIndex); },
   });
 
