@@ -18,8 +18,8 @@ A local-first RSS reader for macOS. No accounts, no servers, no subscriptions �
 - **Resume reading** — scroll position is remembered per article; cards show a progress line and reopening picks up where you left off
 - **Article reader** — distraction-free reading pane powered by Mozilla Readability (same engine as Firefox Reader View), with reading progress bar, read-time estimate, link hover previews, and a per-article accent color drawn from the lead image
 - **Text to Speech** — paragraph-by-paragraph read-aloud via Google Cloud TTS (Neural2 voice), with playback speed control and click-a-paragraph to jump
-- **AI features** — streamed article summaries, automatic key takeaways, chat about any article with suggested questions, and select-text Explain/Ask — all via a locally running [Ollama](https://ollama.com) model; fully private, no cloud required
-- **Discover** — AI-generated search queries based on your subscriptions surface fresh articles from outside your feeds (requires Ollama)
+- **AI features** — streamed article summaries, automatic key takeaways, chat about any article with suggested questions, and select-text Explain/Ask — powered by a locally running [Ollama](https://ollama.com) model (fully private, no cloud required) or by [Gemini](https://aistudio.google.com/apikey) with your own API key
+- **Discover** — AI-generated search queries based on your subscriptions surface fresh articles from outside your feeds (requires AI to be enabled)
 - **Background refresh** — feeds refresh automatically every 15 minutes in Rust; no browser tab needed
 - **OPML import/export** — migrate from Feedly, Inoreader, or any other reader instantly
 - **Feed analytics** — identify noisy, ignored, and dead feeds to declutter your reading list
@@ -66,16 +66,30 @@ Open **Settings** (gear icon in the top bar) to configure optional integrations:
 |---------|----------------|---------|
 | **YouTube Data API key** | [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → YouTube Data API v3 | Subscribing to `@handle` YouTube channels |
 | **Google Cloud TTS credentials** | GCP Console → IAM → Service Accounts → create key (JSON) | Article read-aloud feature |
-| **Ollama URL + model** | [ollama.com](https://ollama.com) — install locally, then `ollama pull llama3.2` | AI article summarization |
+| **Ollama URL + model** | [ollama.com](https://ollama.com) — install locally, then `ollama pull llama3.2` | AI features, run locally |
+| **Gemini API key** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | AI features, run in the cloud |
 
 Credentials are stored locally in the app data directory via `tauri-plugin-store` — they never leave your machine.
 
-### AI summarization setup
+### AI setup
+
+Pick one provider in Settings → **AI**. Local is the default and keeps article text
+on your machine; Gemini is faster and needs no local model, but sends article text to
+Google under your own key.
+
+**Local (Ollama)**
 
 1. Install [Ollama](https://ollama.com) and pull a model: `ollama pull llama3.2`
-2. Open Feedlight → Settings → **AI Summarization**
-3. Toggle it on, confirm the URL (`http://localhost:11434`), hit **Test**
-4. Open any article — a sparkle button (✦) appears in the reader header
+2. Open Feedlight → Settings → **AI**, toggle it on, choose **Local**
+3. Confirm the URL (`http://localhost:11434`), hit **Test**
+
+**Gemini**
+
+1. Create a key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+2. Open Feedlight → Settings → **AI**, toggle it on, choose **Gemini**
+3. Paste the key, **Save**, then hit **Test**
+
+Either way, open any article — a sparkle button (✦) appears in the reader header.
 
 ---
 
@@ -91,7 +105,7 @@ Credentials are stored locally in the app data directory via `tauri-plugin-store
 | Article extraction | [`@mozilla/readability`](https://github.com/mozilla/readability) |
 | HTTP | `reqwest` (Rust) |
 | TTS auth | `jsonwebtoken` (RS256 JWT for Google OAuth2) |
-| AI summarization | [Ollama](https://ollama.com) local HTTP API |
+| AI | [Ollama](https://ollama.com) local HTTP API, or the Gemini REST API |
 | Settings | `tauri-plugin-store` |
 
 ---
@@ -106,7 +120,7 @@ src/                  # React / TypeScript frontend
   types/              # TypeScript types
 src-tauri/            # Rust / Tauri backend
   src/
-    commands/         # fetch_feed, fetch_article_html, tts, ollama, resolve_youtube_handle
+    commands/         # fetch_feed, fetch_article_html, tts, ai/, resolve_youtube_handle
     crawler.rs        # background feed refresh loop
     lib.rs            # Tauri app setup
   migrations/         # SQLite schema

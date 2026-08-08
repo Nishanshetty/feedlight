@@ -23,7 +23,7 @@ machine, and the app works offline.
 The defining architectural split:
 
 - **Rust owns the network and the OS.** Feed fetching, article HTML fetching,
-  text-to-speech, Ollama calls, and credential storage all run in Rust. This is
+  text-to-speech, AI provider calls, and credential storage all run in Rust. This is
   deliberate: routing network calls through Rust sidesteps the WebView's CORS/CSP
   restrictions and keeps API keys out of the renderer.
 - **JavaScript owns the UI and content extraction.** The React frontend renders
@@ -60,7 +60,7 @@ and the background crawler pushes a Tauri **event** back to the frontend.
 └──────────────────────────────────────────────┼────────────────────────┘
                                                 ▼
 ┌─────────────────────────────── Rust (Tauri) ───────────────────────────┐
-│  commands/*  ──►  reqwest / Readability-input / Google TTS / Ollama     │
+│  commands/*  ──►  reqwest / Readability-input / Google TTS / AI providers│
 │  crawler.rs  ──►  SQLite (feed_items)  ──►  emit "feedlight://feeds-     │
 │                                              refreshed"  ──► frontend    │
 │  tauri-plugin-sql  ◄──────────────────────────  src/lib/db.ts queries   │
@@ -160,7 +160,7 @@ Grouped by module under [src-tauri/src/commands/](../src-tauri/src/commands/):
 | `feed` | `fetch_feed`, `resolve_youtube_handle` | RSS/Atom fetch + autodiscovery; YouTube `@handle` → channel |
 | `extract` | `fetch_article_html`, `fetch_image_base64` | Fetch raw HTML for Readability; inline images past CSP |
 | `tts` | `synthesize_speech`, `list_tts_voices` | Google Cloud TTS (REST, user API key) |
-| `ollama` | `check_ollama`, `summarize_article`, `chat_article`, `suggest_questions`, `key_takeaways`, `generate_digest`, `generate_discover_queries` | Local Ollama via `reqwest` |
+| `ai` | `check_ollama`, `check_gemini`, `summarize_article`, `chat_article`, `suggest_questions`, `key_takeaways`, `generate_digest`, `generate_discover_queries` | Prompts in `ai/mod.rs`; transport per provider (`ai/ollama.rs`, `ai/gemini.rs`) behind `ai/provider.rs` |
 | `video` | `open_video_window` | Open a YouTube watch page top-level in its own window |
 | `export` | `export_markdown` | Write highlights markdown (e.g. to an Obsidian vault) |
 
@@ -224,7 +224,7 @@ plus [SavedView](../src/components/SavedView.tsx), [HighlightsView](../src/compo
 | Reader / extraction | `ArticlePane` | `extract::fetch_article_html`, `fetch_image_base64` |
 | Resume reading | `ArticlePane` scroll → `item_states.read_progress` | — |
 | Text-to-speech | `ArticlePane` (system) | `tts::synthesize_speech`, `list_tts_voices` (google) |
-| AI summary / chat / takeaways / discover | `ArticlePane`, `DiscoverView`, `DigestView` | `ollama::*` |
+| AI summary / chat / takeaways / discover | `ArticlePane`, `DiscoverView`, `DigestView` | `ai::*` |
 | Highlights | `ArticlePane`, `HighlightsView`, `highlight-anchor` | `export::export_markdown` (→ Obsidian) |
 | Saved (feed items + external) | `SavedView`, `ArticlePane`, `db` (`__saved__` feed) | — |
 | YouTube playback | `ArticlePane` | `video::open_video_window` |
@@ -241,9 +241,14 @@ Two stores, by sensitivity:
 - **Preferences** → `tauri-plugin-store` (`settings.json` in the app data dir), via
   [src/lib/settings.ts](../src/lib/settings.ts): `tts_engine` (`system` | `google`),
   `tts_voice`, `tts_voice_lang`, `app_theme`, `obsidian_vault_path`, `ollama_enabled`,
-  `ollama_url`, `ollama_model`.
+  `ai_provider`, `ollama_url`, `ollama_model`, `gemini_model`. (The `ollama_*` keys
+  predate multi-provider support and are kept so existing installs upgrade cleanly.)
 - **Secrets** → OS keychain (service `app.feedlight`) via the `credentials` commands:
-  `youtube_api_key`, `gcp_tts_api_key`. These never touch the plaintext store.
+  `youtube_api_key`, `gcp_tts_api_key`, `gemini_api_key`. These never touch the
+  plaintext store, and provider commands read them in Rust rather than accepting
+  them over IPC.
 
-Ollama is **off by default** and enabled from Settings. All AI runs against a locally
-running Ollama model — nothing leaves the machine.
+AI is **off by default** and enabled from Settings, which also picks the provider.
+With the default **Ollama** provider everything runs locally and nothing leaves the
+machine. Choosing **Gemini** sends article text to Google's API under the user's own
+key — the trade-off is stated in the Settings panel.

@@ -4,7 +4,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Readability } from "@mozilla/readability";
 import DOMPurify from "dompurify";
 import ReactMarkdown from "react-markdown";
-import { getOllamaSettings, getObsidianVaultPath, getTtsEngine, getGoogleTtsApiKey, getElevenLabsApiKey, type OllamaSettings, type TtsEngine } from "../lib/settings";
+import { getAiSettings, aiConfig, getObsidianVaultPath, getTtsEngine, getGoogleTtsApiKey, getElevenLabsApiKey, type AiSettings, type TtsEngine } from "../lib/settings";
 import {
   upsertItemState, getItemProgress,
   getHighlightsForItem, addHighlight, updateHighlightNote, deleteHighlight,
@@ -781,7 +781,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
   const articleContentRef = useRef<HTMLDivElement>(null);
 
   // Ollama summarize state
-  const [ollamaSettings, setOllamaSettings] = useState<OllamaSettings | null>(null);
+  const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
   const [summarizeState, setSummarizeState] = useState<SummarizeState>("idle");
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -1057,7 +1057,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
   }, [theme, fontFamily, fontSize, columnWidth, lineHeight, speed]);
 
   useEffect(() => {
-    getOllamaSettings().then(setOllamaSettings).catch(console.error);
+    getAiSettings().then(setAiSettings).catch(console.error);
   }, []);
 
   // Flush the pending progress save when the item changes or the pane closes
@@ -1195,17 +1195,19 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
   // Cached per item (keyed by itemId) so reopening the same article reuses them;
   // a model change invalidates the cache and regenerates.
   useEffect(() => {
-    if (isYT || result.state !== "ok" || !ollamaSettings?.enabled) return;
+    if (isYT || result.state !== "ok" || !aiSettings?.enabled) return;
     let stale = false;
     setTakeaways(null);
     setTakeawaysOpen(false);
     setTakeawaysLoading(true);
 
+    const config = aiConfig(aiSettings);
+
     (async () => {
       if (itemId) {
         try {
           const cached = await getItemTakeaways(itemId);
-          if (cached && cached.model === ollamaSettings.model && cached.takeaways.length > 0) {
+          if (cached && cached.model === config.model && cached.takeaways.length > 0) {
             if (!stale) { setTakeaways(cached.takeaways); setTakeawaysLoading(false); }
             return;
           }
@@ -1214,14 +1216,10 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
 
       const text = getParagraphs(result.content).join(" ");
       try {
-        const t = await invoke<string[]>("key_takeaways", {
-          baseUrl: ollamaSettings.url,
-          model: ollamaSettings.model,
-          text,
-        });
+        const t = await invoke<string[]>("key_takeaways", { config, text });
         if (!stale && t.length > 0) {
           setTakeaways(t);
-          if (itemId) setItemTakeaways(itemId, t, ollamaSettings.model).catch(() => {});
+          if (itemId) setItemTakeaways(itemId, t, config.model).catch(() => {});
         }
       } catch {
         /* ambient feature: fail silently */
@@ -1231,7 +1229,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
     })();
 
     return () => { stale = true; };
-  }, [result, ollamaSettings, isYT, itemId]);
+  }, [result, aiSettings, isYT, itemId]);
 
   // Ambient accent: dominant hue of the article's first image
   useEffect(() => {
@@ -1483,7 +1481,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
       : undefined;
 
   async function handleSummarize() {
-    if (!ollamaSettings || result.state !== "ok") return;
+    if (!aiSettings || result.state !== "ok") return;
     setSummarizeState("loading");
     setSummary(null);
     setSummaryError(null);
@@ -1492,8 +1490,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
     onToken.onmessage = (tok) => setSummary((s) => (s ?? "") + tok);
     try {
       const out = await invoke<string>("summarize_article", {
-        baseUrl: ollamaSettings.url,
-        model: ollamaSettings.model,
+        config: aiConfig(aiSettings),
         text,
         onToken,
       });
@@ -1506,18 +1503,17 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
   }
 
   const summarizeControls: SummarizeControls | undefined =
-    !isYT && result.state === "ok" && ollamaSettings?.enabled
+    !isYT && result.state === "ok" && aiSettings?.enabled
       ? { state: summarizeState, onSummarize: handleSummarize }
       : undefined;
 
   async function fetchSuggestions(articleText: string, history: ChatMessageEntry[]) {
-    if (!ollamaSettings) return;
+    if (!aiSettings) return;
     setSuggestionsLoading(true);
     setSuggestions([]);
     try {
       const qs = await invoke<string[]>("suggest_questions", {
-        baseUrl: ollamaSettings.url,
-        model: ollamaSettings.model,
+        config: aiConfig(aiSettings),
         articleText,
         history: history.map((m) => ({ role: m.role, content: m.content })),
       });
@@ -1530,7 +1526,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
   }
 
   async function handleChatSend(question: string) {
-    if (!ollamaSettings || result.state !== "ok") return;
+    if (!aiSettings || result.state !== "ok") return;
     const articleText = getParagraphs(result.content).join(" ");
     const newMessages: ChatMessageEntry[] = [...chatMessages, { role: "user", content: question }];
     setChatMessages(newMessages);
@@ -1542,8 +1538,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
     try {
       const historyForApi = chatMessages.map((m) => ({ role: m.role, content: m.content }));
       const answer = await invoke<string>("chat_article", {
-        baseUrl: ollamaSettings.url,
-        model: ollamaSettings.model,
+        config: aiConfig(aiSettings),
         articleText,
         history: historyForApi,
         question,
@@ -1668,7 +1663,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
   }
 
   const chatControls: ChatControls | undefined =
-    !isYT && result.state === "ok" && ollamaSettings?.enabled
+    !isYT && result.state === "ok" && aiSettings?.enabled
       ? {
           open: chatOpen,
           onToggle: () => {
@@ -1844,7 +1839,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
                 <div className="mb-6 rounded border border-reader-border bg-reader-hover/40 px-5 py-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[9px] font-label font-bold uppercase tracking-widest text-reader-text-muted">
-                      {summarizeState === "loading" ? "Summarizing" : "Summary"} · {ollamaSettings?.model}
+                      {summarizeState === "loading" ? "Summarizing" : "Summary"} · {aiSettings && aiConfig(aiSettings).model}
                     </span>
                     {summarizeState === "done" && (
                       <button
@@ -2088,7 +2083,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
             )}
           </div>
         )}
-        {chatOpen && chatControls && ollamaSettings && (
+        {chatOpen && chatControls && aiSettings && (
           <ChatPanel
             messages={chatMessages}
             loading={chatLoading}
@@ -2099,7 +2094,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
             onClearQuote={() => setPendingQuote(null)}
             onSend={sendChat}
             onClose={() => setChatOpen(false)}
-            model={ollamaSettings.model}
+            model={aiConfig(aiSettings).model}
           />
         )}
       </div>

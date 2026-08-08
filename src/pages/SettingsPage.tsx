@@ -4,7 +4,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { Link } from "@tanstack/react-router";
 import {
   getYouTubeApiKey, setYouTubeApiKey,
-  getOllamaSettings, setOllamaSettings,
+  getAiSettings, setAiSettings,
+  getGeminiApiKey, setGeminiApiKey, GEMINI_DEFAULT_MODEL,
   getAppTheme, setAppTheme,
   getRefreshIntervalSecs, setRefreshIntervalSecs,
   getObsidianVaultPath, setObsidianVaultPath,
@@ -15,7 +16,7 @@ import {
   getElevenLabsVoice, setElevenLabsVoice,
   getElevenLabsModel, setElevenLabsModel, ELEVENLABS_DEFAULT_MODEL,
   resetSettings,
-  type OllamaSettings, type AppTheme, type TtsEngine,
+  type AiSettings, type AiProvider, type AppTheme, type TtsEngine,
 } from "../lib/settings";
 import { eraseAllData } from "../lib/db";
 import { exportFeedsToOpml } from "../lib/opml";
@@ -184,22 +185,40 @@ function FeedSyncingSection() {
   );
 }
 
-type OllamaCheckState = "idle" | "checking" | "ok" | "error";
+type AiCheckState = "idle" | "checking" | "ok" | "error";
 
-function OllamaSection() {
-  const [settings, setSettings] = useState<OllamaSettings>({ enabled: false, url: "http://localhost:11434", model: "llama3.2" });
+const AI_PROVIDERS: { value: AiProvider; label: string; description: string }[] = [
+  { value: "ollama", label: "Local", description: "Ollama · private" },
+  { value: "gemini", label: "Gemini", description: "Google · API key" },
+];
+
+/** Suggested Gemini models. The field stays free-text so new ones work day one. */
+const GEMINI_MODELS: { value: string; hint: string }[] = [
+  { value: "gemini-3.6-flash", hint: "Balanced — good default" },
+  { value: "gemini-3.5-flash-lite", hint: "Fastest and cheapest" },
+  { value: "gemini-2.5-pro", hint: "Most capable, slower" },
+];
+
+function AiSection() {
+  const [settings, setSettings] = useState<AiSettings>({
+    enabled: false, provider: "ollama", ollamaUrl: "http://localhost:11434",
+    ollamaModel: "llama3.2", geminiModel: GEMINI_DEFAULT_MODEL,
+  });
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [checkState, setCheckState] = useState<OllamaCheckState>("idle");
+  const [checkState, setCheckState] = useState<AiCheckState>("idle");
   const [checkMessage, setCheckMessage] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
+  const [keySaveState, setKeySaveState] = useState<SaveState>("idle");
 
   useEffect(() => {
-    getOllamaSettings().then(setSettings).catch(console.error);
+    getAiSettings().then(setSettings).catch(console.error);
+    getGeminiApiKey().then(setGeminiKey).catch(console.error);
   }, []);
 
-  async function save(updated: OllamaSettings) {
+  async function save(updated: AiSettings) {
     setSaveState("saving");
     try {
-      await setOllamaSettings(updated);
+      await setAiSettings(updated);
       setSaveState("saved");
       setTimeout(() => setSaveState("idle"), 2000);
     } catch {
@@ -207,29 +226,63 @@ function OllamaSection() {
     }
   }
 
-  async function checkConnection() {
-    setCheckState("checking");
-    setCheckMessage("");
+  async function saveGeminiKey() {
+    setKeySaveState("saving");
     try {
-      const models = await invoke<string[]>("check_ollama", { baseUrl: settings.url });
-      const match = models.find((m) => m.startsWith(settings.model));
-      if (match) {
-        setCheckMessage(`Model "${match}" found`);
-        setCheckState("ok");
-      } else if (models.length > 0) {
-        setCheckMessage(`Ollama reachable. Model "${settings.model}" not found. Available: ${models.slice(0, 3).join(", ")}`);
-        setCheckState("error");
-      } else {
-        setCheckMessage("Ollama reachable but no models installed. Run: ollama pull " + settings.model);
-        setCheckState("error");
-      }
-    } catch (err) {
-      setCheckMessage(String(err));
+      await setGeminiApiKey(geminiKey.trim());
+      setKeySaveState("saved");
+      setCheckState("idle");
+      setCheckMessage("");
+      setTimeout(() => setKeySaveState("idle"), 2000);
+    } catch {
+      setKeySaveState("error");
+    }
+  }
+
+  async function checkOllama() {
+    const models = await invoke<string[]>("check_ollama", { baseUrl: settings.ollamaUrl });
+    const match = models.find((m) => m.startsWith(settings.ollamaModel));
+    if (match) {
+      setCheckMessage(`Model "${match}" found`);
+      setCheckState("ok");
+    } else if (models.length > 0) {
+      setCheckMessage(`Ollama reachable. Model "${settings.ollamaModel}" not found. Available: ${models.slice(0, 3).join(", ")}`);
+      setCheckState("error");
+    } else {
+      setCheckMessage("Ollama reachable but no models installed. Run: ollama pull " + settings.ollamaModel);
       setCheckState("error");
     }
   }
 
-  function update(patch: Partial<OllamaSettings>) {
+  async function checkGemini() {
+    const models = await invoke<string[]>("check_gemini");
+    if (models.includes(settings.geminiModel)) {
+      setCheckMessage(`Key valid. Model "${settings.geminiModel}" available`);
+      setCheckState("ok");
+    } else {
+      const suggestions = models.filter((m) => m.startsWith("gemini-")).slice(0, 3);
+      setCheckMessage(
+        `Key valid, but "${settings.geminiModel}" isn't available to it.` +
+        (suggestions.length > 0 ? ` Try: ${suggestions.join(", ")}` : "")
+      );
+      setCheckState("error");
+    }
+  }
+
+  async function checkConnection() {
+    setCheckState("checking");
+    setCheckMessage("");
+    try {
+      if (settings.provider === "gemini") await checkGemini();
+      else await checkOllama();
+    } catch (err) {
+      const msg = String(err);
+      setCheckMessage(msg.includes("no_api_key") ? "No Gemini API key saved yet." : msg);
+      setCheckState("error");
+    }
+  }
+
+  function update(patch: Partial<AiSettings>) {
     const next = { ...settings, ...patch };
     setSettings(next);
     setCheckState("idle");
@@ -239,14 +292,14 @@ function OllamaSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">AI Summarization</h2>
+      <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">AI</h2>
 
       {/* Enable toggle */}
       <div className="border border-outline-variant/40 p-5 flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-headline font-semibold text-on-surface">Enable Ollama Summarization</p>
+          <p className="text-sm font-headline font-semibold text-on-surface">Enable AI Features</p>
           <p className="text-xs font-body text-on-surface-variant mt-0.5">
-            Adds a Summarize button in the article reader. Requires a locally running Ollama instance.
+            Adds summaries, key takeaways, article chat and the daily digest.
           </p>
         </div>
         <button
@@ -259,40 +312,108 @@ function OllamaSection() {
         </button>
       </div>
 
-      {/* URL and model config */}
-      <div className="border border-outline-variant/40 p-5 space-y-4">
-        <div className="space-y-2">
-          <p className="text-sm font-headline font-semibold text-on-surface">Ollama Base URL</p>
-          <div className="flex gap-2">
-            <input
-              value={settings.url}
-              onChange={(e) => setSettings((s) => ({ ...s, url: e.target.value }))}
-              onBlur={() => save(settings)}
-              placeholder="http://localhost:11434"
-              className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-        </div>
+      {/* Provider picker */}
+      <div className="flex gap-2">
+        {AI_PROVIDERS.map((opt) => (
+          <button key={opt.value} onClick={() => update({ provider: opt.value })} aria-pressed={settings.provider === opt.value}
+            className={["flex-1 px-3 py-2 text-[11px] font-label font-bold uppercase tracking-widest transition-colors",
+              settings.provider === opt.value
+                ? "bg-primary-container text-on-primary-container"
+                : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
+            ].join(" ")}>
+            {opt.label}
+            <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal opacity-70">{opt.description}</span>
+          </button>
+        ))}
+      </div>
 
-        <div className="space-y-2">
-          <p className="text-sm font-headline font-semibold text-on-surface">Model</p>
-          <div className="flex gap-2">
-            <input
-              value={settings.model}
-              onChange={(e) => setSettings((s) => ({ ...s, model: e.target.value }))}
-              onBlur={() => save(settings)}
-              placeholder="llama3.2"
-              className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <button
-              onClick={checkConnection}
-              disabled={checkState === "checking"}
-              className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
-            >
-              {checkState === "checking" ? "Checking…" : "Test"}
-            </button>
-          </div>
-        </div>
+      {/* Provider config */}
+      <div className="border border-outline-variant/40 p-5 space-y-4">
+        {settings.provider === "ollama" ? (
+          <>
+            <div className="space-y-2">
+              <p className="text-sm font-headline font-semibold text-on-surface">Ollama Base URL</p>
+              <div className="flex gap-2">
+                <input
+                  value={settings.ollamaUrl}
+                  onChange={(e) => setSettings((s) => ({ ...s, ollamaUrl: e.target.value }))}
+                  onBlur={() => save(settings)}
+                  placeholder="http://localhost:11434"
+                  className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-headline font-semibold text-on-surface">Model</p>
+              <div className="flex gap-2">
+                <input
+                  value={settings.ollamaModel}
+                  onChange={(e) => setSettings((s) => ({ ...s, ollamaModel: e.target.value }))}
+                  onBlur={() => save(settings)}
+                  placeholder="llama3.2"
+                  className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  onClick={checkConnection}
+                  disabled={checkState === "checking"}
+                  className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {checkState === "checking" ? "Checking…" : "Test"}
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <p className="text-sm font-headline font-semibold text-on-surface">Gemini API Key</p>
+              <p className="text-xs font-body text-on-surface-variant">
+                Stored in your macOS keychain. Article text is sent to Google when Gemini is selected.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={geminiKey}
+                  onChange={(e) => setGeminiKey(e.target.value)}
+                  placeholder="AIza…"
+                  className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  onClick={saveGeminiKey}
+                  disabled={keySaveState === "saving"}
+                  className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {keySaveState === "saving" ? "Saving…" : keySaveState === "saved" ? "Saved ✓" : keySaveState === "error" ? "Error" : "Save"}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-headline font-semibold text-on-surface">Model</p>
+              <div className="flex gap-2">
+                <input
+                  value={settings.geminiModel}
+                  onChange={(e) => setSettings((s) => ({ ...s, geminiModel: e.target.value }))}
+                  onBlur={() => save(settings)}
+                  placeholder={GEMINI_DEFAULT_MODEL}
+                  list="gemini-models"
+                  className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <datalist id="gemini-models">
+                  {GEMINI_MODELS.map((m) => <option key={m.value} value={m.value}>{m.hint}</option>)}
+                </datalist>
+                <button
+                  onClick={checkConnection}
+                  disabled={checkState === "checking"}
+                  className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {checkState === "checking" ? "Checking…" : "Test"}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
 
         {checkMessage && (
           <p className={`text-[11px] font-body ${checkState === "ok" ? "text-primary" : "text-error"}`}>
@@ -300,9 +421,15 @@ function OllamaSection() {
           </p>
         )}
 
-        <p className="text-[10px] font-body text-on-surface-variant">
-          To install a model: <code className="bg-surface-container px-1 py-0.5 rounded text-[10px]">ollama pull {settings.model || "llama3.2"}</code>
-        </p>
+        {settings.provider === "ollama" ? (
+          <p className="text-[10px] font-body text-on-surface-variant">
+            To install a model: <code className="bg-surface-container px-1 py-0.5 rounded text-[10px]">ollama pull {settings.ollamaModel || "llama3.2"}</code>
+          </p>
+        ) : (
+          <p className="text-[10px] font-body text-on-surface-variant">
+            Get a key at <code className="bg-surface-container px-1 py-0.5 rounded text-[10px]">aistudio.google.com/apikey</code>
+          </p>
+        )}
 
         {saveState === "saved" && (
           <p className="text-[11px] font-label text-primary">Settings saved ✓</p>
@@ -744,7 +871,7 @@ export default function SettingsPage() {
 
           <TtsSection />
 
-          <OllamaSection />
+          <AiSection />
 
           <section className="space-y-3">
             <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Export</h2>
