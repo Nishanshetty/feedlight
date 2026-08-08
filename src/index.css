@@ -1,65 +1,53 @@
-@import "@fontsource/manrope/400.css";
-@import "@fontsource/manrope/500.css";
-@import "@fontsource/manrope/600.css";
-@import "@fontsource/manrope/700.css";
-@import "@fontsource/epilogue/600.css";
-@import "@fontsource/epilogue/700.css";
+/* Lumina — "Digital Paper". Playfair for editorial headlines, EB Garamond for
+   long-form prose, Inter for functional UI. Self-hosted: the Tauri CSP blocks
+   the Google Fonts CDN the design references. */
+@import "@fontsource/playfair-display/600.css";
+@import "@fontsource/playfair-display/700.css";
+@import "@fontsource/eb-garamond/400.css";
+@import "@fontsource/eb-garamond/400-italic.css";
+@import "@fontsource/eb-garamond/500.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── App theme tokens (RGB channel triplets for Tailwind <alpha-value>) ──── */
-:root {
-  --c-on-background: 28 28 17;
-  --c-background: 253 252 247;
-  --c-surface: 253 250 231;
-  --c-surface-container: 241 238 220;
-  --c-surface-container-low: 247 244 226;
-  --c-surface-container-high: 236 233 214;
-  --c-surface-container-highest: 230 227 209;
-  --c-surface-container-lowest: 255 255 255;
-  --c-surface-bright: 253 250 231;
-  --c-on-surface: 28 28 17;
-  --c-on-surface-variant: 68 72 66;
-  --c-primary: 24 36 25;
-  --c-primary-dim: 45 58 45;
-  --c-primary-container: 45 58 45;
-  --c-on-primary: 255 255 255;
-  --c-on-primary-container: 149 164 147;
-  --c-secondary: 94 95 91;
-  --c-secondary-container: 227 227 222;
-  --c-on-secondary-container: 100 101 97;
-  --c-tertiary: 27 37 0;
-  --c-error: 186 26 26;
-  --c-outline: 116 120 114;
-  --c-outline-variant: 229 226 208;
-}
+/* ── Lumina theme tokens (RGB channel triplets for Tailwind <alpha-value>) ──
+   Light only, by design: "Digital Paper" is a single tonal system. Elevation
+   is expressed by shifting surface tone, never by shadow.
 
-.dark {
-  --c-on-background: 230 227 216;
-  --c-background: 19 19 16;
-  --c-surface: 23 23 19;
-  --c-surface-container: 42 42 34;
-  --c-surface-container-low: 35 35 28;
-  --c-surface-container-high: 51 51 41;
-  --c-surface-container-highest: 61 61 50;
-  --c-surface-container-lowest: 30 30 24;
-  --c-surface-bright: 56 56 47;
-  --c-on-surface: 230 227 216;
-  --c-on-surface-variant: 196 198 189;
-  --c-primary: 169 194 166;
-  --c-primary-dim: 137 162 134;
-  --c-primary-container: 53 68 53;
-  --c-on-primary: 31 46 32;
-  --c-on-primary-container: 176 200 173;
-  --c-secondary: 178 179 172;
-  --c-secondary-container: 64 64 60;
-  --c-on-secondary-container: 200 201 194;
-  --c-tertiary: 205 214 163;
-  --c-error: 255 180 171;
-  --c-outline: 143 146 137;
-  --c-outline-variant: 64 67 58;
+   Two values deliberately depart from the palette Stitch generated, following
+   the written brief over the generated ramp:
+     primary   charcoal #1a1a1c, not #000000 — "high legibility without the
+               jarring contrast of pure black"
+     tertiary  vellum #d1b181, not #000000 — the "Vellum Accent" used sparingly
+               for highlights, progress and premium interactive states */
+:root {
+  --c-on-background: 26 28 29;
+  --c-background: 249 249 251;
+  --c-surface: 249 249 251;
+  --c-surface-container: 238 238 240;
+  --c-surface-container-low: 243 243 245;
+  --c-surface-container-high: 232 232 234;
+  --c-surface-container-highest: 226 226 228;
+  --c-surface-container-lowest: 255 255 255;
+  --c-surface-bright: 249 249 251;
+  --c-on-surface: 26 28 29;
+  --c-on-surface-variant: 70 70 74;
+  --c-primary: 26 26 28;
+  --c-primary-dim: 58 58 61;
+  --c-primary-container: 27 27 29;
+  --c-on-primary: 255 255 255;
+  --c-on-primary-container: 133 131 134;
+  --c-secondary: 93 94 99;
+  --c-secondary-container: 224 223 228;
+  --c-on-secondary-container: 98 98 103;
+  --c-tertiary: 209 177 129;
+  --c-error: 186 26 26;
+  --c-outline: 119 118 123;
+  --c-outline-variant: 199 198 202;
 }
 
 @keyframes slide {
@@ -68,91 +56,52 @@
 }
 
 /* ── TTS active paragraph highlight ────────────────────────────────────── */
+/* Vellum, and square: the brief keeps text highlights at 0px roundedness so
+   they read like marker on a page rather than a UI chip. */
 .tts-active {
-  background-color: rgba(253, 224, 71, 0.35);
-  border-radius: 3px;
+  background-color: rgba(209, 177, 129, 0.38);
+  border-radius: 0;
   transition: background-color 0.2s ease;
 }
-.dark .tts-active {
-  background-color: rgba(202, 165, 30, 0.25);
+
+/* ── Reader surface ──────────────────────────────────────────────────────
+   One paper surface, matching the app tokens. These stay as their own
+   variables because .article-content prose styles below are built on them. */
+:root {
+  --reader-bg: #f9f9fb;
+  --reader-header-bg: #f3f3f5;
+  --reader-text: #1a1c1d;
+  --reader-text-muted: #46464a;
+  --reader-border: rgba(119, 118, 123, 0.2);
+  --reader-hover: rgba(119, 118, 123, 0.08);
+  /* Links need to separate from charcoal body text without shouting; this is
+     the palette's on-tertiary-container, a vellum dark enough to read. */
+  --reader-primary: #9c7f53;
+  --reader-code-bg: #eeeef0;
 }
 
-/* ── Reader Customizer Themes ───────────────────────────────────────────── */
-.reader-theme-light {
-  --reader-bg: #fdfcf7;
-  --reader-header-bg: #fdfae7;
-  --reader-text: #1c1c11;
-  --reader-text-muted: #444842;
-  --reader-border: rgba(116, 120, 114, 0.2);
-  --reader-hover: rgba(116, 120, 114, 0.08);
-  --reader-primary: #182419;
-  --reader-code-bg: #f1eedc;
-}
 
-.reader-theme-sepia {
-  --reader-bg: #f4ecd8;
-  --reader-header-bg: #eadfca;
-  --reader-text: #5b4636;
-  --reader-text-muted: #705a4f;
-  --reader-border: rgba(112, 90, 79, 0.2);
-  --reader-hover: rgba(112, 90, 79, 0.08);
-  --reader-primary: #8f5a3c;
-  --reader-code-bg: #e5dac1;
-}
-
-.reader-theme-slate {
-  --reader-bg: #f1f3f5;
-  --reader-header-bg: #e9ecef;
-  --reader-text: #212529;
-  --reader-text-muted: #495057;
-  --reader-border: rgba(73, 80, 87, 0.2);
-  --reader-hover: rgba(73, 80, 87, 0.08);
-  --reader-primary: #1a202c;
-  --reader-code-bg: #e2e8f0;
-}
-
-.reader-theme-dark {
-  --reader-bg: #121212;
-  --reader-header-bg: #1e1e1e;
-  --reader-text: #e0e0e0;
-  --reader-text-muted: #a0a0a0;
-  --reader-border: rgba(255, 255, 255, 0.1);
-  --reader-hover: rgba(255, 255, 255, 0.08);
-  --reader-primary: #81c784;
-  --reader-code-bg: #2d2d2d;
-}
-
-/* ── Typography choices ──────────────────────────────────────────────────── */
-.font-reader-sans  { font-family: Manrope, sans-serif; }
-.font-reader-serif { font-family: Merriweather, Georgia, serif; }
+/* ── Typography choices (reader font picker) ─────────────────────────────── */
+.font-reader-sans  { font-family: Inter, sans-serif; }
+.font-reader-serif { font-family: "EB Garamond", Georgia, serif; }
 .font-reader-mono  { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
 /* ── Reader highlights ───────────────────────────────────────────────────── */
 .reader-highlight {
-  background-color: rgba(253, 224, 71, 0.4);
+  background-color: rgba(209, 177, 129, 0.42);
   color: inherit;
-  border-radius: 2px;
+  border-radius: 0;
   padding: 0.05em 0;
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
 .reader-highlight:hover {
-  background-color: rgba(253, 224, 71, 0.6);
+  background-color: rgba(209, 177, 129, 0.62);
 }
-/* Keep the yellow tint visible when selected text overlaps a highlight mark */
+/* Keep the vellum tint visible when selected text overlaps a highlight mark */
 .reader-highlight::selection,
 .reader-highlight *::selection {
-  background-color: rgba(234, 179, 8, 0.45);
-}
-.reader-theme-dark .reader-highlight {
-  background-color: rgba(202, 165, 30, 0.35);
-}
-.reader-theme-dark .reader-highlight:hover {
-  background-color: rgba(202, 165, 30, 0.5);
-}
-.reader-theme-dark .reader-highlight::selection,
-.reader-theme-dark .reader-highlight *::selection {
-  background-color: rgba(202, 165, 30, 0.5);
+  background-color: rgba(184, 150, 100, 0.5);
 }
 .reader-highlight--noted {
   border-bottom: 2px dotted var(--reader-primary);
@@ -214,5 +163,21 @@
 @layer utilities {
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-  .ghost-border { border: 1px solid rgb(var(--c-outline) / 0.3); }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Ghost outline: a border only a few percent darker than its background, per
+     the brief's rule that cards and inputs are defined by tone, not by line. */
+  .ghost-border { border: 1px solid rgb(var(--c-outline-variant) / 0.7); }
+
+  /* The one permitted shadow: highly diffused and faint, to suggest a sheet
+     lifting off the page rather than a digital drop shadow. */
+  .ambient-shadow { box-shadow: 0 4px 24px rgb(26 26 28 / 0.10); }
+
+  /* Reading controls hover just above the paper. */
+  .paper-glass {
+    background-color: rgb(var(--c-surface) / 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
 }

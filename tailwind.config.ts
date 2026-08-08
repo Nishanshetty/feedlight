@@ -42,10 +42,44 @@ const config: Config = {
         "reader-code-bg": "var(--reader-code-bg)",
       },
       fontFamily: {
-        headline: ["Epilogue", "sans-serif"],
-        body: ["Manrope", "sans-serif"],
-        label: ["Manrope", "sans-serif"],
-        sans: ["Manrope", "sans-serif"],
+        headline: ["Playfair Display", "Georgia", "serif"],
+        body: ["EB Garamond", "Georgia", "serif"],
+        label: ["Inter", "system-ui", "sans-serif"],
+        sans: ["Inter", "system-ui", "sans-serif"],
+      },
+      // Lumina's type scale. Each entry carries its own line-height and tracking
+      // so callers use one class instead of restating the pair every time.
+      fontSize: {
+        "headline-lg": ["48px", { lineHeight: "56px", fontWeight: "700" }],
+        "headline-lg-mobile": ["32px", { lineHeight: "40px", fontWeight: "700" }],
+        "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
+        "display-reading": ["24px", { lineHeight: "36px", fontWeight: "400" }],
+        "body-main": ["20px", { lineHeight: "32px", letterSpacing: "-0.01em" }],
+        "ui-label": ["14px", { lineHeight: "20px", letterSpacing: "0.02em", fontWeight: "500" }],
+        "ui-small": ["12px", { lineHeight: "16px" }],
+      },
+      // 8px baseline grid. stack-* are the vertical rhythm steps; the design
+      // uses stack-lg between major editorial sections to keep the page quiet.
+      spacing: {
+        unit: "8px",
+        gutter: "24px",
+        "stack-sm": "12px",
+        "stack-md": "32px",
+        "stack-lg": "64px",
+        "reading-margin-mobile": "24px",
+        "reading-margin-desktop": "120px",
+      },
+      // Soft (0.25rem) shape language — premium stationery, not newsprint.
+      borderRadius: {
+        DEFAULT: "0.25rem",
+        sm: "0.125rem",
+        md: "0.375rem",
+        lg: "0.5rem",
+        xl: "0.75rem",
+      },
+      maxWidth: {
+        // 65–75 characters at body-main, per the reading-column rule.
+        reading: "680px",
       },
     },
   },

@@ -101,20 +101,6 @@ export async function setElevenLabsModel(model: string): Promise<void> {
   await store.save();
 }
 
-export type AppTheme = "light" | "dark" | "system";
-
-export async function getAppTheme(): Promise<AppTheme> {
-  const store = await getStore();
-  const v = await store.get<string>("app_theme");
-  return v === "light" || v === "dark" || v === "system" ? v : "system";
-}
-
-export async function setAppTheme(theme: AppTheme): Promise<void> {
-  const store = await getStore();
-  await store.set("app_theme", theme);
-  await store.save();
-}
-
 /**
  * Background auto-refresh interval, in seconds. `0` means manual only
  * (auto-refresh disabled). Defaults to 900 (15 min). Read by the Rust crawler.
@@ -222,7 +208,7 @@ export async function setGeminiApiKey(key: string): Promise<void> {
 // ── Reset ───────────────────────────────────────────────────────────────────
 
 /**
- * Resets all app settings to their defaults: clears the settings store (theme,
+ * Resets all app settings to their defaults: clears the settings store (
  * TTS, AI, Obsidian path) and removes stored API keys from the OS keychain.
  * Does not touch feeds/articles — see `eraseAllData` in lib/db for those.
  */

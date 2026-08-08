@@ -85,15 +85,11 @@ type SaveControls = {
   onToggle: () => void;
 };
 
-type ReaderTheme = "auto" | "light" | "sepia" | "slate" | "dark";
-
 type ReaderSettings = {
-  theme: ReaderTheme;
   fontFamily: "sans" | "serif" | "mono";
   fontSize: number;
   columnWidth: "narrow" | "medium" | "wide";
   lineHeight: "compact" | "normal" | "roomy";
-  onChangeTheme: (t: ReaderTheme) => void;
   onChangeFontFamily: (f: "sans" | "serif" | "mono") => void;
   onChangeFontSize: (s: number) => void;
   onChangeColumnWidth: (w: "narrow" | "medium" | "wide") => void;
@@ -420,21 +416,6 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
             <div className="absolute right-0 mt-2 w-72 origin-top-right rounded-lg border border-reader-border bg-reader-header-bg p-4 shadow-xl z-50 text-reader-text">
               <h4 className="text-[10px] font-label font-bold uppercase tracking-wider text-reader-text-muted mb-3">Display settings</h4>
               <div className="mb-4">
-                <span className="block text-[11px] text-reader-text-muted mb-2">Theme</span>
-                <div className="flex gap-2">
-                  {[{ id: "auto", label: "Auto", bg: "bg-[linear-gradient(135deg,#fdfcf7_50%,#121212_50%)] text-[#888888] border-gray-400" },
-                    { id: "light", label: "Light", bg: "bg-[#fdfcf7] text-[#1c1c11] border-gray-300" },
-                    { id: "sepia", label: "Sepia", bg: "bg-[#f4ecd8] text-[#5b4636] border-[#eadfca]" },
-                    { id: "slate", label: "Slate", bg: "bg-[#f1f3f5] text-[#212529] border-gray-300" },
-                    { id: "dark", label: "Dark", bg: "bg-[#121212] text-[#e0e0e0] border-zinc-800" }].map((t) => (
-                    <button key={t.id} onClick={() => settings.onChangeTheme(t.id as ReaderTheme)}
-                      className={`relative flex h-8 w-8 items-center justify-center rounded-full border transition-all ${t.bg} ${settings.theme === t.id ? "ring-2 ring-reader-primary ring-offset-2 ring-offset-reader-bg scale-105 border-transparent" : "hover:scale-105"}`}>
-                      <span className="text-[10px] font-bold">{t.label[0]}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="mb-4">
                 <span className="block text-[11px] text-reader-text-muted mb-2">Font</span>
                 <div className="grid grid-cols-3 gap-1">
                   {[{ id: "sans", label: "Sans" }, { id: "serif", label: "Serif" }, { id: "mono", label: "Mono" }].map((f) => (
@@ -740,8 +721,6 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
   const tagItemId = itemId ?? savedItemId;
   // Collapse the pane into a floating mini-player (keeps TTS playing).
   const [minimized, setMinimized] = useState(false);
-  const [theme, setTheme] = useState<ReaderTheme>("auto");
-  const [appDark, setAppDark] = useState(() => document.documentElement.classList.contains("dark"));
   const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">("sans");
   const [fontSize, setFontSize] = useState(14);
   const [columnWidth, setColumnWidth] = useState<"narrow" | "medium" | "wide">("medium");
@@ -1024,22 +1003,12 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [activeNote, noteDraft]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Track the app-level theme so the "auto" reader theme can follow it,
-  // including macOS appearance flips while an article is open.
-  useEffect(() => {
-    const obs = new MutationObserver(() => {
-      setAppDark(document.documentElement.classList.contains("dark"));
-    });
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => obs.disconnect();
-  }, []);
-
   useEffect(() => {
     try {
       const saved = localStorage.getItem("feedlight:reader-settings");
       if (saved) {
         const p = JSON.parse(saved);
-        if (p.theme) setTheme(p.theme);
+        // p.theme may exist from before the single-surface reader; ignored.
         if (p.fontFamily) setFontFamily(p.fontFamily);
         if (p.fontSize) setFontSize(p.fontSize);
         if (p.columnWidth) setColumnWidth(p.columnWidth);
@@ -1049,12 +1018,12 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
     } catch { /* ignore */ }
   }, []);
 
-  const saveSettings = useMemo(() => (updates: Partial<{ theme: typeof theme; fontFamily: typeof fontFamily; fontSize: number; columnWidth: typeof columnWidth; lineHeight: typeof lineHeight; speed: number }>) => {
+  const saveSettings = useMemo(() => (updates: Partial<{ fontFamily: typeof fontFamily; fontSize: number; columnWidth: typeof columnWidth; lineHeight: typeof lineHeight; speed: number }>) => {
     try {
-      const current = { theme, fontFamily, fontSize, columnWidth, lineHeight, speed, ...updates };
+      const current = { fontFamily, fontSize, columnWidth, lineHeight, speed, ...updates };
       localStorage.setItem("feedlight:reader-settings", JSON.stringify(current));
     } catch { /* ignore */ }
-  }, [theme, fontFamily, fontSize, columnWidth, lineHeight, speed]);
+  }, [fontFamily, fontSize, columnWidth, lineHeight, speed]);
 
   useEffect(() => {
     getAiSettings().then(setAiSettings).catch(console.error);
@@ -1460,8 +1429,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
   // ── Controls objects ────────────────────────────────────────────────────────
 
   const settingsControls: ReaderSettings = {
-    theme, fontFamily, fontSize, columnWidth, lineHeight,
-    onChangeTheme: (t) => { setTheme(t); saveSettings({ theme: t }); },
+    fontFamily, fontSize, columnWidth, lineHeight,
     onChangeFontFamily: (f) => { setFontFamily(f); saveSettings({ fontFamily: f }); },
     onChangeFontSize: (s) => { setFontSize(s); saveSettings({ fontSize: s }); },
     onChangeColumnWidth: (w) => { setColumnWidth(w); saveSettings({ columnWidth: w }); },
@@ -1699,15 +1667,12 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
   const saveControls: SaveControls | undefined =
     isExternal ? { saved: isSaved, onToggle: handleToggleSave } : undefined;
 
-  const resolvedTheme = theme === "auto" ? (appDark ? "dark" : "light") : theme;
   const paneTitle = result.state === "ok" ? result.title : title;
   const paneDomain = (() => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } })();
 
-  // Ambient accent: fixed saturation/lightness per theme keeps text contrast safe
-  const accentColor = accentHue === null ? undefined
-    : resolvedTheme === "dark" ? `hsl(${accentHue} 45% 70%)`
-    : resolvedTheme === "sepia" ? `hsl(${accentHue} 45% 32%)`
-    : `hsl(${accentHue} 50% 30%)`;
+  // Ambient accent: fixed saturation/lightness keeps text contrast safe against
+  // the paper surface.
+  const accentColor = accentHue === null ? undefined : `hsl(${accentHue} 50% 30%)`;
 
   return (
     <>
@@ -1715,7 +1680,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
 
       {minimized && (
         <div
-          className={`fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] items-center gap-2 rounded-lg border px-3 py-2 shadow-2xl reader-theme-${resolvedTheme} bg-reader-bg border-reader-border text-reader-text`}
+          className={`fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] items-center gap-2 rounded-lg border px-3 py-2 shadow-2xl bg-reader-bg border-reader-border text-reader-text`}
           style={accentColor ? ({ "--reader-primary": accentColor } as React.CSSProperties) : undefined}
         >
           <button onClick={() => setMinimized(false)} aria-label="Expand article" title="Expand"
@@ -1767,7 +1732,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
       )}
 
       <div
-        className={`fixed right-0 top-0 bottom-0 z-50 flex w-full flex-col border-l shadow-2xl sm:w-[65vw] xl:w-[58vw] reader-theme-${resolvedTheme} bg-reader-bg border-reader-border text-reader-text transition-colors duration-200 ${minimized ? "hidden" : ""}`}
+        className={`fixed right-0 top-0 bottom-0 z-50 flex w-full flex-col border-l shadow-2xl sm:w-[65vw] xl:w-[58vw] bg-reader-bg border-reader-border text-reader-text transition-colors duration-200 ${minimized ? "hidden" : ""}`}
         style={accentColor ? ({ "--reader-primary": accentColor } as React.CSSProperties) : undefined}
       >
         <PaneHeader
