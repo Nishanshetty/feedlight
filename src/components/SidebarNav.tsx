@@ -241,8 +241,11 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ top: number; bottom: number; right: number } | null>(null);
-  const [showAllTags, setShowAllTags] = useState(false);
-  const TAG_LIMIT = 10;
+  const [tagQuery, setTagQuery] = useState("");
+  /** Shown when the filter is empty, so tags stay discoverable without listing all. */
+  const TAG_TOP_N = 5;
+  /** Cap on matches, so a broad query can't push the feed list off screen. */
+  const TAG_MATCH_LIMIT = 8;
 
   function toggleFolder(folder: string) {
     setCollapsedFolders((prev) => {
@@ -297,39 +300,59 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
       {(() => {
         const inUse = tags.filter((t) => t.count > 0);
         if (inUse.length === 0) return null;
-        const shown = showAllTags ? inUse : inUse.slice(0, TAG_LIMIT);
-        const extra = inUse.length - TAG_LIMIT;
+
+        const q = tagQuery.trim().toLowerCase();
+        const byCount = [...inUse].sort((a, b) => b.count - a.count);
+        const matches = q
+          ? byCount.filter((t) => t.name.toLowerCase().includes(q)).slice(0, TAG_MATCH_LIMIT)
+          : byCount.slice(0, TAG_TOP_N);
+
+        // The active tag stays reachable even when the query excludes it —
+        // otherwise clearing the filter means retyping its name.
+        const active = inUse.find((t) => t.id === activeTagId);
+        const shown = active && !matches.some((t) => t.id === active.id) ? [active, ...matches] : matches;
+
+        const tagPill = (tag: TagWithCount) => {
+          const isActive = activeTagId === tag.id;
+          return (
+            <button key={tag.id}
+              onClick={() => onNavigate(isActive ? {} : { tagId: tag.id, tagName: tag.name })}
+              title={isActive ? `Clear #${tag.name}` : `${tag.name} · ${tag.count}`}
+              className={["inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 font-body text-ui-small transition-colors",
+                isActive
+                  ? "bg-primary text-on-primary"
+                  : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
+              ].join(" ")}>
+              <span className="truncate">#{tag.name}</span>
+              <span className={isActive ? "opacity-80" : "text-outline"}>{isActive ? "×" : tag.count}</span>
+            </button>
+          );
+        };
+
         return (
           <div className="mt-5">
             {sectionLabel("Tags")}
-            <div className={`flex flex-wrap gap-1 px-3 ${showAllTags ? "max-h-64 overflow-y-auto scrollbar-hide" : ""}`}>
-              {shown.map((tag) => {
-                const active = activeTagId === tag.id;
-                return (
-                  <button key={tag.id} onClick={() => onNavigate({ tagId: tag.id, tagName: tag.name })}
-                    title={`${tag.name} · ${tag.count}`}
-                    className={["inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-ui-small font-body transition-colors",
-                      active
-                        ? "bg-primary text-on-primary"
-                        : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
-                    ].join(" ")}>
-                    <span className="truncate">#{tag.name}</span>
-                    <span className={active ? "opacity-80" : "text-outline"}>{tag.count}</span>
-                  </button>
-                );
-              })}
-              {!showAllTags && extra > 0 && (
-                <button onClick={() => setShowAllTags(true)}
-                  className="rounded-full px-2 py-0.5 text-ui-small font-body text-outline transition-colors hover:text-on-surface">
-                  +{extra} more
-                </button>
-              )}
-              {showAllTags && inUse.length > TAG_LIMIT && (
-                <button onClick={() => setShowAllTags(false)}
-                  className="rounded-full px-2 py-0.5 text-ui-small font-body text-outline transition-colors hover:text-on-surface">
-                  Show less
-                </button>
-              )}
+            <div className="px-3">
+              <input
+                value={tagQuery}
+                onChange={(e) => setTagQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") { setTagQuery(""); e.currentTarget.blur(); }
+                  if (e.key === "Enter" && matches[0]) {
+                    onNavigate({ tagId: matches[0].id, tagName: matches[0].name });
+                    setTagQuery("");
+                    e.currentTarget.blur();
+                  }
+                }}
+                placeholder={`Filter ${inUse.length} tag${inUse.length !== 1 ? "s" : ""}…`}
+                className="ghost-border w-full rounded bg-surface-container-lowest px-2 py-1 font-label text-ui-small text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {shown.map(tagPill)}
+                {q && matches.length === 0 && (
+                  <span className="px-1 py-0.5 font-label text-ui-small text-outline">No match</span>
+                )}
+              </div>
             </div>
           </div>
         );
