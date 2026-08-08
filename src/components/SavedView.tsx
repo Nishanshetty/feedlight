@@ -95,7 +95,7 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
             {items.map((item, index) => (
               <FeedItemCard key={item.id} item={item}
                 isRead={readIds.has(item.id)} isStarred={true}
-                isSelected={index === selectedIndex} accentIndex={index}
+                isSelected={index === selectedIndex}
                 layout="card" hero={false}
                 onActivate={() => selectAndRead(index)}
                 onOpen={() => { if (item.link) openUrl(item.link); }}

@@ -220,19 +220,18 @@ export default function TimelineList({
 
   return (
     <div className="relative">
-      <div className={`h-0.5 w-full transition-all duration-300 ${isLoading || isMarkingAll ? "bg-primary/60" : "bg-transparent"}`}>
-        {(isLoading || isMarkingAll) && <div className="h-full w-1/3 bg-primary animate-[slide_1.2s_ease-in-out_infinite]" />}
+      <div className={`h-0.5 w-full transition-all duration-300 ${isLoading || isMarkingAll ? "bg-tertiary/30" : "bg-transparent"}`}>
+        {(isLoading || isMarkingAll) && <div className="h-full w-1/3 bg-tertiary animate-[slide_1.2s_ease-in-out_infinite]" />}
       </div>
 
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-outline-variant/40 bg-background/80 px-4 py-3 backdrop-blur-xl">
-        <div className="flex items-baseline gap-2">
-          <h3 className="text-[11px] font-headline font-bold uppercase tracking-widest text-outline">
-            Queue / {filterLabel}
-          </h3>
-          {totalUnread > 0 && (
-            <span className="text-[10px] font-label text-outline opacity-60">{totalUnread} unread</span>
-          )}
-        </div>
+      <header className="px-reading-margin-mobile pb-stack-md pt-unit lg:px-16 2xl:px-reading-margin-desktop">
+        <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">{filterLabel}</h1>
+        <p className="mt-2 font-label text-ui-label text-on-surface-variant">
+          {totalUnread > 0 ? `${totalUnread} unread` : "All caught up"}
+        </p>
+      </header>
+
+      <div className="paper-glass sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-outline-variant px-reading-margin-mobile py-3 lg:px-16 2xl:px-reading-margin-desktop">
         <div className="flex items-center gap-2">
           <input
             ref={searchRef}
@@ -240,36 +239,36 @@ export default function TimelineList({
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Escape") { setSearchInput(""); e.currentTarget.blur(); } }}
             placeholder="Search… ( / )"
-            className="ghost-border w-36 bg-surface-container px-2 py-1 text-[11px] font-label text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary"
+            className="ghost-border w-40 rounded bg-surface-container-lowest px-2.5 py-1.5 font-label text-ui-small text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <div className="flex">
             <button onClick={() => changeDensity("grid")} aria-label="Grid view" title="Grid view"
-              className={`ghost-border px-2 py-1 transition-colors ${density === "grid" ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:text-on-surface"}`}>
+              className={`ghost-border rounded-l px-2.5 py-1.5 transition-colors ${density === "grid" ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-on-surface-variant hover:text-primary"}`}>
               <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
               </svg>
             </button>
             <button onClick={() => changeDensity("list")} aria-label="List view" title="List view"
-              className={`ghost-border px-2 py-1 transition-colors ${density === "list" ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:text-on-surface"}`}>
+              className={`ghost-border rounded-r border-l-0 px-2.5 py-1.5 transition-colors ${density === "list" ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-on-surface-variant hover:text-primary"}`}>
               <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
           </div>
           <button onClick={() => setUnreadOnly((v) => !v)}
-            className={`ghost-border px-2.5 py-1 text-[11px] font-label font-bold uppercase tracking-widest transition-colors ${unreadOnly ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:text-on-surface"}`}>
+            className={`ghost-border rounded px-3 py-1.5 font-label text-ui-small font-semibold uppercase tracking-[0.14em] transition-colors ${unreadOnly ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-on-surface-variant hover:text-primary"}`}>
             Unread
           </button>
           {!lockRange && (
             <select value={range} onChange={(e) => onRangeChange(e.target.value as DateRange)}
-              className="ghost-border bg-surface-container px-2 py-1 text-[11px] font-label text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer">
+              className="ghost-border cursor-pointer rounded bg-surface-container-lowest px-2.5 py-1.5 font-label text-ui-small text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary">
               {DATE_RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           )}
           {totalUnread > 0 && !starredOnly && !tagId && (
             <button onClick={handleMarkAllRead} disabled={isMarkingAll}
-              className="ghost-border bg-surface-container px-2.5 py-1 text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-40">
+              className="ghost-border rounded bg-surface-container-lowest px-3 py-1.5 font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-on-surface-variant transition-colors hover:text-primary disabled:opacity-40">
               {isMarkingAll ? "Marking…" : "Mark all read"}
             </button>
           )}
@@ -278,15 +277,15 @@ export default function TimelineList({
 
       {items.length === 0 && !isLoading ? (
         <div className="px-6 py-20 text-center">
-          <p className="text-[12px] font-label text-outline uppercase tracking-widest">
+          <p className="font-label text-ui-label uppercase tracking-[0.14em] text-outline">
             {feedIds.length === 0 ? "Add a feed from the sidebar to get started." : `No items in ${filterLabel} for this time period.`}
           </p>
         </div>
       ) : (
         <>
           <ul className={density === "grid"
-            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 p-6"
-            : "flex flex-col px-2 py-4"}>
+            ? "grid grid-cols-1 gap-gutter px-reading-margin-mobile py-stack-md md:grid-cols-2 lg:grid-cols-3 lg:px-16 2xl:grid-cols-4 2xl:px-reading-margin-desktop"
+            : "flex flex-col px-reading-margin-mobile py-stack-md lg:px-16 2xl:px-reading-margin-desktop"}>
             {items.map((item, index) => {
               const group = dateGroup(item.published_at);
               const prevGroup = index > 0 ? dateGroup(items[index - 1].published_at) : null;
@@ -294,15 +293,15 @@ export default function TimelineList({
                 <Fragment key={item.id}>
                   {group !== prevGroup && (
                     <li className={`col-span-full flex items-center gap-3 ${density === "grid" ? "pt-2 first:pt-0" : "px-4 pt-4 pb-2 first:pt-1"}`}>
-                      <span className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">
+                      <span className="font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-outline">
                         {group}
                       </span>
-                      <div className="h-px flex-1 bg-outline-variant/40" />
+                      <div className="h-px flex-1 bg-outline-variant" />
                     </li>
                   )}
                   <FeedItemCard item={item}
                     isRead={readIds.has(item.id)} isStarred={starredIds.has(item.id)}
-                    isSelected={index === selectedIndex} accentIndex={index}
+                    isSelected={index === selectedIndex}
                     layout={density === "grid" ? "card" : "row"}
                     hero={density === "grid" && !searchQuery && index === 0}
                     onActivate={() => selectAndRead(index)}
@@ -315,14 +314,14 @@ export default function TimelineList({
           </ul>
           {hasMore && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
           <div className="py-8 text-center">
-            {loadError && <p className="mb-3 text-[11px] font-label text-error">{loadError}</p>}
+            {loadError && <p className="mb-3 font-label text-ui-small text-error">{loadError}</p>}
             {hasMore ? (
               <button onClick={handleLoadMore} disabled={isLoading}
-                className="ghost-border bg-surface-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-40">
+                className="ghost-border rounded bg-surface-container-lowest px-4 py-2 font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-on-surface-variant transition-colors hover:text-primary disabled:opacity-40">
                 {isLoading ? "Loading…" : "Load more"}
               </button>
             ) : (
-              <p className="text-[10px] font-label uppercase tracking-widest text-outline">You're all caught up</p>
+              <p className="font-label text-ui-small uppercase tracking-[0.14em] text-outline">You're all caught up</p>
             )}
           </div>
         </>
