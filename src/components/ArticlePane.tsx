@@ -21,6 +21,8 @@ type Props = {
   title: string | null;
   itemId?: string | null; // when set, scroll progress is persisted per item
   content?: ArchivedContent | null; // pre-extracted content (e.g. a PDF) — skip fetching
+  /** Docked: an in-flow column beside the list. Otherwise a fixed overlay. */
+  docked?: boolean;
   onClose: () => void;
 };
 
@@ -711,7 +713,7 @@ function LoadingSkeleton() {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function ArticlePane({ url, title, itemId, content, onClose }: Props) {
+export default function ArticlePane({ url, title, itemId, content, docked = false, onClose }: Props) {
   const [result, setResult] = useState<ExtractResult>({ state: "loading" });
   // Save state — only meaningful for external (⌘L) reads, which have no itemId.
   const isExternal = !itemId;
@@ -1679,7 +1681,7 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
 
   return (
     <>
-      {!minimized && <div className="fixed inset-0 z-40 bg-black/25" onClick={onClose} aria-hidden="true" />}
+      {!docked && !minimized && <div className="fixed inset-0 z-40 bg-black/25" onClick={onClose} aria-hidden="true" />}
 
       {minimized && (
         <div
@@ -1735,7 +1737,13 @@ export default function ArticlePane({ url, title, itemId, content, onClose }: Pr
       )}
 
       <div
-        className={`fixed right-0 top-0 bottom-0 z-50 flex w-full flex-col border-l ambient-shadow sm:w-[72vw] xl:w-[64vw] bg-reader-bg border-reader-border text-reader-text transition-colors duration-200 ${minimized ? "hidden" : ""}`}
+        className={[
+          "flex flex-col bg-reader-bg text-reader-text transition-colors duration-200",
+          docked
+            ? "min-w-0 flex-1 border-r border-reader-border"
+            : "fixed right-0 top-0 bottom-0 z-50 w-full border-l ambient-shadow sm:w-[72vw] xl:w-[64vw] border-reader-border",
+          minimized ? "hidden" : "",
+        ].join(" ")}
         style={accentColor ? ({ "--reader-primary": accentColor } as React.CSSProperties) : undefined}
       >
         {!isYT && result.state === "ok" && (

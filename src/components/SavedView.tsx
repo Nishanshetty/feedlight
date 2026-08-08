@@ -4,7 +4,7 @@ import { getSavedItems, unsaveItem, upsertItemState } from "../lib/db";
 import type { TimelineItem } from "../types/database";
 import { useKeyboardShortcuts } from "../lib/hooks/use-keyboard-shortcuts";
 import FeedItemCard from "./FeedItemCard";
-import ArticlePane from "./ArticlePane";
+import { useReader } from "../lib/reader-context";
 
 type Props = {
   refreshKey: number;
@@ -15,7 +15,7 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [paneItem, setPaneItem] = useState<TimelineItem | null>(null);
+  const reader = useReader();
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 
@@ -41,7 +41,7 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
     const item = items[index];
     if (!item) return;
     setSelectedIndex(index);
-    setPaneItem(item);
+    reader.open({ url: item.link ?? "", title: item.title, itemId: item.id });
     if (!readIds.has(item.id)) {
       setReadIds((prev) => new Set(Array.from(prev).concat(item.id)));
       upsertItemState(item.id, { is_read: true }).then(onStatesChanged).catch(console.error);
@@ -62,7 +62,7 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
     k: () => setSelectedIndex((prev) => (prev < 0 ? 0 : Math.max(prev - 1, 0))),
     o: () => { if (selectedIndex >= 0) selectAndRead(selectedIndex); },
     Enter: () => { if (selectedIndex >= 0) selectAndRead(selectedIndex); },
-    Escape: () => setPaneItem(null),
+    Escape: () => reader.close(),
     s: () => { if (selectedIndex >= 0) handleUnsave(selectedIndex); },
   });
 
@@ -72,8 +72,8 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
         {isLoading && <div className="h-full w-1/3 bg-tertiary animate-[slide_1.2s_ease-in-out_infinite]" />}
       </div>
 
-      <header className="px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop pb-stack-md pt-unit">
-        <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">Saved</h1>
+      <header className={reader.isOpen ? "px-4 pb-4 pt-unit" : "px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop pb-stack-md pt-unit"}>
+        <h1 className={`font-headline text-primary ${reader.isOpen ? "text-headline-md" : "text-headline-lg-mobile md:text-headline-lg"}`}>Saved</h1>
         <p className="mt-2 font-label text-ui-label text-on-surface-variant">
           {items.length > 0 ? `${items.length} article${items.length !== 1 ? "s" : ""}` : "Nothing saved yet"}
         </p>
@@ -103,9 +103,6 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
         </>
       )}
 
-      {paneItem?.link && (
-        <ArticlePane url={paneItem.link} title={paneItem.title} itemId={paneItem.id} onClose={() => setPaneItem(null)} />
-      )}
     </div>
   );
 }

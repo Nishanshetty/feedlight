@@ -6,7 +6,7 @@ import type { TimelineItem } from "../types/database";
 import type { DateRange } from "../lib/date-range";
 import { useKeyboardShortcuts } from "../lib/hooks/use-keyboard-shortcuts";
 import FeedItemCard from "./FeedItemCard";
-import ArticlePane from "./ArticlePane";
+import { useReader } from "../lib/reader-context";
 
 const FIRST_PAGE_CURSOR = "2099-12-31T23:59:59.999Z";
 
@@ -62,7 +62,7 @@ export default function TimelineList({
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [paneItem, setPaneItem] = useState<TimelineItem | null>(null);
+  const reader = useReader();
   const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -80,6 +80,10 @@ export default function TimelineList({
     }
     prevFilterKeyRef.current = filterKey;
   }, [filterKey]);
+
+  // Reading collapses the list to a single narrow column; the saved density
+  // preference is left untouched and comes back when the reader closes.
+  const effectiveDensity = reader.isOpen ? "list" : density;
 
   function changeDensity(d: "grid" | "list") {
     setDensity(d);
@@ -140,7 +144,7 @@ export default function TimelineList({
     const item = items[index];
     if (!item) return;
     setSelectedIndex(index);
-    setPaneItem(item);
+    reader.open({ url: item.link ?? "", title: item.title, itemId: item.id });
     if (!readIds.has(item.id)) {
       setReadIds((prev) => setAdd(prev, item.id));
       setTotalUnread((prev) => Math.max(0, prev - 1));
@@ -194,9 +198,9 @@ export default function TimelineList({
   useKeyboardShortcuts({
     j: () => setSelectedIndex((prev) => prev < 0 ? 0 : Math.min(prev + 1, items.length - 1)),
     k: () => setSelectedIndex((prev) => prev < 0 ? 0 : Math.max(prev - 1, 0)),
-    o: () => { if (selectedIndex >= 0) setPaneItem(items[selectedIndex] ?? null); },
-    Enter: () => { if (selectedIndex >= 0) setPaneItem(items[selectedIndex] ?? null); },
-    Escape: () => setPaneItem(null),
+    o: () => { if (selectedIndex >= 0) selectAndRead(selectedIndex); },
+    Enter: () => { if (selectedIndex >= 0) selectAndRead(selectedIndex); },
+    Escape: () => reader.close(),
     m: () => {
       const item = items[selectedIndex];
       if (!item) return;
@@ -224,14 +228,18 @@ export default function TimelineList({
         {(isLoading || isMarkingAll) && <div className="h-full w-1/3 bg-tertiary animate-[slide_1.2s_ease-in-out_infinite]" />}
       </div>
 
-      <header className="px-reading-margin-mobile pb-stack-md pt-unit lg:px-16 2xl:px-reading-margin-desktop">
-        <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">{filterLabel}</h1>
+      <header className={reader.isOpen
+        ? "px-4 pb-4 pt-unit"
+        : "px-reading-margin-mobile pb-stack-md pt-unit lg:px-16 2xl:px-reading-margin-desktop"}>
+        <h1 className={`font-headline text-primary ${reader.isOpen ? "text-headline-md" : "text-headline-lg-mobile md:text-headline-lg"}`}>
+          {filterLabel}
+        </h1>
         <p className="mt-2 font-label text-ui-label text-on-surface-variant">
           {totalUnread > 0 ? `${totalUnread} unread` : "All caught up"}
         </p>
       </header>
 
-      <div className="paper-glass sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-outline-variant px-reading-margin-mobile py-3 lg:px-16 2xl:px-reading-margin-desktop">
+      <div className={`paper-glass sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-outline-variant py-3 ${reader.isOpen ? "px-4" : "px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop"}`}>
         <div className="flex items-center gap-2">
           <input
             ref={searchRef}
@@ -241,6 +249,7 @@ export default function TimelineList({
             placeholder="Search… ( / )"
             className="ghost-border w-40 rounded bg-surface-container-lowest px-2.5 py-1.5 font-label text-ui-small text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary"
           />
+          {!reader.isOpen && (
           <div className="flex">
             <button onClick={() => changeDensity("grid")} aria-label="Grid view" title="Grid view"
               className={`ghost-border rounded-l px-2.5 py-1.5 transition-colors ${density === "grid" ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-on-surface-variant hover:text-primary"}`}>
@@ -256,11 +265,12 @@ export default function TimelineList({
               </svg>
             </button>
           </div>
+          )}
           <button onClick={() => setUnreadOnly((v) => !v)}
             className={`ghost-border rounded px-3 py-1.5 font-label text-ui-small font-semibold uppercase tracking-[0.14em] transition-colors ${unreadOnly ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-on-surface-variant hover:text-primary"}`}>
             Unread
           </button>
-          {!lockRange && (
+          {!lockRange && !reader.isOpen && (
             <select value={range} onChange={(e) => onRangeChange(e.target.value as DateRange)}
               className="ghost-border cursor-pointer rounded bg-surface-container-lowest px-2.5 py-1.5 font-label text-ui-small text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary">
               {DATE_RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -283,8 +293,9 @@ export default function TimelineList({
         </div>
       ) : (
         <>
-          <ul className={density === "grid"
+          <ul className={effectiveDensity === "grid"
             ? "grid grid-cols-1 gap-gutter px-reading-margin-mobile py-stack-md md:grid-cols-2 lg:grid-cols-3 lg:px-16 2xl:grid-cols-4 2xl:px-reading-margin-desktop"
+            : reader.isOpen ? "flex flex-col px-2 py-4"
             : "flex flex-col px-reading-margin-mobile py-stack-md lg:px-16 2xl:px-reading-margin-desktop"}>
             {items.map((item, index) => {
               const group = dateGroup(item.published_at);
@@ -292,7 +303,7 @@ export default function TimelineList({
               return (
                 <Fragment key={item.id}>
                   {group !== prevGroup && (
-                    <li className={`col-span-full flex items-center gap-3 ${density === "grid" ? "pt-2 first:pt-0" : "px-4 pt-4 pb-2 first:pt-1"}`}>
+                    <li className={`col-span-full flex items-center gap-3 ${effectiveDensity === "grid" ? "pt-2 first:pt-0" : "pt-4 pb-2 first:pt-1"}`}>
                       <span className="font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-outline">
                         {group}
                       </span>
@@ -302,8 +313,8 @@ export default function TimelineList({
                   <FeedItemCard item={item}
                     isRead={readIds.has(item.id)} isStarred={starredIds.has(item.id)}
                     isSelected={index === selectedIndex}
-                    layout={density === "grid" ? "card" : "row"}
-                    hero={density === "grid" && !searchQuery && index === 0}
+                    layout={effectiveDensity === "grid" ? "card" : "row"}
+                    hero={effectiveDensity === "grid" && !searchQuery && index === 0}
                     onActivate={() => selectAndRead(index)}
                     onOpen={() => { if (item.link) openUrl(item.link); }}
                     onToggleStar={(e) => handleToggleStar(index, item.id, e)}
@@ -327,9 +338,6 @@ export default function TimelineList({
         </>
       )}
 
-      {paneItem?.link && (
-        <ArticlePane url={paneItem.link} title={paneItem.title} itemId={paneItem.id} onClose={() => setPaneItem(null)} />
-      )}
     </div>
   );
 }

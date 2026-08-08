@@ -5,7 +5,28 @@ import ReadUrlModal from "./ReadUrlModal";
 import ArticlePane from "./ArticlePane";
 import { useKeyboardShortcuts } from "../lib/hooks/use-keyboard-shortcuts";
 import { useFeedRefresh } from "../lib/hooks/use-feed-refresh";
-import { getLastSyncedAt, type ArchivedContent } from "../lib/db";
+import { getLastSyncedAt } from "../lib/db";
+import { ReaderProvider, useReader } from "../lib/reader-context";
+
+/**
+ * Below this the window can't seat rail + reader + list at once: 256 rail +
+ * 320 list + 920 reader, where 920 is the 680px column with the brief's 120px
+ * margins. Under it the rail steps aside while reading.
+ */
+const THREE_COLUMN_MIN = 1500;
+
+/** Under this there isn't room to dock at all, so the reader stays an overlay. */
+const DOCK_MIN = 1100;
+
+function useViewportWidth(): number {
+  const [width, setWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return width;
+}
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -41,11 +62,27 @@ type Props = {
   onRefreshComplete: () => void;
 };
 
-export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
+export default function AppShell(props: Props) {
+  return (
+    <ReaderProvider>
+      <AppShellInner {...props} />
+    </ReaderProvider>
+  );
+}
+
+function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
+  const reader = useReader();
+  const viewportWidth = useViewportWidth();
+  const docked = reader.isOpen && viewportWidth >= DOCK_MIN;
+  // Auto-collapse is a default, not a lock: toggling the rail by hand clears it
+  // for as long as the article stays open.
+  const [railOverride, setRailOverride] = useState(false);
+  const autoCollapsed = docked && viewportWidth < THREE_COLUMN_MIN && !railOverride;
+  useEffect(() => { if (!reader.isOpen) setRailOverride(false); }, [reader.isOpen]);
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [readUrlOpen, setReadUrlOpen] = useState(false);
-  const [quickRead, setQuickRead] = useState<{ url: string; title: string | null; content: ArchivedContent | null } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
@@ -91,7 +128,7 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
       const content = pdfTextToHtml(text);
       if (!content) { showToast("Couldn't extract any text from that PDF"); return; }
       const title = pdfTitleFromPath(path);
-      setQuickRead({ url: path, title, content: { title, byline: null, siteName: "PDF", content } });
+      reader.open({ url: path, title, content: { title, byline: null, siteName: "PDF", content } });
       setToast(null);
     } catch (err) {
       console.error("PDF read failed:", err);
@@ -123,7 +160,12 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
           rail now, so this strip carries only transient actions and fades into
           the page margin. */}
       <header className="flex h-14 shrink-0 items-center gap-1 bg-background px-6 z-50">
-        <button onClick={() => setSidebarOpen((v) => !v)} aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+        <button
+          onClick={() => {
+            if (autoCollapsed) { setRailOverride(true); setSidebarOpen(true); return; }
+            setSidebarOpen((v) => !v);
+          }}
+          aria-label={sidebarOpen && !autoCollapsed ? "Close sidebar" : "Open sidebar"}
           className="rounded p-1.5 text-outline transition-colors hover:text-primary">
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 6h18M3 12h18M3 18h18" />
@@ -164,30 +206,49 @@ export default function AppShell({ sidebar, main, onRefreshComplete }: Props) {
       </header>
 
       <div className="flex min-h-0 flex-1">
-        {sidebarOpen && (
+        {sidebarOpen && !autoCollapsed && (
           <aside className="w-64 shrink-0 overflow-y-auto scrollbar-hide border-r border-outline-variant bg-surface">
             {sidebar}
           </aside>
         )}
-        <main className="flex-1 overflow-y-auto scrollbar-hide bg-background">{main}</main>
+
+        {/* Docked reader takes the centre; the list reflows to a narrow column
+            on the right so what you're reading stays optically centred. */}
+        {docked && reader.request && (
+          <ArticlePane
+            key={reader.request.url}
+            url={reader.request.url}
+            title={reader.request.title}
+            itemId={reader.request.itemId}
+            content={reader.request.content}
+            docked
+            onClose={reader.close}
+          />
+        )}
+
+        <main className={`overflow-y-auto scrollbar-hide bg-background ${docked ? "w-[340px] shrink-0" : "flex-1"}`}>
+          {main}
+        </main>
       </div>
 
       <ShortcutsModal open={showShortcuts} onClose={() => setShowShortcuts(false)} />
 
       {readUrlOpen && (
         <ReadUrlModal
-          onSubmit={(url) => setQuickRead({ url, title: null, content: null })}
+          onSubmit={(url) => reader.open({ url, title: null, content: null })}
           onSubmitPdf={handleReadPdf}
           onClose={() => setReadUrlOpen(false)}
         />
       )}
 
-      {quickRead && (
+      {!docked && reader.request && (
         <ArticlePane
-          url={quickRead.url}
-          title={quickRead.title}
-          content={quickRead.content}
-          onClose={() => setQuickRead(null)}
+          key={reader.request.url}
+          url={reader.request.url}
+          title={reader.request.title}
+          itemId={reader.request.itemId}
+          content={reader.request.content}
+          onClose={reader.close}
         />
       )}
 

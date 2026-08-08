@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getAllHighlights, deleteHighlight } from "../lib/db";
 import { getObsidianVaultPath } from "../lib/settings";
 import type { HighlightWithArticle } from "../types/database";
-import ArticlePane from "./ArticlePane";
+import { useReader } from "../lib/reader-context";
 
 type ArticleGroup = {
   itemId: string;
@@ -28,7 +28,7 @@ export default function HighlightsView() {
   const [loaded, setLoaded] = useState(false);
   const [vaultPath, setVaultPath] = useState("");
   const [exportStatus, setExportStatus] = useState<Record<string, "ok" | "error">>({});
-  const [paneItem, setPaneItem] = useState<{ itemId: string; title: string | null; link: string } | null>(null);
+  const reader = useReader();
 
   useEffect(() => {
     getAllHighlights().then(setAll).catch(console.error).finally(() => setLoaded(true));
@@ -77,9 +77,9 @@ export default function HighlightsView() {
   }
 
   return (
-    <div className="px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop py-unit">
+    <div className={reader.isOpen ? "px-4 py-unit" : "px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop py-unit"}>
       <header className="pb-stack-md">
-        <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">Highlights</h1>
+        <h1 className={`font-headline text-primary ${reader.isOpen ? "text-headline-md" : "text-headline-lg-mobile md:text-headline-lg"}`}>Highlights</h1>
         <p className="mt-2 font-label text-ui-label text-on-surface-variant">
           {all.length > 0
             ? `${all.length} across ${groups.length} article${groups.length !== 1 ? "s" : ""}`
@@ -101,7 +101,12 @@ export default function HighlightsView() {
             <div className="flex items-start justify-between gap-3 border-b border-outline-variant px-5 py-3">
               <div className="min-w-0">
                 <button
-                  onClick={() => group.link && setPaneItem({ itemId: group.itemId, title: group.title, link: group.link })}
+                  onClick={() => group.link && reader.open({
+                    url: group.link,
+                    title: group.title,
+                    itemId: group.itemId,
+                    onClose: () => { getAllHighlights().then(setAll).catch(() => {}); },
+                  })}
                   className="block max-w-full truncate text-left text-sm font-headline font-semibold text-on-surface transition-colors hover:text-primary">
                   {group.title ?? "Untitled"}
                 </button>
@@ -154,17 +159,6 @@ export default function HighlightsView() {
         ))}
       </div>
 
-      {paneItem && (
-        <ArticlePane
-          url={paneItem.link}
-          title={paneItem.title}
-          itemId={paneItem.itemId}
-          onClose={() => {
-            setPaneItem(null);
-            getAllHighlights().then(setAll).catch(() => {});
-          }}
-        />
-      )}
     </div>
   );
 }
