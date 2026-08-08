@@ -240,14 +240,14 @@ export default function TimelineList({
       </header>
 
       <div className={`paper-glass sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-outline-variant py-3 ${reader.isOpen ? "px-4" : "px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop"}`}>
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${reader.isOpen ? "w-full" : ""}`}>
           <input
             ref={searchRef}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Escape") { setSearchInput(""); e.currentTarget.blur(); } }}
             placeholder="Search… ( / )"
-            className="ghost-border w-40 rounded bg-surface-container-lowest px-2.5 py-1.5 font-label text-ui-small text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary"
+            className={`ghost-border rounded bg-surface-container-lowest px-2.5 py-1.5 font-label text-ui-small text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary ${reader.isOpen ? "min-w-0 flex-1" : "w-40"}`}
           />
           {!reader.isOpen && (
           <div className="flex">
@@ -267,8 +267,15 @@ export default function TimelineList({
           </div>
           )}
           <button onClick={() => setUnreadOnly((v) => !v)}
-            className={`ghost-border rounded px-3 py-1.5 font-label text-ui-small font-semibold uppercase tracking-[0.14em] transition-colors ${unreadOnly ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-on-surface-variant hover:text-primary"}`}>
-            Unread
+            aria-pressed={unreadOnly}
+            aria-label={unreadOnly ? "Showing unread only" : "Show unread only"}
+            title={unreadOnly ? "Showing unread only" : "Show unread only"}
+            className={`ghost-border shrink-0 rounded py-1.5 font-label text-ui-small font-semibold uppercase tracking-[0.14em] transition-colors ${reader.isOpen ? "px-2.5" : "px-3"} ${unreadOnly ? "bg-primary text-on-primary" : "bg-surface-container-lowest text-on-surface-variant hover:text-primary"}`}>
+            {reader.isOpen ? (
+              <svg className="h-3 w-3" viewBox="0 0 24 24" fill={unreadOnly ? "currentColor" : "none"} stroke="currentColor">
+                <circle cx="12" cy="12" r="7" strokeWidth={2} />
+              </svg>
+            ) : "Unread"}
           </button>
           {!lockRange && !reader.isOpen && (
             <select value={range} onChange={(e) => onRangeChange(e.target.value as DateRange)}
@@ -276,7 +283,7 @@ export default function TimelineList({
               {DATE_RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           )}
-          {totalUnread > 0 && !starredOnly && !tagId && (
+          {totalUnread > 0 && !starredOnly && !tagId && !reader.isOpen && (
             <button onClick={handleMarkAllRead} disabled={isMarkingAll}
               className="ghost-border rounded bg-surface-container-lowest px-3 py-1.5 font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-on-surface-variant transition-colors hover:text-primary disabled:opacity-40">
               {isMarkingAll ? "Marking…" : "Mark all read"}
