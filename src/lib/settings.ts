@@ -142,39 +142,88 @@ export async function setObsidianVaultPath(path: string): Promise<void> {
   await store.save();
 }
 
-export type OllamaSettings = {
+// ── AI ────────────────────────────────────────────────────────────────────────
+
+/** Which backend answers AI requests. Mirrors `AiProvider` in Rust. */
+export type AiProvider = "ollama" | "gemini";
+
+/**
+ * Both providers are configured independently and persist side by side, so
+ * switching back and forth doesn't lose the other one's setup.
+ */
+export type AiSettings = {
   enabled: boolean;
-  url: string;
-  model: string;
+  provider: AiProvider;
+  ollamaUrl: string;
+  ollamaModel: string;
+  geminiModel: string;
 };
 
-const OLLAMA_DEFAULTS: OllamaSettings = {
+export const GEMINI_DEFAULT_MODEL = "gemini-3.6-flash";
+
+const AI_DEFAULTS: AiSettings = {
   enabled: false,
-  url: "http://localhost:11434",
-  model: "llama3.2",
+  provider: "ollama",
+  ollamaUrl: "http://localhost:11434",
+  ollamaModel: "llama3.2",
+  geminiModel: GEMINI_DEFAULT_MODEL,
 };
 
-export async function getOllamaSettings(): Promise<OllamaSettings> {
-  const store = await getStore();
-  const enabled = (await store.get<boolean>("ollama_enabled")) ?? OLLAMA_DEFAULTS.enabled;
-  const url = (await store.get<string>("ollama_url")) ?? OLLAMA_DEFAULTS.url;
-  const model = (await store.get<string>("ollama_model")) ?? OLLAMA_DEFAULTS.model;
-  return { enabled, url, model };
+/**
+ * The subset of settings an AI command needs — what the Rust `AiConfig`
+ * deserializes. Gemini's key is read from the keychain in Rust, so it is
+ * deliberately absent here.
+ */
+export type AiConfig = {
+  provider: AiProvider;
+  model: string;
+  baseUrl?: string;
+};
+
+export function aiConfig(settings: AiSettings): AiConfig {
+  return settings.provider === "gemini"
+    ? { provider: "gemini", model: settings.geminiModel }
+    : { provider: "ollama", model: settings.ollamaModel, baseUrl: settings.ollamaUrl };
 }
 
-export async function setOllamaSettings(settings: OllamaSettings): Promise<void> {
+// The `ollama_*` store keys predate multi-provider support and are kept as-is so
+// existing installs keep their configuration on upgrade.
+export async function getAiSettings(): Promise<AiSettings> {
+  const store = await getStore();
+  const provider = await store.get<string>("ai_provider");
+  return {
+    enabled: (await store.get<boolean>("ollama_enabled")) ?? AI_DEFAULTS.enabled,
+    provider: provider === "gemini" ? "gemini" : AI_DEFAULTS.provider,
+    ollamaUrl: (await store.get<string>("ollama_url")) ?? AI_DEFAULTS.ollamaUrl,
+    ollamaModel: (await store.get<string>("ollama_model")) ?? AI_DEFAULTS.ollamaModel,
+    geminiModel: (await store.get<string>("gemini_model")) ?? AI_DEFAULTS.geminiModel,
+  };
+}
+
+export async function setAiSettings(settings: AiSettings): Promise<void> {
   const store = await getStore();
   await store.set("ollama_enabled", settings.enabled);
-  await store.set("ollama_url", settings.url);
-  await store.set("ollama_model", settings.model);
+  await store.set("ai_provider", settings.provider);
+  await store.set("ollama_url", settings.ollamaUrl);
+  await store.set("ollama_model", settings.ollamaModel);
+  await store.set("gemini_model", settings.geminiModel);
   await store.save();
+}
+
+/** Gemini API key — stored in the OS keychain, not the plaintext store. */
+export async function getGeminiApiKey(): Promise<string> {
+  return (await invoke<string | null>("get_credential", { key: "gemini_api_key" })) ?? "";
+}
+
+export async function setGeminiApiKey(key: string): Promise<void> {
+  await invoke("set_credential", { key: "gemini_api_key", value: key });
 }
 
 // ── Reset ───────────────────────────────────────────────────────────────────
 
 /**
  * Resets all app settings to their defaults: clears the settings store (theme,
- * TTS, Ollama, Obsidian path) and removes stored API keys from the OS keychain.
+ * TTS, AI, Obsidian path) and removes stored API keys from the OS keychain.
  * Does not touch feeds/articles — see `eraseAllData` in lib/db for those.
  */
 export async function resetSettings(): Promise<void> {
@@ -183,4 +232,5 @@ export async function resetSettings(): Promise<void> {
   await store.save();
   await setYouTubeApiKey("");
   await setGoogleTtsApiKey("");
+  await setGeminiApiKey("");
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { get24hItems } from "../lib/db";
-import { getOllamaSettings } from "../lib/settings";
+import { getAiSettings, aiConfig } from "../lib/settings";
 import type { DigestItem } from "../types/database";
 
 type DigestSection = {
@@ -21,10 +21,10 @@ export default function DigestView() {
   async function generate() {
     setState({ kind: "loading" });
     try {
-      const [settings, raw] = await Promise.all([getOllamaSettings(), get24hItems()]);
+      const [settings, raw] = await Promise.all([getAiSettings(), get24hItems()]);
 
       if (!settings.enabled) {
-        setState({ kind: "error", message: "Ollama is not enabled. Enable it in Settings to use AI features." });
+        setState({ kind: "error", message: "AI is not enabled. Enable it in Settings to use AI features." });
         return;
       }
 
@@ -44,7 +44,7 @@ export default function DigestView() {
         ([feedTitle, items]) => ({ feedTitle, items })
       );
 
-      // Send to Ollama (content stripped to plain text, 300 chars each)
+      // Send to the model (content stripped to plain text, 300 chars each)
       const articles = raw.slice(0, 40).map((item) => ({
         title: item.title ?? "",
         content: stripHtml(item.content ?? ""),
@@ -53,7 +53,7 @@ export default function DigestView() {
 
       const result = await invoke<{ overall_summary: string; article_count: number }>(
         "generate_digest",
-        { baseUrl: settings.url, model: settings.model, articles }
+        { config: aiConfig(settings), articles }
       );
 
       setState({ kind: "done", summary: result.overall_summary, sections, total: raw.length });
