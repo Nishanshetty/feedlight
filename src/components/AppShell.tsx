@@ -233,7 +233,10 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
             its scroll position and loaded pages survive the round trip. */}
         <main
           className={[
-            "overflow-y-auto scrollbar-hide bg-background",
+            // A container, so the views inside size themselves to this column
+            // rather than to the window — they render at 340px docked and full
+            // width otherwise.
+            "@container overflow-y-auto scrollbar-hide bg-background",
             // Minimised, the reader gives its width back rather than leaving a gap.
             docked && !reader.minimized ? "w-[340px] shrink-0" : "flex-1",
             chatInColumn ? "hidden" : "",

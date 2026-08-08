@@ -182,19 +182,19 @@ export default function DiscoverView({ feeds, onFeedAdded }: Props) {
   return (
     <div className="flex h-full flex-col bg-background">
       <div className="flex-1 overflow-y-auto">
-        <header className="px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop pb-stack-md pt-unit">
-          <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">Discover</h1>
+        <header className="px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop pb-stack-md pt-unit">
+          <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">Discover</h1>
           <p className="mt-2 font-label text-ui-label text-on-surface-variant">
             Curated selections for the discerning reader
           </p>
         </header>
-        <div className="px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop max-w-5xl space-y-stack-lg pb-stack-lg">
+        <div className="px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop max-w-5xl space-y-stack-lg pb-stack-lg">
           {RECOMMENDED.map(({ label, feeds: recs }) => (
             <section key={label}>
               <div className="mb-stack-sm flex items-end justify-between border-b border-outline-variant pb-4">
                 <h2 className="font-headline text-headline-md text-primary">{label}</h2>
               </div>
-              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-3 @2xl:grid-cols-2">
                 {recs.map((rec) => {
                   const alreadySubscribed = subscribedUrls.has(rec.url);
                   const status = alreadySubscribed ? "done" : (statuses[rec.url] ?? "idle");

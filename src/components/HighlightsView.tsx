@@ -77,9 +77,9 @@ export default function HighlightsView() {
   }
 
   return (
-    <div className={reader.isOpen ? "px-4 py-unit" : "px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop py-unit"}>
+    <div className="px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop py-unit">
       <header className="pb-stack-md">
-        <h1 className={`font-headline text-primary ${reader.isOpen ? "text-headline-md" : "text-headline-lg-mobile md:text-headline-lg"}`}>Highlights</h1>
+        <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">Highlights</h1>
         <p className="mt-2 font-label text-ui-label text-on-surface-variant">
           {all.length > 0
             ? `${all.length} across ${groups.length} article${groups.length !== 1 ? "s" : ""}`

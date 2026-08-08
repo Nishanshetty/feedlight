@@ -24,14 +24,14 @@ export default function AnalyticsDashboard({ data, onFeedDeleted }: Props) {
   return (
     <div className="p-6 text-on-surface">
       <div className="flex flex-col gap-1 mb-8 border-b border-outline-variant pb-4">
-        <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">Feed Health</h1>
+        <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">Feed Health</h1>
         <p className="text-xs font-label text-outline uppercase tracking-wider">
           Identify noise, clean up inactive feeds, and optimise your reading list.
         </p>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 @3xl:grid-cols-3 gap-6 mb-8">
         {/* Read engagement */}
         <div className="bg-surface-container-lowest border border-outline-variant p-5 flex items-center justify-between shadow-sm">
           <div className="flex flex-col">
@@ -91,7 +91,7 @@ export default function AnalyticsDashboard({ data, onFeedDeleted }: Props) {
       </div>
 
       {/* Declutter columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 @4xl:grid-cols-3 gap-6">
         <FeedColumn
           title="Noisy Feeds" dot="bg-error"
           description={<>Feeds publishing <strong className="text-error">&gt;15 articles/week</strong>.</>}

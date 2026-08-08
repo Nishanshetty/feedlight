@@ -229,18 +229,14 @@ export default function TimelineList({
         {(isLoading || isMarkingAll) && <div className="h-full w-1/3 bg-tertiary animate-[slide_1.2s_ease-in-out_infinite]" />}
       </div>
 
-      <header className={reader.isOpen
-        ? "px-4 pb-4 pt-unit"
-        : "px-reading-margin-mobile pb-stack-md pt-unit lg:px-16 2xl:px-reading-margin-desktop"}>
-        <h1 className={`font-headline text-primary ${reader.isOpen ? "text-headline-md" : "text-headline-lg-mobile md:text-headline-lg"}`}>
-          {filterLabel}
-        </h1>
+      <header className="px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop pb-4 pt-unit @3xl:pb-stack-md">
+        <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">{filterLabel}</h1>
         <p className="mt-2 font-label text-ui-label text-on-surface-variant">
           {totalUnread > 0 ? `${totalUnread} unread` : "All caught up"}
         </p>
       </header>
 
-      <div className={`paper-glass sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-outline-variant py-3 ${reader.isOpen ? "px-4" : "px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop"}`}>
+      <div className="paper-glass sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-outline-variant py-3 px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop">
         <div className={`flex items-center gap-2 ${reader.isOpen ? "w-full" : ""}`}>
           <input
             ref={searchRef}
@@ -302,9 +298,8 @@ export default function TimelineList({
       ) : (
         <>
           <ul className={effectiveDensity === "grid"
-            ? "grid grid-cols-1 gap-gutter px-reading-margin-mobile py-stack-md md:grid-cols-2 lg:grid-cols-3 lg:px-16 2xl:grid-cols-4 2xl:px-reading-margin-desktop"
-            : reader.isOpen ? "flex flex-col px-2 py-4"
-            : "flex flex-col px-reading-margin-mobile py-stack-md lg:px-16 2xl:px-reading-margin-desktop"}>
+            ? "grid grid-cols-1 gap-gutter px-reading-margin-mobile py-stack-md @2xl:grid-cols-2 @3xl:px-16 @4xl:grid-cols-3 @6xl:grid-cols-4 @6xl:px-reading-margin-desktop"
+            : "flex flex-col py-4 px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop @3xl:py-stack-md"}>
             {items.map((item, index) => {
               const group = dateGroup(item.published_at);
               const prevGroup = index > 0 ? dateGroup(items[index - 1].published_at) : null;

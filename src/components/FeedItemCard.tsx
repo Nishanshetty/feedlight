@@ -154,7 +154,7 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, layo
           isRead && !isSelected ? "opacity-50" : ""].join(" ")}>
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isRead ? "bg-outline-variant/60" : "bg-primary"}`} />
         {item.feed_title && (
-          <span className="hidden sm:inline-block shrink-0 max-w-[9rem] truncate font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-on-surface-variant">
+          <span className="hidden @2xl:inline-block shrink-0 max-w-[9rem] truncate font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-on-surface-variant">
             {item.feed_title}
           </span>
         )}
@@ -162,7 +162,7 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, layo
           {item.title ?? "Untitled"}
         </span>
         {item.tags.length > 0 && (
-          <div className="hidden lg:flex shrink-0 max-w-[12rem]"><TagChips tags={item.tags} max={2} /></div>
+          <div className="hidden @4xl:flex shrink-0 max-w-[12rem]"><TagChips tags={item.tags} max={2} /></div>
         )}
         <span className="shrink-0 font-label text-ui-small uppercase text-outline">
           {minutes ? `${minutes} min · ` : ""}{formatRelative(item.published_at)}

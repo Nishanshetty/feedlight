@@ -73,22 +73,22 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
         {isLoading && <div className="h-full w-1/3 bg-tertiary animate-[slide_1.2s_ease-in-out_infinite]" />}
       </div>
 
-      <header className={reader.isOpen ? "px-4 pb-4 pt-unit" : "px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop pb-stack-md pt-unit"}>
-        <h1 className={`font-headline text-primary ${reader.isOpen ? "text-headline-md" : "text-headline-lg-mobile md:text-headline-lg"}`}>Saved</h1>
+      <header className="px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop pb-4 pt-unit @3xl:pb-stack-md">
+        <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">Saved</h1>
         <p className="mt-2 font-label text-ui-label text-on-surface-variant">
           {items.length > 0 ? `${items.length} article${items.length !== 1 ? "s" : ""}` : "Nothing saved yet"}
         </p>
       </header>
 
       {items.length === 0 && !isLoading ? (
-        <div className="px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop py-20 text-center">
+        <div className="px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop py-20 text-center">
           <p className="text-ui-label font-label text-outline uppercase tracking-[0.14em]">
             Nothing saved yet. Bookmark an article or save one you open with ⌘L.
           </p>
         </div>
       ) : (
         <>
-          <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 p-6">
+          <ul className="grid grid-cols-1 @2xl:grid-cols-2 @4xl:grid-cols-3 @6xl:grid-cols-4 gap-4 p-6">
             {items.map((item, index) => (
               <FeedItemCard key={item.id} item={item}
                 isRead={readIds.has(item.id)} isStarred={true}

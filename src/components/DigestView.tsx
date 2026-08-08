@@ -66,7 +66,7 @@ export default function DigestView() {
     <div className="p-6 text-on-surface">
       <div className="flex items-start justify-between gap-4 mb-8 border-b border-outline-variant pb-4">
         <div className="flex flex-col gap-1">
-          <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">Today&rsquo;s Digest</h1>
+          <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">Today&rsquo;s Digest</h1>
           <p className="text-xs font-label text-outline uppercase tracking-wider">
             AI summary of articles published in the last 24 hours
           </p>
