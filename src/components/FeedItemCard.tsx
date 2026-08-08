@@ -30,7 +30,7 @@ type Props = {
   isRead: boolean;
   isStarred: boolean;
   isSelected: boolean;
-  layout: "card" | "row";
+  layout: "card" | "row" | "compact";
   hero?: boolean;
   onActivate: () => void;
   onOpen: () => void;
@@ -128,6 +128,23 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, layo
   const imageUrl = !item.thumbnail_url && item.content ? extractFirstImage(item.content) : null;
   const isHero = !!hero && layout === "card" && !item.thumbnail_url;
   const preview = stripped ? stripped.slice(0, isHero ? 320 : 200) : null;
+
+  // Reading list: the column is ~340px, where the row layout's feed badge,
+  // tags, timestamp and actions all collide. Titles only — everything else is
+  // one click away in the article itself.
+  if (layout === "compact") {
+    return (
+      <li ref={elRef} onClick={onActivate}
+        className={["group relative cursor-pointer select-none border-l-2 px-4 py-3 transition-colors",
+          isSelected ? "border-primary bg-secondary-container" : "border-transparent hover:bg-surface-container-low",
+          isRead && !isSelected ? "opacity-55" : ""].join(" ")}>
+        <span className="line-clamp-3 font-body text-base leading-snug text-on-surface transition-colors group-hover:text-primary">
+          {item.title ?? "Untitled"}
+        </span>
+        <ProgressLine progress={item.read_progress} />
+      </li>
+    );
+  }
 
   if (layout === "row") {
     return (

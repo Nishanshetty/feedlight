@@ -313,7 +313,7 @@ export default function TimelineList({
                   <FeedItemCard item={item}
                     isRead={readIds.has(item.id)} isStarred={starredIds.has(item.id)}
                     isSelected={index === selectedIndex}
-                    layout={effectiveDensity === "grid" ? "card" : "row"}
+                    layout={reader.isOpen ? "compact" : effectiveDensity === "grid" ? "card" : "row"}
                     hero={effectiveDensity === "grid" && !searchQuery && index === 0}
                     onActivate={() => selectAndRead(index)}
                     onOpen={() => { if (item.link) openUrl(item.link); }}

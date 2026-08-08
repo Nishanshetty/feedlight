@@ -92,7 +92,7 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
               <FeedItemCard key={item.id} item={item}
                 isRead={readIds.has(item.id)} isStarred={true}
                 isSelected={index === selectedIndex}
-                layout="card" hero={false}
+                layout={reader.isOpen ? "compact" : "card"} hero={false}
                 onActivate={() => selectAndRead(index)}
                 onOpen={() => { if (item.link) openUrl(item.link); }}
                 onToggleStar={(e) => handleUnsave(index, e)}
