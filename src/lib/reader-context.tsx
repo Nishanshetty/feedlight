@@ -32,6 +32,14 @@ type ReaderContextValue = {
    */
   chatOpen: boolean;
   setChatOpen: (open: boolean) => void;
+  /**
+   * Collapsed to the floating mini-player. Shared for the same reason as
+   * chatOpen: the shell has to give the column's width back to the list. The
+   * reader itself stays mounted where it is — moving it would remount it and
+   * stop the audio that minimising exists to keep going.
+   */
+  minimized: boolean;
+  setMinimized: (minimized: boolean) => void;
 };
 
 const ReaderContext = createContext<ReaderContextValue | null>(null);
@@ -39,11 +47,13 @@ const ReaderContext = createContext<ReaderContextValue | null>(null);
 export function ReaderProvider({ children }: { children: React.ReactNode }) {
   const [request, setRequest] = useState<ReaderRequest | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [minimized, setMinimized] = useState(false);
 
   const open = useCallback((next: ReaderRequest) => {
     // Run the outgoing article's cleanup when replacing it directly, so opening
     // a second article from Highlights still refreshes the list behind it.
     setChatOpen(false);
+    setMinimized(false);
     setRequest((prev) => {
       if (prev && prev !== next) prev.onClose?.();
       return next;
@@ -52,6 +62,7 @@ export function ReaderProvider({ children }: { children: React.ReactNode }) {
 
   const close = useCallback(() => {
     setChatOpen(false);
+    setMinimized(false);
     setRequest((prev) => {
       prev?.onClose?.();
       return null;
@@ -59,8 +70,8 @@ export function ReaderProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<ReaderContextValue>(
-    () => ({ request, isOpen: request !== null, open, close, chatOpen, setChatOpen }),
-    [request, open, close, chatOpen]
+    () => ({ request, isOpen: request !== null, open, close, chatOpen, setChatOpen, minimized, setMinimized }),
+    [request, open, close, chatOpen, minimized]
   );
 
   return <ReaderContext.Provider value={value}>{children}</ReaderContext.Provider>;

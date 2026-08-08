@@ -733,7 +733,6 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   const [savedItemId, setSavedItemId] = useState<string | null>(null);
   const tagItemId = itemId ?? savedItemId;
   // Collapse the pane into a floating mini-player (keeps TTS playing).
-  const [minimized, setMinimized] = useState(false);
   // Garamond at 20px is Lumina's reading default. Garamond runs small for its
   // point size, so 20 here sits close to the old 14px sans in apparent size.
   // Anyone with saved settings keeps theirs — this only affects a fresh reader.
@@ -782,7 +781,7 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
   // Chat state
-  const { chatOpen, setChatOpen } = useReader();
+  const { chatOpen, setChatOpen, minimized, setMinimized } = useReader();
   // The shell renders the chat column; find it once it's there.
   const [chatSlot, setChatSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {

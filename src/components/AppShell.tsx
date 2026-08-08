@@ -76,7 +76,7 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
   const docked = reader.isOpen && viewportWidth >= DOCK_MIN;
   // Chat takes the right column while it's open; 340px is tight for a
   // conversation, so it widens a little.
-  const chatInColumn = docked && reader.chatOpen;
+  const chatInColumn = docked && reader.chatOpen && !reader.minimized;
   // Auto-collapse is a default, not a lock: toggling the rail by hand clears it
   // for as long as the article stays open.
   const [railOverride, setRailOverride] = useState(false);
@@ -234,7 +234,8 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
         <main
           className={[
             "overflow-y-auto scrollbar-hide bg-background",
-            docked ? "w-[340px] shrink-0" : "flex-1",
+            // Minimised, the reader gives its width back rather than leaving a gap.
+            docked && !reader.minimized ? "w-[340px] shrink-0" : "flex-1",
             chatInColumn ? "hidden" : "",
           ].join(" ")}
         >
