@@ -1,0 +1,97 @@
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import type { ArchivedContent } from "./db";
+
+/**
+ * One article open at a time, owned above the views that open it.
+ *
+ * The reader used to be mounted separately by the timeline, saved, highlights
+ * and ⌘L paths, which worked only because it positioned itself `fixed` and
+ * escaped whatever container it landed in. Docking it beside the list means it
+ * has to be a real sibling of that list, so the open article lives here instead.
+ */
+export type ReaderRequest = {
+  url: string;
+  title: string | null;
+  /** When set, reading progress and highlights are persisted against this item. */
+  itemId?: string | null;
+  /** Pre-extracted content (a PDF, say) — skips fetching. */
+  content?: ArchivedContent | null;
+  /** Caller-specific cleanup, e.g. Highlights re-reading its list on close. */
+  onClose?: () => void;
+};
+
+type ReaderContextValue = {
+  request: ReaderRequest | null;
+  isOpen: boolean;
+  open: (request: ReaderRequest) => void;
+  close: () => void;
+  /**
+   * Whether the Ask conversation is showing. Lives here, rather than in the
+   * reader, only so the shell can hand the right-hand column over to it; every
+   * other piece of chat state stays with the article text it depends on.
+   */
+  chatOpen: boolean;
+  setChatOpen: (open: boolean) => void;
+  /**
+   * Collapsed to the floating mini-player. Shared for the same reason as
+   * chatOpen: the shell has to give the column's width back to the list. The
+   * reader itself stays mounted where it is — moving it would remount it and
+   * stop the audio that minimising exists to keep going.
+   */
+  minimized: boolean;
+  setMinimized: (minimized: boolean) => void;
+  /**
+   * The shell's chat column, handed over as an element rather than looked up by
+   * id. A lookup resolves a frame late and, worse, holds a detached node once
+   * the column unmounts and remounts around minimising.
+   */
+  chatSlot: HTMLElement | null;
+  setChatSlot: (el: HTMLElement | null) => void;
+};
+
+const ReaderContext = createContext<ReaderContextValue | null>(null);
+
+export function ReaderProvider({ children }: { children: React.ReactNode }) {
+  const [request, setRequest] = useState<ReaderRequest | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+  const [chatSlot, setChatSlot] = useState<HTMLElement | null>(null);
+  // The updater below must stay pure, so the outgoing request is tracked here
+  // and its cleanup runs outside setState.
+  const requestRef = useRef<ReaderRequest | null>(null);
+
+  const open = useCallback((next: ReaderRequest) => {
+    // Run the outgoing article's cleanup when replacing it directly, so opening
+    // a second article from Highlights still refreshes the list behind it.
+    // Outside the updater: React may invoke an updater more than once, and does
+    // under StrictMode, which would fire the callback twice.
+    const prev = requestRef.current;
+    if (prev && prev !== next) prev.onClose?.();
+    requestRef.current = next;
+    setChatOpen(false);
+    setMinimized(false);
+    setRequest(next);
+  }, []);
+
+  const close = useCallback(() => {
+    const prev = requestRef.current;
+    requestRef.current = null;
+    prev?.onClose?.();
+    setChatOpen(false);
+    setMinimized(false);
+    setRequest(null);
+  }, []);
+
+  const value = useMemo<ReaderContextValue>(
+    () => ({ request, isOpen: request !== null, open, close, chatOpen, setChatOpen, minimized, setMinimized, chatSlot, setChatSlot }),
+    [request, open, close, chatOpen, minimized, chatSlot]
+  );
+
+  return <ReaderContext.Provider value={value}>{children}</ReaderContext.Provider>;
+}
+
+export function useReader(): ReaderContextValue {
+  const ctx = useContext(ReaderContext);
+  if (!ctx) throw new Error("useReader must be used inside a ReaderProvider");
+  return ctx;
+}

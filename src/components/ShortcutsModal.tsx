@@ -23,14 +23,14 @@ export default function ShortcutsModal({ open, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm ghost-border bg-surface-container shadow-2xl"
+        className="w-full max-w-sm ghost-border bg-surface-container ambient-shadow"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Keyboard shortcuts"
       >
-        <div className="flex items-center justify-between border-b border-outline-variant/20 px-5 py-4">
-          <h2 className="text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant">
+        <div className="flex items-center justify-between border-b border-outline-variant px-5 py-4">
+          <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant">
             Keyboard Shortcuts
           </h2>
           <button
@@ -49,11 +49,11 @@ export default function ShortcutsModal({ open, onClose }: Props) {
               {SHORTCUTS.map(([key, desc]) => (
                 <tr key={key} className="border-b border-outline-variant/10 last:border-0">
                   <td className="py-2.5 pr-4">
-                    <kbd className="ghost-border bg-surface-container-low px-2 py-0.5 font-mono text-[11px] text-primary">
+                    <kbd className="ghost-border bg-surface-container-low px-2 py-0.5 font-mono text-ui-small text-primary">
                       {key}
                     </kbd>
                   </td>
-                  <td className="py-2.5 text-[12px] font-body text-on-surface-variant">{desc}</td>
+                  <td className="py-2.5 text-ui-label font-body text-on-surface-variant">{desc}</td>
                 </tr>
               ))}
             </tbody>

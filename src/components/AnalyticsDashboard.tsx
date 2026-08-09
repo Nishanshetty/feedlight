@@ -23,19 +23,19 @@ export default function AnalyticsDashboard({ data, onFeedDeleted }: Props) {
 
   return (
     <div className="p-6 text-on-surface">
-      <div className="flex flex-col gap-1 mb-8 border-b border-outline-variant/40 pb-4">
-        <h1 className="text-2xl font-headline font-bold">Feed Health & Analytics</h1>
+      <div className="flex flex-col gap-1 mb-8 border-b border-outline-variant pb-4">
+        <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">Feed Health</h1>
         <p className="text-xs font-label text-outline uppercase tracking-wider">
           Identify noise, clean up inactive feeds, and optimise your reading list.
         </p>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 @3xl:grid-cols-3 gap-6 mb-8">
         {/* Read engagement */}
-        <div className="bg-surface-container-lowest border border-outline-variant/40 p-5 flex items-center justify-between shadow-sm">
+        <div className="bg-surface-container-lowest border border-outline-variant p-5 flex items-center justify-between shadow-sm">
           <div className="flex flex-col">
-            <span className="text-[10px] font-label text-outline uppercase tracking-widest mb-1">Read Engagement</span>
+            <span className="text-ui-small font-label text-outline uppercase tracking-[0.14em] mb-1">Read Engagement</span>
             <span className="text-2xl font-headline font-bold">{data.overallReadRate}%</span>
             <p className="text-xs text-on-surface-variant mt-2 max-w-[160px]">
               Percentage of articles read across all feeds.
@@ -52,23 +52,23 @@ export default function AnalyticsDashboard({ data, onFeedDeleted }: Props) {
         </div>
 
         {/* Counts */}
-        <div className="bg-surface-container-lowest border border-outline-variant/40 p-5 shadow-sm">
-          <span className="text-[10px] font-label text-outline uppercase tracking-widest block mb-4">Subscription Volume</span>
+        <div className="bg-surface-container-lowest border border-outline-variant p-5 shadow-sm">
+          <span className="text-ui-small font-label text-outline uppercase tracking-[0.14em] block mb-4">Subscription Volume</span>
           <div className="grid grid-cols-2 gap-4">
-            <div className="border-r border-outline-variant/30 pr-2">
+            <div className="border-r border-outline-variant pr-2">
               <span className="text-2xl font-headline font-bold block">{data.totalFeeds}</span>
-              <span className="text-[10px] text-on-surface-variant uppercase tracking-wider font-label">Total Feeds</span>
+              <span className="text-ui-small text-on-surface-variant uppercase tracking-wider font-label">Total Feeds</span>
             </div>
             <div>
               <span className="text-2xl font-headline font-bold block text-primary">{data.totalUnreads}</span>
-              <span className="text-[10px] text-on-surface-variant uppercase tracking-wider font-label">Unread Articles</span>
+              <span className="text-ui-small text-on-surface-variant uppercase tracking-wider font-label">Unread Articles</span>
             </div>
           </div>
         </div>
 
         {/* Folder distribution */}
-        <div className="bg-surface-container-lowest border border-outline-variant/40 p-5 shadow-sm">
-          <span className="text-[10px] font-label text-outline uppercase tracking-widest block mb-3">Folder Distribution</span>
+        <div className="bg-surface-container-lowest border border-outline-variant p-5 shadow-sm">
+          <span className="text-ui-small font-label text-outline uppercase tracking-[0.14em] block mb-3">Folder Distribution</span>
           <div className="flex flex-col gap-2 max-h-24 overflow-y-auto pr-1">
             {data.folderBreakdown.length === 0 ? (
               <p className="text-xs text-outline italic">No folder data</p>
@@ -91,7 +91,7 @@ export default function AnalyticsDashboard({ data, onFeedDeleted }: Props) {
       </div>
 
       {/* Declutter columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 @4xl:grid-cols-3 gap-6">
         <FeedColumn
           title="Noisy Feeds" dot="bg-error"
           description={<>Feeds publishing <strong className="text-error">&gt;15 articles/week</strong>.</>}
@@ -130,19 +130,19 @@ function FeedColumn({ title, dot, description, feeds, statFn, badgeFn, emptyLabe
   onUnsubscribe: (feedId: string) => void;
 }) {
   return (
-    <div className="border border-outline-variant/40 bg-surface-container-lowest p-5 flex flex-col min-h-[400px]">
+    <div className="border border-outline-variant bg-surface-container-lowest p-5 flex flex-col min-h-[400px]">
       <div className="flex flex-col mb-4">
         <div className="flex items-center gap-1.5">
           <span className={`h-2 w-2 rounded-full ${dot}`} />
           <h2 className="text-sm font-headline font-bold uppercase tracking-wider">{title}</h2>
         </div>
-        <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">{description}</p>
+        <p className="text-ui-small text-on-surface-variant mt-1 leading-relaxed">{description}</p>
       </div>
       <div className="flex-1 overflow-y-auto max-h-[450px] pr-1">
         {feeds.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-outline-variant/60">
             <p className="text-xs font-bold text-outline">{emptyLabel}</p>
-            <p className="text-[10px] text-outline opacity-75 mt-1">{emptyNote}</p>
+            <p className="text-ui-small text-outline opacity-75 mt-1">{emptyNote}</p>
           </div>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -165,7 +165,7 @@ function FeedStatRow({ feed, statText, badgeColor, onUnsubscribe }: {
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <li className="flex items-center justify-between gap-3 border border-outline-variant/30 bg-background/50 hover:bg-surface-container-low transition-colors px-3 py-2.5 group">
+    <li className="flex items-center justify-between gap-3 border border-outline-variant bg-background/50 hover:bg-surface-container-low transition-colors px-3 py-2.5 group">
       <div className="flex flex-col min-w-0 flex-1">
         <span className="text-xs font-bold truncate pr-1">{feed.feedTitle}</span>
         <div className="flex items-center gap-1.5 mt-1">
@@ -180,11 +180,11 @@ function FeedStatRow({ feed, statText, badgeColor, onUnsubscribe }: {
       {confirming ? (
         <div className="flex items-center gap-1 shrink-0">
           <button onClick={onUnsubscribe} aria-label={`Confirm unsubscribe from ${feed.feedTitle}`}
-            className="text-[9px] font-label font-bold uppercase tracking-wider px-2 py-1 bg-error text-background transition-opacity hover:opacity-90">
+            className="text-ui-small font-label font-bold uppercase tracking-wider px-2 py-1 bg-error text-background transition-opacity hover:opacity-90">
             Unsubscribe
           </button>
           <button onClick={() => setConfirming(false)} aria-label="Cancel"
-            className="text-[9px] font-label font-bold uppercase tracking-wider px-2 py-1 ghost-border text-on-surface-variant hover:text-on-surface">
+            className="text-ui-small font-label font-bold uppercase tracking-wider px-2 py-1 ghost-border text-on-surface-variant hover:text-on-surface">
             Cancel
           </button>
         </div>

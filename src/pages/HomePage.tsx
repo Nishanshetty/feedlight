@@ -150,11 +150,11 @@ export default function HomePage() {
     <div>
       {analyticsError ? (
         <div className="flex items-center justify-center p-20">
-          <p className="text-sm font-label text-error">{analyticsError}</p>
+          <p className="font-label text-ui-label text-error">{analyticsError}</p>
         </div>
       ) : !analyticsData ? (
         <div className="flex items-center justify-center p-20">
-          <p className="text-[11px] font-label text-outline uppercase tracking-widest animate-pulse">Loading…</p>
+          <p className="animate-pulse font-label text-ui-small uppercase tracking-[0.14em] text-outline">Loading…</p>
         </div>
       ) : (
         <AnalyticsDashboard data={analyticsData} onFeedDeleted={handleFeedDeleted} />

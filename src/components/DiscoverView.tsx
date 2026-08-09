@@ -181,37 +181,38 @@ export default function DiscoverView({ feeds, onFeedAdded }: Props) {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <header className="flex h-14 shrink-0 items-center border-b border-outline-variant/40 bg-background/80 backdrop-blur-xl px-6">
-        <span className="font-headline text-lg font-bold tracking-[0.2em] text-primary uppercase">Discover</span>
-      </header>
-
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="mx-auto max-w-2xl space-y-10">
+      <div className="flex-1 overflow-y-auto">
+        <header className="px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop pb-stack-md pt-unit">
+          <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">Discover</h1>
+          <p className="mt-2 font-label text-ui-label text-on-surface-variant">
+            Curated selections for the discerning reader
+          </p>
+        </header>
+        <div className="px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop max-w-5xl space-y-stack-lg pb-stack-lg">
           {RECOMMENDED.map(({ label, feeds: recs }) => (
             <section key={label}>
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">{label}</span>
-                <div className="flex-1 border-t border-outline-variant/30" />
+              <div className="mb-stack-sm flex items-end justify-between border-b border-outline-variant pb-4">
+                <h2 className="font-headline text-headline-md text-primary">{label}</h2>
               </div>
-              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-3 @2xl:grid-cols-2">
                 {recs.map((rec) => {
                   const alreadySubscribed = subscribedUrls.has(rec.url);
                   const status = alreadySubscribed ? "done" : (statuses[rec.url] ?? "idle");
 
                   return (
                     <li key={rec.url}
-                      className="group flex flex-col gap-3 border border-outline-variant/40 p-4 transition-colors hover:border-primary/50 hover:bg-surface-container-low/40">
+                      className="group flex flex-col gap-3 border border-outline-variant p-4 transition-colors hover:border-primary/50 hover:bg-surface-container-low/40">
                       <div className="flex items-start gap-3">
                         <Favicon url={rec.url} name={rec.name} />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-body font-medium text-on-surface">{rec.name}</p>
-                          <p className="mt-0.5 line-clamp-2 text-[11px] font-label text-outline">{rec.tagline}</p>
+                          <p className="mt-0.5 line-clamp-2 text-ui-small font-label text-outline">{rec.tagline}</p>
                         </div>
                       </div>
 
                       <div className="flex justify-end">
                         {status === "done" ? (
-                          <span className="flex items-center gap-1 text-[11px] font-label font-bold text-primary">
+                          <span className="flex items-center gap-1 text-ui-small font-label font-bold text-primary">
                             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                             </svg>
@@ -219,12 +220,12 @@ export default function DiscoverView({ feeds, onFeedAdded }: Props) {
                           </span>
                         ) : status === "error" ? (
                           <button onClick={() => handleSubscribe(rec, label)}
-                            className="text-[11px] font-label font-bold text-error hover:underline">
+                            className="text-ui-small font-label font-bold text-error hover:underline">
                             Retry
                           </button>
                         ) : (
                           <button onClick={() => handleSubscribe(rec, label)} disabled={status === "pending"}
-                            className="border border-outline-variant/60 px-3 py-1.5 text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-colors hover:border-primary hover:text-primary disabled:opacity-40">
+                            className="border border-outline-variant/60 px-3 py-1.5 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant transition-colors hover:border-primary hover:text-primary disabled:opacity-40">
                             {status === "pending" ? "Adding…" : "+ Add"}
                           </button>
                         )}

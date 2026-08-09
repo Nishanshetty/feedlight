@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getAllHighlights, deleteHighlight } from "../lib/db";
 import { getObsidianVaultPath } from "../lib/settings";
 import type { HighlightWithArticle } from "../types/database";
-import ArticlePane from "./ArticlePane";
+import { useReader } from "../lib/reader-context";
 
 type ArticleGroup = {
   itemId: string;
@@ -28,7 +28,7 @@ export default function HighlightsView() {
   const [loaded, setLoaded] = useState(false);
   const [vaultPath, setVaultPath] = useState("");
   const [exportStatus, setExportStatus] = useState<Record<string, "ok" | "error">>({});
-  const [paneItem, setPaneItem] = useState<{ itemId: string; title: string | null; link: string } | null>(null);
+  const reader = useReader();
 
   useEffect(() => {
     getAllHighlights().then(setAll).catch(console.error).finally(() => setLoaded(true));
@@ -77,21 +77,19 @@ export default function HighlightsView() {
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-5 flex items-baseline gap-2">
-        <h3 className="text-[11px] font-headline font-bold uppercase tracking-widest text-outline">
-          Highlights
-        </h3>
-        {all.length > 0 && (
-          <span className="text-[10px] font-label text-outline opacity-60">
-            {all.length} across {groups.length} article{groups.length !== 1 ? "s" : ""}
-          </span>
-        )}
-      </div>
+    <div className="px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop py-unit">
+      <header className="pb-stack-md">
+        <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">Highlights</h1>
+        <p className="mt-2 font-label text-ui-label text-on-surface-variant">
+          {all.length > 0
+            ? `${all.length} across ${groups.length} article${groups.length !== 1 ? "s" : ""}`
+            : "Nothing marked yet"}
+        </p>
+      </header>
 
       {loaded && all.length === 0 && (
-        <div className="px-6 py-20 text-center">
-          <p className="text-[12px] font-label text-outline uppercase tracking-widest">
+        <div className="py-20 text-center">
+          <p className="text-ui-label font-label text-outline uppercase tracking-[0.14em]">
             No highlights yet. Select text while reading an article to create one.
           </p>
         </div>
@@ -99,26 +97,31 @@ export default function HighlightsView() {
 
       <div className="mx-auto max-w-3xl space-y-6">
         {groups.map((group) => (
-          <section key={group.itemId} className="border border-outline-variant/40 bg-surface-container-lowest">
-            <div className="flex items-start justify-between gap-3 border-b border-outline-variant/30 px-5 py-3">
+          <section key={group.itemId} className="border border-outline-variant bg-surface-container-lowest">
+            <div className="flex items-start justify-between gap-3 border-b border-outline-variant px-5 py-3">
               <div className="min-w-0">
                 <button
-                  onClick={() => group.link && setPaneItem({ itemId: group.itemId, title: group.title, link: group.link })}
+                  onClick={() => group.link && reader.open({
+                    url: group.link,
+                    title: group.title,
+                    itemId: group.itemId,
+                    onClose: () => { getAllHighlights().then(setAll).catch(() => {}); },
+                  })}
                   className="block max-w-full truncate text-left text-sm font-headline font-semibold text-on-surface transition-colors hover:text-primary">
                   {group.title ?? "Untitled"}
                 </button>
                 {group.feedTitle && (
-                  <p className="text-[10px] font-label uppercase tracking-widest text-outline">{group.feedTitle}</p>
+                  <p className="text-ui-small font-label uppercase tracking-[0.14em] text-outline">{group.feedTitle}</p>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <button onClick={() => navigator.clipboard.writeText(groupMarkdown(group)).catch(() => {})}
-                  className="text-[11px] font-label text-on-surface-variant transition-colors hover:text-on-surface">
+                  className="text-ui-small font-label text-on-surface-variant transition-colors hover:text-on-surface">
                   Copy
                 </button>
                 {vaultPath && (
                   <button onClick={() => sendToObsidian(group)}
-                    className={`text-[11px] font-label transition-colors ${
+                    className={`text-ui-small font-label transition-colors ${
                       exportStatus[group.itemId] === "ok" ? "text-primary"
                       : exportStatus[group.itemId] === "error" ? "text-error"
                       : "text-on-surface-variant hover:text-on-surface"}`}>
@@ -133,13 +136,13 @@ export default function HighlightsView() {
               {group.highlights.map((h) => (
                 <li key={h.id} className="group flex items-start gap-3 px-5 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="border-l-2 border-primary/40 pl-3 text-[13px] font-body leading-relaxed text-on-surface">
+                    <p className="border-l-2 border-primary/40 pl-3 text-ui-label font-body leading-relaxed text-on-surface">
                       {h.quote.trim()}
                     </p>
                     {h.note && (
                       <p className="mt-1.5 pl-3 text-xs font-body text-on-surface-variant">{h.note}</p>
                     )}
-                    <p className="mt-1 pl-3 text-[9px] font-label uppercase tracking-widest text-outline">
+                    <p className="mt-1 pl-3 text-ui-small font-label uppercase tracking-[0.14em] text-outline">
                       {new Date(h.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     </p>
                   </div>
@@ -156,17 +159,6 @@ export default function HighlightsView() {
         ))}
       </div>
 
-      {paneItem && (
-        <ArticlePane
-          url={paneItem.link}
-          title={paneItem.title}
-          itemId={paneItem.itemId}
-          onClose={() => {
-            setPaneItem(null);
-            getAllHighlights().then(setAll).catch(() => {});
-          }}
-        />
-      )}
     </div>
   );
 }

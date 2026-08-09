@@ -164,7 +164,7 @@ function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolde
     handleMove(value === "" ? null : value);
   }
 
-  const labelClass = "text-[10px] font-label font-bold uppercase tracking-widest text-outline";
+  const labelClass = "text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline";
   const fieldClass = "w-full ghost-border bg-surface-container-low px-2 py-1.5 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary";
 
   return (
@@ -173,10 +173,10 @@ function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolde
       <div
         ref={cardRef}
         role="menu"
-        className="fixed z-50 w-60 max-w-[calc(100vw-1rem)] max-h-[calc(100vh-1rem)] overflow-y-auto space-y-3 rounded-lg border border-outline-variant/40 bg-surface-container p-3 shadow-xl"
+        className="fixed z-50 w-60 max-w-[calc(100vw-1rem)] max-h-[calc(100vh-1rem)] overflow-y-auto space-y-3 rounded-lg border border-outline-variant bg-surface-container p-3 ambient-shadow"
         style={pos}
         onClick={(e) => e.stopPropagation()}>
-        <p className="text-[10px] font-label font-bold uppercase tracking-widest text-primary">
+        <p className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-primary">
           Feed settings
         </p>
 
@@ -203,7 +203,7 @@ function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolde
           <p className={labelClass}>Default tags</p>
           <div className="flex flex-wrap items-center gap-1 ghost-border bg-surface-container-low px-2 py-1.5">
             {defaultTags.map((t) => (
-              <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-surface-container-high px-1.5 py-0.5 text-[10px] text-on-surface-variant">
+              <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-surface-container-high px-1.5 py-0.5 text-ui-small text-on-surface-variant">
                 #{t.name}
                 <button onClick={() => removeDefaultTag(t)} aria-label={`Remove ${t.name}`} className="hover:text-on-surface">×</button>
               </span>
@@ -211,13 +211,13 @@ function FeedMenu({ entry, currentFolder, existingFolders, anchor, onMoveToFolde
             <input value={tagInput} onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDefaultTag(); } }}
               placeholder={defaultTags.length ? "Add…" : "Add a tag…"}
-              className="min-w-[4rem] flex-1 bg-transparent text-[11px] text-on-surface placeholder-outline focus:outline-none" />
+              className="min-w-[4rem] flex-1 bg-transparent text-ui-small text-on-surface placeholder-outline focus:outline-none" />
           </div>
-          <p className="text-[10px] font-body text-outline">Applied to new articles from this feed.</p>
+          <p className="text-ui-small font-body text-outline">Applied to new articles from this feed.</p>
         </div>
 
         {/* Unsubscribe */}
-        <div className="border-t border-outline-variant/20 pt-2">
+        <div className="border-t border-outline-variant pt-2">
           {confirmingUnsub ? (
             <button onClick={() => { onUnsubscribe(entry.subId, entry.feedId, entry.title); onClose(); }}
               className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-body font-bold text-error transition-colors hover:bg-error/10">
@@ -241,8 +241,11 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ top: number; bottom: number; right: number } | null>(null);
-  const [showAllTags, setShowAllTags] = useState(false);
-  const TAG_LIMIT = 10;
+  const [tagQuery, setTagQuery] = useState("");
+  /** Shown when the filter is empty, so tags stay discoverable without listing all. */
+  const TAG_TOP_N = 5;
+  /** Cap on matches, so a broad query can't push the feed list off screen. */
+  const TAG_MATCH_LIMIT = 8;
 
   function toggleFolder(folder: string) {
     setCollapsedFolders((prev) => {
@@ -256,25 +259,27 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
   const totalUnread = Object.values(groups).flat().reduce((sum, e) => sum + e.unread, 0);
 
   const sectionLabel = (label: string) => (
-    <p className="px-4 pb-1 text-[10px] font-label font-bold uppercase tracking-[0.1em] text-outline">
+    <p className="px-4 pb-1.5 font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-outline">
       {label}
     </p>
   );
 
+  // Lumina marks the active row with a rule on the content-facing edge and a
+  // tonal fill — no pill, no shadow.
   const navRow = (label: string, icon: keyof typeof NAV_ICONS, active: boolean, badge: number | null, onClick: () => void) => (
     <button onClick={onClick}
-      className={["flex w-full items-center justify-between px-3 py-2 text-[13px] font-body transition-all duration-200",
-        active ? "border-l-2 border-primary bg-surface-container-low text-primary font-bold"
-               : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface border-l-2 border-transparent",
+      className={["flex w-full items-center justify-between px-4 py-2.5 font-label text-ui-label transition-all duration-200",
+        active ? "border-r-2 border-primary bg-secondary-container/50 font-bold text-primary"
+               : "border-r-2 border-transparent text-on-surface-variant hover:bg-secondary-container hover:text-primary",
       ].join(" ")}>
-      <span className="flex items-center gap-2.5">
-        <svg className="h-3.5 w-3.5 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <span className="flex items-center gap-3">
+        <svg className="h-4 w-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d={NAV_ICONS[icon]} />
         </svg>
         <span>{label}</span>
       </span>
       {badge !== null && badge > 0 && (
-        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-label font-bold text-primary">
+        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 font-label text-ui-small font-bold text-primary">
           {badge > 99 ? "99+" : badge}
         </span>
       )}
@@ -295,39 +300,59 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
       {(() => {
         const inUse = tags.filter((t) => t.count > 0);
         if (inUse.length === 0) return null;
-        const shown = showAllTags ? inUse : inUse.slice(0, TAG_LIMIT);
-        const extra = inUse.length - TAG_LIMIT;
+
+        const q = tagQuery.trim().toLowerCase();
+        const byCount = [...inUse].sort((a, b) => b.count - a.count);
+        const matches = q
+          ? byCount.filter((t) => t.name.toLowerCase().includes(q)).slice(0, TAG_MATCH_LIMIT)
+          : byCount.slice(0, TAG_TOP_N);
+
+        // The active tag stays reachable even when the query excludes it —
+        // otherwise clearing the filter means retyping its name.
+        const active = inUse.find((t) => t.id === activeTagId);
+        const shown = active && !matches.some((t) => t.id === active.id) ? [active, ...matches] : matches;
+
+        const tagPill = (tag: TagWithCount) => {
+          const isActive = activeTagId === tag.id;
+          return (
+            <button key={tag.id}
+              onClick={() => onNavigate(isActive ? {} : { tagId: tag.id, tagName: tag.name })}
+              title={isActive ? `Clear #${tag.name}` : `${tag.name} · ${tag.count}`}
+              className={["inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 font-body text-ui-small transition-colors",
+                isActive
+                  ? "bg-primary text-on-primary"
+                  : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
+              ].join(" ")}>
+              <span className="truncate">#{tag.name}</span>
+              <span className={isActive ? "opacity-80" : "text-outline"}>{isActive ? "×" : tag.count}</span>
+            </button>
+          );
+        };
+
         return (
           <div className="mt-5">
             {sectionLabel("Tags")}
-            <div className={`flex flex-wrap gap-1 px-3 ${showAllTags ? "max-h-64 overflow-y-auto scrollbar-hide" : ""}`}>
-              {shown.map((tag) => {
-                const active = activeTagId === tag.id;
-                return (
-                  <button key={tag.id} onClick={() => onNavigate({ tagId: tag.id, tagName: tag.name })}
-                    title={`${tag.name} · ${tag.count}`}
-                    className={["inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-body transition-colors",
-                      active
-                        ? "bg-primary text-on-primary"
-                        : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
-                    ].join(" ")}>
-                    <span className="truncate">#{tag.name}</span>
-                    <span className={active ? "opacity-80" : "text-outline"}>{tag.count}</span>
-                  </button>
-                );
-              })}
-              {!showAllTags && extra > 0 && (
-                <button onClick={() => setShowAllTags(true)}
-                  className="rounded-full px-2 py-0.5 text-[11px] font-body text-outline transition-colors hover:text-on-surface">
-                  +{extra} more
-                </button>
-              )}
-              {showAllTags && inUse.length > TAG_LIMIT && (
-                <button onClick={() => setShowAllTags(false)}
-                  className="rounded-full px-2 py-0.5 text-[11px] font-body text-outline transition-colors hover:text-on-surface">
-                  Show less
-                </button>
-              )}
+            <div className="px-3">
+              <input
+                value={tagQuery}
+                onChange={(e) => setTagQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") { setTagQuery(""); e.currentTarget.blur(); }
+                  if (e.key === "Enter" && matches[0]) {
+                    onNavigate({ tagId: matches[0].id, tagName: matches[0].name });
+                    setTagQuery("");
+                    e.currentTarget.blur();
+                  }
+                }}
+                placeholder={`Filter ${inUse.length} tag${inUse.length !== 1 ? "s" : ""}…`}
+                className="ghost-border w-full rounded bg-surface-container-lowest px-2 py-1 font-label text-ui-small text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {shown.map(tagPill)}
+                {q && matches.length === 0 && (
+                  <span className="px-1 py-0.5 font-label text-ui-small text-outline">No match</span>
+                )}
+              </div>
             </div>
           </div>
         );
@@ -352,14 +377,14 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
                 <button onClick={() => onNavigate({ folder })}
                   className={["flex flex-1 items-center gap-1.5 px-4 py-1 transition-colors",
                     isFolderActive ? "text-primary" : "text-outline hover:text-on-surface-variant"].join(" ")}>
-                  <span className="text-[10px] font-label font-bold uppercase tracking-[0.1em]">{folder}</span>
+                  <span className="text-ui-small font-label font-bold uppercase tracking-[0.1em]">{folder}</span>
                   {folderUnread > 0 && !isCollapsed && (
-                    <span className="text-[10px] font-label opacity-60">{folderUnread > 99 ? "99+" : folderUnread}</span>
+                    <span className="text-ui-small font-label opacity-60">{folderUnread > 99 ? "99+" : folderUnread}</span>
                   )}
                 </button>
               ) : (
                 <div className="flex-1 px-4 py-1">
-                  <span className="text-[10px] font-label font-bold uppercase tracking-[0.1em] text-outline">{folder}</span>
+                  <span className="text-ui-small font-label font-bold uppercase tracking-[0.1em] text-outline">{folder}</span>
                 </div>
               )}
               <button onClick={() => toggleFolder(folder)} aria-label={isCollapsed ? "Expand folder" : "Collapse folder"}
@@ -381,12 +406,12 @@ export default function SidebarNav({ groups, existingFolders, activeFeedId, acti
                         className={["group flex items-center transition-all duration-200",
                           isActive ? "border-l-2 border-primary bg-surface-container-low" : "border-l-2 border-transparent hover:bg-surface-container"].join(" ")}>
                         <button onClick={() => onNavigate({ feedId: entry.feedId })}
-                          className={["flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-[13px] font-body",
+                          className={["flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-ui-label font-body",
                             isActive ? "text-primary font-bold" : "text-on-surface-variant hover:text-on-surface"].join(" ")}>
                           <Favicon siteUrl={entry.siteUrl} title={entry.title} />
                           <span className="min-w-0 flex-1 truncate text-left">{entry.title}</span>
                           {entry.unread > 0 && (
-                            <span className="shrink-0 rounded-full bg-surface-container-high px-1.5 py-0.5 text-[10px] font-label text-on-surface-variant">
+                            <span className="shrink-0 rounded-full bg-surface-container-high px-1.5 py-0.5 text-ui-small font-label text-on-surface-variant">
                               {entry.unread > 99 ? "99+" : entry.unread}
                             </span>
                           )}

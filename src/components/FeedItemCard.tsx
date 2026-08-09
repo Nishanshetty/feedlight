@@ -1,26 +1,5 @@
 import type { TimelineItem } from "../types/database";
 
-const ACCENT_STYLES = [
-  {
-    badge:      "text-primary bg-primary/10 border border-primary/20",
-    cardHover:  "hover:border-primary/50",
-    titleHover: "group-hover:text-primary",
-    iconHover:  "group-hover:text-primary",
-  },
-  {
-    badge:      "text-secondary bg-secondary/10 border border-secondary/20",
-    cardHover:  "hover:border-secondary/50",
-    titleHover: "group-hover:text-secondary",
-    iconHover:  "group-hover:text-secondary",
-  },
-  {
-    badge:      "text-tertiary bg-tertiary/10 border border-tertiary/20",
-    cardHover:  "hover:border-tertiary/50",
-    titleHover: "group-hover:text-tertiary",
-    iconHover:  "group-hover:text-tertiary",
-  },
-] as const;
-
 function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -51,8 +30,7 @@ type Props = {
   isRead: boolean;
   isStarred: boolean;
   isSelected: boolean;
-  accentIndex: number;
-  layout: "card" | "row";
+  layout: "card" | "row" | "compact";
   hero?: boolean;
   onActivate: () => void;
   onOpen: () => void;
@@ -63,7 +41,7 @@ type Props = {
 function ProgressLine({ progress }: { progress: number }) {
   if (progress <= 0 || progress >= 0.97) return null;
   return (
-    <div className="absolute bottom-0 left-0 h-0.5 bg-primary/70 pointer-events-none"
+    <div className="pointer-events-none absolute bottom-0 left-0 h-0.5 bg-tertiary"
       style={{ width: `${progress * 100}%` }} />
   );
 }
@@ -85,23 +63,23 @@ function TagChips({ tags, max = 3 }: { tags: string[]; max?: number }) {
   return (
     <div className="flex flex-wrap items-center gap-1 min-w-0">
       {shown.map((t) => (
-        <span key={t} className="truncate rounded-sm bg-surface-container px-1.5 py-0.5 text-[9px] font-label uppercase tracking-wide text-on-surface-variant">
+        <span key={t} className="truncate rounded-sm bg-surface-container px-1.5 py-0.5 font-label text-ui-small uppercase tracking-[0.1em] text-on-surface-variant">
           #{t}
         </span>
       ))}
       {tags.length > shown.length && (
-        <span className="text-[9px] font-label text-outline">+{tags.length - shown.length}</span>
+        <span className="font-label text-ui-small text-outline">+{tags.length - shown.length}</span>
       )}
     </div>
   );
 }
 
 function YouTubeCard({
-  item, isRead, isStarred, isSelected, accent, onActivate, onOpen, onToggleStar,
-}: Omit<Props, "accentIndex" | "elRef" | "layout" | "hero"> & { accent: (typeof ACCENT_STYLES)[number] }) {
+  item, isRead, isStarred, isSelected, onActivate, onOpen, onToggleStar,
+}: Omit<Props, "elRef" | "layout" | "hero">) {
   return (
     <div onClick={onActivate} className="flex flex-col flex-1 cursor-pointer select-none">
-      <div className="relative aspect-video overflow-hidden bg-surface-container-high">
+      <div className="relative aspect-video overflow-hidden rounded-lg bg-surface-container-low">
         <img
           src={item.thumbnail_url!}
           alt={item.title ?? ""}
@@ -118,22 +96,22 @@ function YouTubeCard({
       <div className="flex flex-col flex-1 p-4">
         <div className="flex justify-between items-start mb-2">
           {item.feed_title && (
-            <span className={`text-[9px] font-label font-bold tracking-widest uppercase px-2 py-0.5 truncate ${accent.badge}`}>
+            <span className="truncate font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-on-surface-variant">
               {item.feed_title}
             </span>
           )}
-          <span className="text-[9px] font-label text-outline uppercase shrink-0 ml-auto pl-2">
+          <span className="ml-auto shrink-0 pl-2 font-label text-ui-small uppercase text-outline">
             {formatRelative(item.published_at)}
           </span>
         </div>
-        <h3 className={`text-sm font-headline font-semibold leading-snug text-on-surface transition-colors ${accent.titleHover} ${isRead && !isSelected ? "opacity-50" : ""}`}>
+        <h3 className={`font-headline text-base font-semibold leading-snug text-on-surface transition-colors group-hover:text-primary ${isRead && !isSelected ? "opacity-50" : ""}`}>
           {item.title ?? "Untitled"}
         </h3>
         {item.tags.length > 0 && <div className="mt-3"><TagChips tags={item.tags} /></div>}
         <div className="mt-auto pt-3 flex items-center justify-end gap-2">
           <StarButton isStarred={isStarred} onToggleStar={onToggleStar} />
           <button onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="Open video"
-            className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 ${accent.iconHover}`}>
+            className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 hover:text-primary`}>
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
@@ -144,39 +122,55 @@ function YouTubeCard({
   );
 }
 
-export default function FeedItemCard({ item, isRead, isStarred, isSelected, accentIndex, layout, hero, onActivate, onOpen, onToggleStar, elRef }: Props) {
-  const accent = ACCENT_STYLES[accentIndex % 3];
+export default function FeedItemCard({ item, isRead, isStarred, isSelected, layout, hero, onActivate, onOpen, onToggleStar, elRef }: Props) {
   const stripped = item.content ? stripHtml(item.content) : null;
   const minutes = stripped ? readMinutes(stripped) : null;
   const imageUrl = !item.thumbnail_url && item.content ? extractFirstImage(item.content) : null;
   const isHero = !!hero && layout === "card" && !item.thumbnail_url;
   const preview = stripped ? stripped.slice(0, isHero ? 320 : 200) : null;
 
+  // Reading list: the column is ~340px, where the row layout's feed badge,
+  // tags, timestamp and actions all collide. Titles only — everything else is
+  // one click away in the article itself.
+  if (layout === "compact") {
+    return (
+      <li ref={elRef} onClick={onActivate}
+        className={["group relative cursor-pointer select-none border-l-2 px-4 py-3 transition-colors",
+          isSelected ? "border-primary bg-secondary-container" : "border-transparent hover:bg-surface-container-low",
+          isRead && !isSelected ? "opacity-55" : ""].join(" ")}>
+        <span className="line-clamp-3 font-body text-base leading-snug text-on-surface transition-colors group-hover:text-primary">
+          {item.title ?? "Untitled"}
+        </span>
+        <ProgressLine progress={item.read_progress} />
+      </li>
+    );
+  }
+
   if (layout === "row") {
     return (
       <li ref={elRef} onClick={onActivate}
         className={["group relative flex items-center gap-3 px-4 py-2 border-l-2 cursor-pointer select-none transition-colors",
-          isSelected ? "border-primary bg-surface-container-low" : "border-transparent hover:bg-surface-container",
+          isSelected ? "border-primary bg-secondary-container" : "border-transparent hover:bg-surface-container-low",
           isRead && !isSelected ? "opacity-50" : ""].join(" ")}>
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isRead ? "bg-outline-variant/60" : "bg-primary"}`} />
         {item.feed_title && (
-          <span className={`hidden sm:inline-block shrink-0 max-w-[9rem] truncate text-[9px] font-label font-bold tracking-widest uppercase px-2 py-0.5 ${accent.badge}`}>
+          <span className="hidden @2xl:inline-block shrink-0 max-w-[9rem] truncate font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-on-surface-variant">
             {item.feed_title}
           </span>
         )}
-        <span className={`min-w-0 flex-1 truncate text-[13px] font-body text-on-surface transition-colors ${accent.titleHover}`}>
+        <span className="min-w-0 flex-1 truncate font-body text-base text-on-surface transition-colors group-hover:text-primary">
           {item.title ?? "Untitled"}
         </span>
         {item.tags.length > 0 && (
-          <div className="hidden lg:flex shrink-0 max-w-[12rem]"><TagChips tags={item.tags} max={2} /></div>
+          <div className="hidden @4xl:flex shrink-0 max-w-[12rem]"><TagChips tags={item.tags} max={2} /></div>
         )}
-        <span className="shrink-0 text-[9px] font-label text-outline uppercase">
+        <span className="shrink-0 font-label text-ui-small uppercase text-outline">
           {minutes ? `${minutes} min · ` : ""}{formatRelative(item.published_at)}
         </span>
         <div className="flex items-center gap-1 shrink-0">
           <StarButton isStarred={isStarred} onToggleStar={onToggleStar} />
           <button onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="Open article"
-            className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 ${accent.iconHover}`}>
+            className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 hover:text-primary`}>
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
@@ -189,17 +183,17 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, acce
 
   return (
     <li ref={elRef}
-      className={["group relative flex flex-col bg-surface-container-lowest border transition-all duration-200",
+      className={["group relative flex flex-col rounded transition-colors duration-200",
         isHero ? "col-span-full" : "",
-        isSelected ? "border-primary/60 ring-1 ring-primary/20" : `border-outline-variant/40 ${accent.cardHover}`].join(" ")}>
+        isSelected ? "bg-secondary-container" : "hover:bg-surface-container-low"].join(" ")}>
       {item.thumbnail_url ? (
         <YouTubeCard item={item} isRead={isRead} isStarred={isStarred} isSelected={isSelected}
-          accent={accent} onActivate={onActivate} onOpen={onOpen} onToggleStar={onToggleStar} />
+          onActivate={onActivate} onOpen={onOpen} onToggleStar={onToggleStar} />
       ) : (
         <div onClick={onActivate}
           className={`flex flex-col flex-1 cursor-pointer select-none ${isRead && !isSelected ? "opacity-50" : ""}`}>
           {imageUrl && (
-            <div className={`overflow-hidden bg-surface-container-high ${isHero ? "h-60" : "h-36"}`}>
+            <div className={`overflow-hidden rounded-lg bg-surface-container-low ${isHero ? "h-60" : "h-36"}`}>
               <img src={imageUrl} alt="" loading="lazy"
                 onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }}
                 className="h-full w-full object-cover" />
@@ -210,30 +204,30 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, acce
               <div className="flex items-center gap-2 min-w-0">
                 {!isRead && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
                 {item.feed_title && (
-                  <span className={`text-[9px] font-label font-bold tracking-widest uppercase px-2 py-0.5 truncate ${accent.badge}`}>
+                  <span className="truncate font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-on-surface-variant">
                     {item.feed_title}
                   </span>
                 )}
               </div>
-              <span className="text-[9px] font-label text-outline uppercase shrink-0 ml-2">
+              <span className="ml-2 shrink-0 font-label text-ui-small uppercase text-outline">
                 {minutes ? `${minutes} min · ` : ""}{formatRelative(item.published_at)}
               </span>
             </div>
-            <h3 className={`font-headline font-semibold leading-snug mb-3 text-on-surface transition-colors ${accent.titleHover} ${isHero ? "text-2xl" : "text-base"}`}>
+            <h3 className={`font-headline font-semibold leading-snug mb-3 text-on-surface transition-colors group-hover:text-primary ${isHero ? "text-headline-md" : "text-base"}`}>
               {item.title ?? "Untitled"}
             </h3>
             {preview && (
-              <p className={`font-body text-on-surface-variant leading-relaxed mb-6 ${isHero ? "text-sm line-clamp-3 max-w-3xl" : imageUrl ? "text-xs line-clamp-2" : "text-xs line-clamp-3"}`}>{preview}</p>
+              <p className={`mb-6 font-body leading-relaxed text-on-surface-variant ${isHero ? "text-lg line-clamp-3 max-w-prose" : imageUrl ? "text-base line-clamp-2" : "text-base line-clamp-3"}`}>{preview}</p>
             )}
             {item.tags.length > 0 && <div className="mb-3"><TagChips tags={item.tags} /></div>}
-            <div className="mt-auto pt-4 border-t border-outline-variant/30 flex items-center justify-between gap-2">
-              <span className="text-[9px] font-label text-outline uppercase truncate">
+            <div className="mt-auto flex items-center justify-between gap-2 border-t border-outline-variant/60 pt-4">
+              <span className="truncate font-label text-ui-small uppercase text-outline">
                 {item.author ?? item.feed_title ?? ""}
               </span>
               <div className="flex items-center gap-2 shrink-0">
                 <StarButton isStarred={isStarred} onToggleStar={onToggleStar} />
                 <button onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="Open article"
-                  className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 ${accent.iconHover}`}>
+                  className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 hover:text-primary`}>
                   <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>

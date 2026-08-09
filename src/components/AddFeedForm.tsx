@@ -95,7 +95,7 @@ export default function AddFeedForm({ existingFolders, onFeedAdded }: Props) {
   return (
     <div>
       <button onClick={handleToggle}
-        className="flex w-full items-center justify-center gap-2 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90">
+        className="flex w-full items-center justify-center gap-2 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90">
         <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
         </svg>
@@ -115,14 +115,14 @@ export default function AddFeedForm({ existingFolders, onFeedAdded }: Props) {
               {existingFolders.map((f) => <option key={f} value={f} />)}
             </datalist>
           )}
-          {error && <p className="text-[11px] font-label text-error">{error}</p>}
+          {error && <p className="text-ui-small font-label text-error">{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={isPending || !url}
-              className="flex-1 bg-primary-container px-3 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
+              className="flex-1 bg-primary-container px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
               {isPending ? "Adding…" : "Subscribe"}
             </button>
             <button type="button" onClick={handleToggle} disabled={isPending}
-              className="ghost-border bg-surface-container px-3 py-2 text-[11px] font-label text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50">
+              className="ghost-border bg-surface-container px-3 py-2 text-ui-small font-label text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50">
               Cancel
             </button>
           </div>

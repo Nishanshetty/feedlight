@@ -6,7 +6,6 @@ import {
   getYouTubeApiKey, setYouTubeApiKey,
   getAiSettings, setAiSettings, aiConfig,
   getGeminiApiKey, setGeminiApiKey, GEMINI_DEFAULT_MODEL,
-  getAppTheme, setAppTheme,
   getRefreshIntervalSecs, setRefreshIntervalSecs,
   getObsidianVaultPath, setObsidianVaultPath,
   getGoogleTtsApiKey, setGoogleTtsApiKey,
@@ -16,11 +15,10 @@ import {
   getElevenLabsVoice, setElevenLabsVoice,
   getElevenLabsModel, setElevenLabsModel, ELEVENLABS_DEFAULT_MODEL,
   resetSettings,
-  type AiSettings, type AiProvider, type AppTheme, type TtsEngine,
+  type AiSettings, type AiProvider, type TtsEngine,
 } from "../lib/settings";
 import { eraseAllData } from "../lib/db";
 import { exportFeedsToOpml } from "../lib/opml";
-import { applyTheme } from "../lib/theme";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -31,7 +29,7 @@ function SettingField({
   onSave: () => void; placeholder: string; type?: string; saveState: SaveState;
 }) {
   return (
-    <div className="border border-outline-variant/40 p-5 space-y-3">
+    <div className="border border-outline-variant p-5 space-y-3">
       <div>
         <p className="text-sm font-headline font-semibold text-on-surface">{label}</p>
         <p className="text-xs font-body text-on-surface-variant mt-0.5">{description}</p>
@@ -45,58 +43,11 @@ function SettingField({
             className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary" />
         )}
         <button onClick={onSave} disabled={saveState === "saving"}
-          className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
+          className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
           {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : saveState === "error" ? "Error" : "Save"}
         </button>
       </div>
     </div>
-  );
-}
-
-const THEME_OPTIONS: { value: AppTheme; label: string; description: string }[] = [
-  { value: "light", label: "Light", description: "Warm cream" },
-  { value: "dark", label: "Dark", description: "Warm dark" },
-  { value: "system", label: "System", description: "Follow macOS" },
-];
-
-function AppearanceSection() {
-  const [theme, setTheme] = useState<AppTheme>("system");
-
-  useEffect(() => {
-    getAppTheme().then(setTheme).catch(console.error);
-  }, []);
-
-  function update(next: AppTheme) {
-    setTheme(next);
-    applyTheme(next);
-    setAppTheme(next).catch(console.error);
-  }
-
-  return (
-    <section className="space-y-3">
-      <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Appearance</h2>
-      <div className="border border-outline-variant/40 p-5 space-y-3">
-        <div>
-          <p className="text-sm font-headline font-semibold text-on-surface">Theme</p>
-          <p className="text-xs font-body text-on-surface-variant mt-0.5">
-            Applies to the whole app. The article reader keeps its own theme setting.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {THEME_OPTIONS.map((opt) => (
-            <button key={opt.value} onClick={() => update(opt.value)} aria-pressed={theme === opt.value}
-              className={["flex-1 px-3 py-2 text-[11px] font-label font-bold uppercase tracking-widest transition-colors",
-                theme === opt.value
-                  ? "bg-primary-container text-on-primary-container"
-                  : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
-              ].join(" ")}>
-              {opt.label}
-              <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal opacity-70">{opt.description}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -149,8 +100,8 @@ function FeedSyncingSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Feed Syncing</h2>
-      <div className="border border-outline-variant/40 p-5 space-y-3">
+      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">Feed Syncing</h2>
+      <div className="border border-outline-variant p-5 space-y-3">
         <div>
           <p className="text-sm font-headline font-semibold text-on-surface">Auto-refresh interval</p>
           <p className="text-xs font-body text-on-surface-variant mt-0.5">
@@ -175,7 +126,7 @@ function FeedSyncingSection() {
               className="w-24 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary" />
             <span className="text-xs font-body text-on-surface-variant">minutes</span>
             <button onClick={saveCustom}
-              className="ml-auto shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90">
+              className="ml-auto shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90">
               Set
             </button>
           </div>
@@ -290,10 +241,10 @@ function AiSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">AI</h2>
+      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">AI</h2>
 
       {/* Enable toggle */}
-      <div className="border border-outline-variant/40 p-5 flex items-center justify-between gap-4">
+      <div className="border border-outline-variant p-5 flex items-center justify-between gap-4">
         <div>
           <p className="text-sm font-headline font-semibold text-on-surface">Enable AI Features</p>
           <p className="text-xs font-body text-on-surface-variant mt-0.5">
@@ -314,19 +265,19 @@ function AiSection() {
       <div className="flex gap-2">
         {AI_PROVIDERS.map((opt) => (
           <button key={opt.value} onClick={() => update({ provider: opt.value })} aria-pressed={settings.provider === opt.value}
-            className={["flex-1 px-3 py-2 text-[11px] font-label font-bold uppercase tracking-widest transition-colors",
+            className={["flex-1 px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] transition-colors",
               settings.provider === opt.value
                 ? "bg-primary-container text-on-primary-container"
                 : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
             ].join(" ")}>
             {opt.label}
-            <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal opacity-70">{opt.description}</span>
+            <span className="mt-0.5 block text-ui-small font-normal normal-case tracking-normal opacity-70">{opt.description}</span>
           </button>
         ))}
       </div>
 
       {/* Provider config */}
-      <div className="border border-outline-variant/40 p-5 space-y-4">
+      <div className="border border-outline-variant p-5 space-y-4">
         {settings.provider === "ollama" ? (
           <>
             <div className="space-y-2">
@@ -355,7 +306,7 @@ function AiSection() {
                 <button
                   onClick={checkConnection}
                   disabled={checkState === "checking"}
-                  className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+                  className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
                 >
                   {checkState === "checking" ? "Checking…" : "Test"}
                 </button>
@@ -380,7 +331,7 @@ function AiSection() {
                 <button
                   onClick={saveGeminiKey}
                   disabled={keySaveState === "saving"}
-                  className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+                  className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
                 >
                   {keySaveState === "saving" ? "Saving…" : keySaveState === "saved" ? "Saved ✓" : keySaveState === "error" ? "Error" : "Save"}
                 </button>
@@ -404,7 +355,7 @@ function AiSection() {
                 <button
                   onClick={checkConnection}
                   disabled={checkState === "checking"}
-                  className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+                  className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
                 >
                   {checkState === "checking" ? "Checking…" : "Test"}
                 </button>
@@ -414,23 +365,23 @@ function AiSection() {
         )}
 
         {checkMessage && (
-          <p className={`text-[11px] font-body ${checkState === "ok" ? "text-primary" : "text-error"}`}>
+          <p className={`text-ui-small font-body ${checkState === "ok" ? "text-primary" : "text-error"}`}>
             {checkState === "ok" ? "✓ " : "✗ "}{checkMessage}
           </p>
         )}
 
         {settings.provider === "ollama" ? (
-          <p className="text-[10px] font-body text-on-surface-variant">
-            To install a model: <code className="bg-surface-container px-1 py-0.5 rounded text-[10px]">ollama pull {settings.ollamaModel || "llama3.2"}</code>
+          <p className="text-ui-small font-body text-on-surface-variant">
+            To install a model: <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">ollama pull {settings.ollamaModel || "llama3.2"}</code>
           </p>
         ) : (
-          <p className="text-[10px] font-body text-on-surface-variant">
-            Get a key at <code className="bg-surface-container px-1 py-0.5 rounded text-[10px]">aistudio.google.com/apikey</code>
+          <p className="text-ui-small font-body text-on-surface-variant">
+            Get a key at <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">aistudio.google.com/apikey</code>
           </p>
         )}
 
         {saveState === "saved" && (
-          <p className="text-[11px] font-label text-primary">Settings saved ✓</p>
+          <p className="text-ui-small font-label text-primary">Settings saved ✓</p>
         )}
       </div>
     </section>
@@ -528,7 +479,7 @@ function ElevenLabsVoiceSettings() {
             placeholder={hasKey ? "••••••••  saved — enter a new key to replace" : "sk_..."}
             className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary" />
           <button onClick={saveKey} disabled={keySave === "saving"}
-            className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
+            className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
             {keySave === "saving" ? "Saving…" : keySave === "saved" ? "Saved ✓" : keySave === "error" ? "Error" : "Save"}
           </button>
         </div>
@@ -546,7 +497,7 @@ function ElevenLabsVoiceSettings() {
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
           <button onClick={loadVoices} disabled={loading || (!hasKey && !key.trim())}
-            className="shrink-0 ghost-border px-3 py-1.5 text-[10px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-opacity hover:opacity-90 disabled:opacity-40">
+            className="shrink-0 ghost-border px-3 py-1.5 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant transition-opacity hover:opacity-90 disabled:opacity-40">
             {loading ? "Loading…" : voices ? "Reload" : "Load voices"}
           </button>
         </div>
@@ -561,7 +512,7 @@ function ElevenLabsVoiceSettings() {
             {voices.map((v) => <option key={v.voice_id} value={v.voice_id}>{v.name}{v.category ? ` · ${v.category}` : ""}</option>)}
           </select>
         )}
-        {error && <p className="text-[11px] font-body text-error">✗ {error}</p>}
+        {error && <p className="text-ui-small font-body text-error">✗ {error}</p>}
       </div>
     </div>
   );
@@ -644,8 +595,8 @@ function TtsSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Read Aloud</h2>
-      <div className="border border-outline-variant/40 p-5 space-y-4">
+      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">Read Aloud</h2>
+      <div className="border border-outline-variant p-5 space-y-4">
         <div>
           <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
           <p className="text-xs font-body text-on-surface-variant mt-0.5">
@@ -658,13 +609,13 @@ function TtsSection() {
         <div className="flex gap-2">
           {TTS_ENGINES.map((opt) => (
             <button key={opt.value} onClick={() => chooseEngine(opt.value)} aria-pressed={engine === opt.value}
-              className={["flex-1 px-3 py-2 text-[11px] font-label font-bold uppercase tracking-widest transition-colors",
+              className={["flex-1 px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] transition-colors",
                 engine === opt.value
                   ? "bg-primary-container text-on-primary-container"
                   : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
               ].join(" ")}>
               {opt.label}
-              <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal opacity-70">{opt.description}</span>
+              <span className="mt-0.5 block text-ui-small font-normal normal-case tracking-normal opacity-70">{opt.description}</span>
             </button>
           ))}
         </div>
@@ -691,7 +642,7 @@ function TtsSection() {
                   placeholder={hasKey ? "••••••••  saved — enter a new key to replace" : "AIzaSy..."}
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary" />
                 <button onClick={saveKey} disabled={keySave === "saving"}
-                  className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
+                  className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
                   {keySave === "saving" ? "Saving…" : keySave === "saved" ? "Saved ✓" : keySave === "error" ? "Error" : "Save"}
                 </button>
               </div>
@@ -701,7 +652,7 @@ function TtsSection() {
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
                 <button onClick={loadVoices} disabled={loadingVoices || (!hasKey && !key.trim())}
-                  className="shrink-0 ghost-border px-3 py-1.5 text-[10px] font-label font-bold uppercase tracking-widest text-on-surface-variant transition-opacity hover:opacity-90 disabled:opacity-40">
+                  className="shrink-0 ghost-border px-3 py-1.5 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant transition-opacity hover:opacity-90 disabled:opacity-40">
                   {loadingVoices ? "Loading…" : voices ? "Reload" : "Load voices"}
                 </button>
               </div>
@@ -727,7 +678,7 @@ function TtsSection() {
                 </div>
               )}
 
-              {voiceError && <p className="text-[11px] font-body text-error">✗ {voiceError}</p>}
+              {voiceError && <p className="text-ui-small font-body text-error">✗ {voiceError}</p>}
             </div>
           </div>
         )}
@@ -771,7 +722,7 @@ function DangerZoneSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-error">Danger Zone</h2>
+      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-error">Danger Zone</h2>
       <div className="border border-error/40 p-5 space-y-4">
         <div>
           <p className="text-sm font-headline font-semibold text-on-surface">Factory Reset</p>
@@ -783,7 +734,7 @@ function DangerZoneSection() {
         </div>
         <div className="space-y-2">
           <label className="text-xs font-body text-on-surface-variant">
-            Type <code className="bg-surface-container px-1 py-0.5 rounded text-[11px] text-on-surface">confirm</code> to enable the button.
+            Type <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small text-on-surface">confirm</code> to enable the button.
           </label>
           <div className="flex gap-2">
             <input
@@ -796,13 +747,13 @@ function DangerZoneSection() {
             <button
               onClick={handleReset}
               disabled={!armed || busy}
-              className="shrink-0 bg-error px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-background transition-opacity hover:opacity-90 disabled:opacity-30"
+              className="shrink-0 bg-error px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-background transition-opacity hover:opacity-90 disabled:opacity-30"
             >
               {state === "backing-up" ? "Backing up…" : state === "erasing" ? "Erasing…" : "Erase all data & reset"}
             </button>
           </div>
         </div>
-        {state === "error" && <p className="text-[11px] font-body text-error">✗ {errorMsg}</p>}
+        {state === "error" && <p className="text-ui-small font-body text-error">✗ {errorMsg}</p>}
       </div>
     </section>
   );
@@ -841,25 +792,27 @@ export default function SettingsPage() {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <header className="flex h-14 shrink-0 items-center gap-4 border-b border-outline-variant/40 bg-background/80 backdrop-blur-xl px-6">
+      <header className="flex h-14 shrink-0 items-center gap-2 bg-background px-6">
         <Link to="/" aria-label="Back to reader"
-          className="rounded p-1.5 text-on-surface-variant transition-colors hover:text-primary">
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          className="group flex items-center gap-2 rounded p-1.5 font-label text-ui-label text-outline transition-colors hover:text-primary">
+          <svg className="h-5 w-5 transition-transform group-active:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 19l-7-7 7-7" />
           </svg>
+          Reader
         </Link>
-        <span className="font-headline text-lg font-bold tracking-[0.2em] text-primary uppercase">Settings</span>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="mx-auto max-w-2xl space-y-8">
+      <div className="flex-1 overflow-y-auto">
+        <header className="px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop pb-stack-md pt-unit">
+          <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">Settings</h1>
+        </header>
+        <div className="px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop max-w-3xl space-y-stack-md pb-stack-lg">
 
-          <AppearanceSection />
 
           <FeedSyncingSection />
 
           <section className="space-y-3">
-            <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">YouTube</h2>
+            <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">YouTube</h2>
             <SettingField
               label="YouTube Data API Key"
               description="Required to subscribe to YouTube @handle channels. Get a key from Google Cloud Console."
@@ -872,8 +825,8 @@ export default function SettingsPage() {
           <AiSection />
 
           <section className="space-y-3">
-            <h2 className="text-[10px] font-label font-bold uppercase tracking-widest text-outline">Export</h2>
-            <div className="border border-outline-variant/40 p-5 space-y-3">
+            <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">Export</h2>
+            <div className="border border-outline-variant p-5 space-y-3">
               <div>
                 <p className="text-sm font-headline font-semibold text-on-surface">Obsidian Vault Folder</p>
                 <p className="text-xs font-body text-on-surface-variant mt-0.5">
@@ -885,12 +838,12 @@ export default function SettingsPage() {
                   {vaultPath || <span className="text-outline">No folder selected</span>}
                 </p>
                 <button onClick={chooseVaultFolder} disabled={vaultSave === "saving"}
-                  className="shrink-0 bg-primary-container px-4 py-2 text-[11px] font-label font-bold uppercase tracking-widest text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
+                  className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
                   {vaultSave === "saving" ? "Saving…" : vaultSave === "saved" ? "Saved ✓" : vaultSave === "error" ? "Error" : "Choose Folder…"}
                 </button>
                 {vaultPath && (
                   <button onClick={() => persistVaultPath("")} disabled={vaultSave === "saving"}
-                    className="shrink-0 px-2 py-2 text-[11px] font-label text-on-surface-variant transition-colors hover:text-error disabled:opacity-40">
+                    className="shrink-0 px-2 py-2 text-ui-small font-label text-on-surface-variant transition-colors hover:text-error disabled:opacity-40">
                     Clear
                   </button>
                 )}

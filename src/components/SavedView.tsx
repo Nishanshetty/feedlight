@@ -4,7 +4,7 @@ import { getSavedItems, unsaveItem, upsertItemState } from "../lib/db";
 import type { TimelineItem } from "../types/database";
 import { useKeyboardShortcuts } from "../lib/hooks/use-keyboard-shortcuts";
 import FeedItemCard from "./FeedItemCard";
-import ArticlePane from "./ArticlePane";
+import { useReader } from "../lib/reader-context";
 
 type Props = {
   refreshKey: number;
@@ -15,7 +15,7 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [paneItem, setPaneItem] = useState<TimelineItem | null>(null);
+  const reader = useReader();
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 
@@ -41,7 +41,7 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
     const item = items[index];
     if (!item) return;
     setSelectedIndex(index);
-    setPaneItem(item);
+    reader.open({ url: item.link ?? "", title: item.title, itemId: item.id });
     if (!readIds.has(item.id)) {
       setReadIds((prev) => new Set(Array.from(prev).concat(item.id)));
       upsertItemState(item.id, { is_read: true }).then(onStatesChanged).catch(console.error);
@@ -62,54 +62,50 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
     k: () => setSelectedIndex((prev) => (prev < 0 ? 0 : Math.max(prev - 1, 0))),
     o: () => { if (selectedIndex >= 0) selectAndRead(selectedIndex); },
     Enter: () => { if (selectedIndex >= 0) selectAndRead(selectedIndex); },
-    Escape: () => setPaneItem(null),
+    // Peel one layer at a time: the conversation closes before the article.
+    Escape: () => { if (reader.chatOpen) reader.setChatOpen(false); else reader.close(); },
     s: () => { if (selectedIndex >= 0) handleUnsave(selectedIndex); },
   });
 
   return (
     <div className="relative">
-      <div className={`h-0.5 w-full transition-all duration-300 ${isLoading ? "bg-primary/60" : "bg-transparent"}`}>
-        {isLoading && <div className="h-full w-1/3 bg-primary animate-[slide_1.2s_ease-in-out_infinite]" />}
+      <div className={`h-0.5 w-full transition-all duration-300 ${isLoading ? "bg-tertiary/30" : "bg-transparent"}`}>
+        {isLoading && <div className="h-full w-1/3 bg-tertiary animate-[slide_1.2s_ease-in-out_infinite]" />}
       </div>
 
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-outline-variant/40 bg-background/80 px-4 py-3 backdrop-blur-xl">
-        <div className="flex items-baseline gap-2">
-          <h3 className="text-[11px] font-headline font-bold uppercase tracking-widest text-outline">
-            Queue / Saved
-          </h3>
-          {items.length > 0 && (
-            <span className="text-[10px] font-label text-outline opacity-60">{items.length} saved</span>
-          )}
-        </div>
-      </div>
+      <header className="px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop pb-4 pt-unit @3xl:pb-stack-md">
+        <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">Saved</h1>
+        <p className="mt-2 font-label text-ui-label text-on-surface-variant">
+          {items.length > 0 ? `${items.length} article${items.length !== 1 ? "s" : ""}` : "Nothing saved yet"}
+        </p>
+      </header>
 
       {items.length === 0 && !isLoading ? (
-        <div className="px-6 py-20 text-center">
-          <p className="text-[12px] font-label text-outline uppercase tracking-widest">
+        <div className="px-reading-margin-mobile @3xl:px-16 @6xl:px-reading-margin-desktop py-20 text-center">
+          <p className="text-ui-label font-label text-outline uppercase tracking-[0.14em]">
             Nothing saved yet. Bookmark an article or save one you open with ⌘L.
           </p>
         </div>
       ) : (
         <>
-          <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 p-6">
+          <ul className={reader.isOpen
+            ? "flex flex-col px-reading-margin-mobile py-stack-md"
+            : "grid grid-cols-1 gap-4 p-6 @2xl:grid-cols-2 @4xl:grid-cols-3 @6xl:grid-cols-4"}>
             {items.map((item, index) => (
               <FeedItemCard key={item.id} item={item}
                 isRead={readIds.has(item.id)} isStarred={true}
-                isSelected={index === selectedIndex} accentIndex={index}
-                layout="card" hero={false}
+                isSelected={index === selectedIndex}
+                layout={reader.isOpen ? "compact" : "card"} hero={false}
                 onActivate={() => selectAndRead(index)}
                 onOpen={() => { if (item.link) openUrl(item.link); }}
                 onToggleStar={(e) => handleUnsave(index, e)}
                 elRef={(el) => { itemRefs.current[index] = el; }} />
             ))}
           </ul>
-          {loadError && <p className="pb-8 text-center text-[11px] font-label text-error">{loadError}</p>}
+          {loadError && <p className="pb-8 text-center text-ui-small font-label text-error">{loadError}</p>}
         </>
       )}
 
-      {paneItem?.link && (
-        <ArticlePane url={paneItem.link} title={paneItem.title} itemId={paneItem.id} onClose={() => setPaneItem(null)} />
-      )}
     </div>
   );
 }

@@ -126,14 +126,14 @@ export default function OpmlControls({ onImportComplete }: Props) {
 
       <div className="flex gap-1.5">
         <button onClick={() => fileRef.current?.click()} disabled={busy}
-          className="flex flex-1 items-center justify-center gap-1.5 ghost-border bg-surface-container px-2 py-1.5 text-[11px] font-label text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50">
+          className="flex flex-1 items-center justify-center gap-1.5 ghost-border bg-surface-container px-2 py-1.5 text-ui-small font-label text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50">
           <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
           </svg>
           Import
         </button>
         <button onClick={handleExport} disabled={busy}
-          className="flex flex-1 items-center justify-center gap-1.5 ghost-border bg-surface-container px-2 py-1.5 text-[11px] font-label text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50">
+          className="flex flex-1 items-center justify-center gap-1.5 ghost-border bg-surface-container px-2 py-1.5 text-ui-small font-label text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50">
           <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
@@ -142,15 +142,15 @@ export default function OpmlControls({ onImportComplete }: Props) {
       </div>
 
       {state.status === "importing" && (
-        <p className="text-[10px] font-label text-outline">
+        <p className="text-ui-small font-label text-outline">
           Importing {state.done}/{state.total} feeds…
         </p>
       )}
       {state.status === "exporting" && (
-        <p className="text-[10px] font-label text-outline">Exporting…</p>
+        <p className="text-ui-small font-label text-outline">Exporting…</p>
       )}
       {state.status === "done" && (
-        <div className="ghost-border bg-surface-container-low p-2 text-[10px] font-label space-y-0.5">
+        <div className="ghost-border bg-surface-container-low p-2 text-ui-small font-label space-y-0.5">
           <p className="font-bold text-primary">Import complete</p>
           <p className="text-on-surface-variant">{state.result.added} added · {state.result.alreadySubscribed} already subscribed · {state.result.failed} failed</p>
           {state.result.errors.length > 0 && (
@@ -166,7 +166,7 @@ export default function OpmlControls({ onImportComplete }: Props) {
         </div>
       )}
       {state.status === "error" && (
-        <div className="ghost-border bg-surface-container-low p-2 text-[10px] font-label flex items-start justify-between gap-2">
+        <div className="ghost-border bg-surface-container-low p-2 text-ui-small font-label flex items-start justify-between gap-2">
           <p className="text-error">{state.message}</p>
           <button onClick={() => setState({ status: "idle" })} className="shrink-0 text-outline hover:text-on-surface">✕</button>
         </div>

@@ -16,8 +16,9 @@ const DEFAULT_ELEVEN_MODEL: &str = "eleven_turbo_v2_5";
 /// prompt the user to add a key in Settings. Keep this string stable.
 const ERR_NO_KEY: &str = "no_api_key";
 
-/// Used when the user hasn't picked a voice yet.
-const DEFAULT_VOICE: &str = "en-US-Neural2-F";
+/// Used when the user hasn't picked a language yet. There is deliberately no
+/// default *voice*: omitting the name lets Google choose one that matches the
+/// language, which can't produce a mismatched pair.
 const DEFAULT_LANG: &str = "en-US";
 
 /// Reads the user's Google Cloud TTS API key from the system keychain.
@@ -33,6 +34,27 @@ fn api_key() -> Result<String, String> {
         }
         Err(e) if e.code() == ERR_NOT_FOUND => Err(ERR_NO_KEY.to_string()),
         Err(e) => Err(format!("Keychain error: {e}")),
+    }
+}
+
+#[derive(Deserialize)]
+struct GoogleApiError {
+    message: String,
+}
+
+#[derive(Deserialize)]
+struct GoogleApiErrorEnvelope {
+    error: GoogleApiError,
+}
+
+/// Google puts the useful part ("This voice requires a model name to be
+/// specified") inside a JSON envelope; surface that rather than the raw body.
+async fn google_error(context: &str, resp: reqwest::Response) -> String {
+    let status = resp.status();
+    let body = resp.text().await.unwrap_or_default();
+    match serde_json::from_str::<GoogleApiErrorEnvelope>(&body) {
+        Ok(env) => format!("{context}: {}", env.error.message),
+        Err(_) => format!("{context} error {status}: {body}"),
     }
 }
 
@@ -60,6 +82,22 @@ struct VoicesResponse {
     voices: Vec<Voice>,
 }
 
+/// Whether a voice can be synthesized through `text:synthesize` with an API key.
+///
+/// `voices.list` also returns Gemini-TTS voices — bare star names like
+/// "Achernar" — which reject that call with "This voice requires a model name to
+/// be specified", and which route through Vertex AI even when a model is given,
+/// so an API key can't reach them at all. Every addressable voice is named
+/// `{languageCode}-…` (`en-US-Neural2-F`, `en-US-Chirp3-HD-Achernar`), so the
+/// prefix is the discriminator. Structural rather than a denylist, so voices
+/// Google adds later are classified without a code change.
+fn is_addressable(voice: &Voice) -> bool {
+    voice
+        .language_codes
+        .iter()
+        .any(|code| voice.name.starts_with(&format!("{code}-")))
+}
+
 /// Lists the Google Cloud TTS voices available to the user's API key.
 #[tauri::command]
 pub async fn list_tts_voices() -> Result<Vec<Voice>, String> {
@@ -73,16 +111,17 @@ pub async fn list_tts_voices() -> Result<Vec<Voice>, String> {
         .map_err(|e| format!("Voices request failed: {e}"))?;
 
     if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(format!("Voices API error {status}: {body}"));
+        return Err(google_error("Voices", resp).await);
     }
 
     let parsed: VoicesResponse = resp
         .json()
         .await
         .map_err(|e| format!("Failed to parse voices response: {e}"))?;
-    Ok(parsed.voices)
+
+    // Offering a voice that can't be synthesized is worse than not offering it:
+    // picking one breaks read-aloud with a raw 400 and no way to tell why.
+    Ok(parsed.voices.into_iter().filter(is_addressable).collect())
 }
 
 /// Synthesizes text to MP3 using Google Cloud TTS and the user's API key,
@@ -99,20 +138,31 @@ pub async fn synthesize_speech(text: String, app: AppHandle) -> Result<String, S
     let store = app
         .store("settings.json")
         .map_err(|e| format!("Store error: {e}"))?;
-    let voice = store
-        .get("tts_voice")
-        .and_then(|v| v.as_str().map(str::to_string))
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| DEFAULT_VOICE.to_string());
     let lang = store
         .get("tts_voice_lang")
         .and_then(|v| v.as_str().map(str::to_string))
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| DEFAULT_LANG.to_string());
+    // A voice saved before the picker was filtered may be one of the Gemini
+    // names, and a voice only ever belongs to one language, so a saved voice can
+    // also disagree with the saved language. Either way, drop the name and let
+    // Google pick for the requested language: sending a mismatched pair is a
+    // 400 ("language code doesn't match the voice"), and falling back to a fixed
+    // English voice would silently override the user's language.
+    let voice = store
+        .get("tts_voice")
+        .and_then(|v| v.as_str().map(str::to_string))
+        .filter(|s| !s.trim().is_empty())
+        .filter(|s| s.starts_with(&format!("{lang}-")));
+
+    let voice_json = match &voice {
+        Some(name) => serde_json::json!({ "languageCode": lang, "name": name }),
+        None => serde_json::json!({ "languageCode": lang }),
+    };
 
     let body = serde_json::json!({
         "input": { "text": text.trim() },
-        "voice": { "languageCode": lang, "name": voice },
+        "voice": voice_json,
         "audioConfig": { "audioEncoding": "MP3" }
     });
 
@@ -126,9 +176,7 @@ pub async fn synthesize_speech(text: String, app: AppHandle) -> Result<String, S
         .map_err(|e| format!("TTS API request failed: {e}"))?;
 
     if !resp.status().is_success() {
-        let status = resp.status();
-        let err_body = resp.text().await.unwrap_or_default();
-        return Err(format!("TTS API error {status}: {err_body}"));
+        return Err(google_error("Read-aloud", resp).await);
     }
 
     // Google returns the audio already base64-encoded; pass it straight through.
