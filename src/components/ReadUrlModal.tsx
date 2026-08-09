@@ -61,7 +61,7 @@ export default function ReadUrlModal({ onSubmit, onSubmitPdf, onClose }: Props) 
             Read Article
           </p>
           {error && (
-            <p className="mb-2 text-ui-small font-body text-red-500">{error}</p>
+            <p className="mb-2 text-ui-small font-body text-error">{error}</p>
           )}
           <div className="flex gap-2">
             <input

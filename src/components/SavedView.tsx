@@ -88,7 +88,9 @@ export default function SavedView({ refreshKey, onStatesChanged }: Props) {
         </div>
       ) : (
         <>
-          <ul className="grid grid-cols-1 @2xl:grid-cols-2 @4xl:grid-cols-3 @6xl:grid-cols-4 gap-4 p-6">
+          <ul className={reader.isOpen
+            ? "flex flex-col px-reading-margin-mobile py-stack-md"
+            : "grid grid-cols-1 gap-4 p-6 @2xl:grid-cols-2 @4xl:grid-cols-3 @6xl:grid-cols-4"}>
             {items.map((item, index) => (
               <FeedItemCard key={item.id} item={item}
                 isRead={readIds.has(item.id)} isStarred={true}

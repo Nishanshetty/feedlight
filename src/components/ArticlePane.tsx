@@ -781,13 +781,7 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
   // Chat state
-  const { chatOpen, setChatOpen, minimized, setMinimized } = useReader();
-  // The shell renders the chat column; find it once it's there.
-  const [chatSlot, setChatSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    if (!docked || !chatOpen) { setChatSlot(null); return; }
-    setChatSlot(document.getElementById("reader-chat-slot"));
-  }, [docked, chatOpen]);
+  const { chatOpen, setChatOpen, minimized, setMinimized, chatSlot } = useReader();
   const [chatMessages, setChatMessages] = useState<ChatMessageEntry[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatStream, setChatStream] = useState<string | null>(null);
@@ -1856,14 +1850,6 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
                 </div>
               )}
 
-              <h1 ref={titleRef} className="text-2xl font-headline font-bold leading-snug mb-3">{result.title}</h1>
-              {(result.byline || result.siteName || readMinutes) && (
-                <p className="text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted mb-8">
-                  {[result.byline, result.siteName, readMinutes ? `${readMinutes} min read` : null]
-                    .filter(Boolean).join(" · ")}
-                </p>
-              )}
-
               {/* Key takeaways */}
               {(takeawaysLoading || takeaways) && (
                 <div className="mb-8 rounded border border-reader-border bg-reader-hover/40 px-4 py-3">
@@ -1906,11 +1892,14 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
                     {result.siteName || paneDomain}
                   </p>
                 )}
-                <h1 className="font-headline text-headline-lg-mobile text-reader-text md:text-headline-lg">
+                <h1 ref={titleRef} className="font-headline text-headline-lg-mobile text-reader-text md:text-headline-lg">
                   {result.title || paneTitle || "Untitled"}
                 </h1>
-                {result.byline && (
-                  <p className="mt-stack-sm font-body text-lg italic text-reader-text-muted">{result.byline}</p>
+                {(result.byline || readMinutes) && (
+                  <p className="mt-stack-sm font-body text-lg italic text-reader-text-muted">
+                    {[result.byline, readMinutes ? `${readMinutes} min read` : null]
+                      .filter(Boolean).join(" · ")}
+                  </p>
                 )}
               </header>
               <div ref={articleContentRef} className="article-content article-content--dropcap" style={{ fontSize: `${fontSize}px` }}
@@ -2027,7 +2016,7 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
             />
             <div className="mt-2 flex items-center justify-between">
               <button onClick={removeActiveHighlight}
-                className="text-ui-small font-label text-reader-text-muted transition-colors hover:text-red-500">
+                className="text-ui-small font-label text-reader-text-muted transition-colors hover:text-error">
                 Delete highlight
               </button>
               <div className="flex gap-2">
@@ -2059,7 +2048,7 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
                     <button onClick={sendHighlightsToObsidian}
                       className={`text-ui-small font-label transition-colors ${
                         obsidianStatus === "ok" ? "text-reader-primary"
-                        : obsidianStatus === "error" ? "text-red-500"
+                        : obsidianStatus === "error" ? "text-error"
                         : "text-reader-text-muted hover:text-reader-text"}`}>
                       {obsidianStatus === "ok" ? "Sent ✓" : obsidianStatus === "error" ? "Failed" : "Send to Obsidian"}
                     </button>

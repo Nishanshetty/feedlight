@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type { ArchivedContent } from "./db";
 
 /**
@@ -40,6 +40,13 @@ type ReaderContextValue = {
    */
   minimized: boolean;
   setMinimized: (minimized: boolean) => void;
+  /**
+   * The shell's chat column, handed over as an element rather than looked up by
+   * id. A lookup resolves a frame late and, worse, holds a detached node once
+   * the column unmounts and remounts around minimising.
+   */
+  chatSlot: HTMLElement | null;
+  setChatSlot: (el: HTMLElement | null) => void;
 };
 
 const ReaderContext = createContext<ReaderContextValue | null>(null);
@@ -48,30 +55,36 @@ export function ReaderProvider({ children }: { children: React.ReactNode }) {
   const [request, setRequest] = useState<ReaderRequest | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [chatSlot, setChatSlot] = useState<HTMLElement | null>(null);
+  // The updater below must stay pure, so the outgoing request is tracked here
+  // and its cleanup runs outside setState.
+  const requestRef = useRef<ReaderRequest | null>(null);
 
   const open = useCallback((next: ReaderRequest) => {
     // Run the outgoing article's cleanup when replacing it directly, so opening
     // a second article from Highlights still refreshes the list behind it.
+    // Outside the updater: React may invoke an updater more than once, and does
+    // under StrictMode, which would fire the callback twice.
+    const prev = requestRef.current;
+    if (prev && prev !== next) prev.onClose?.();
+    requestRef.current = next;
     setChatOpen(false);
     setMinimized(false);
-    setRequest((prev) => {
-      if (prev && prev !== next) prev.onClose?.();
-      return next;
-    });
+    setRequest(next);
   }, []);
 
   const close = useCallback(() => {
+    const prev = requestRef.current;
+    requestRef.current = null;
+    prev?.onClose?.();
     setChatOpen(false);
     setMinimized(false);
-    setRequest((prev) => {
-      prev?.onClose?.();
-      return null;
-    });
+    setRequest(null);
   }, []);
 
   const value = useMemo<ReaderContextValue>(
-    () => ({ request, isOpen: request !== null, open, close, chatOpen, setChatOpen, minimized, setMinimized }),
-    [request, open, close, chatOpen, minimized]
+    () => ({ request, isOpen: request !== null, open, close, chatOpen, setChatOpen, minimized, setMinimized, chatSlot, setChatSlot }),
+    [request, open, close, chatOpen, minimized, chatSlot]
   );
 
   return <ReaderContext.Provider value={value}>{children}</ReaderContext.Provider>;

@@ -246,7 +246,7 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
         </main>
 
         {chatInColumn && (
-          <div id="reader-chat-slot" className="w-[400px] shrink-0 overflow-hidden bg-reader-bg" />
+          <div ref={reader.setChatSlot} className="w-[400px] shrink-0 overflow-hidden bg-reader-bg" />
         )}
       </div>
 

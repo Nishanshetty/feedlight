@@ -16,8 +16,9 @@ const DEFAULT_ELEVEN_MODEL: &str = "eleven_turbo_v2_5";
 /// prompt the user to add a key in Settings. Keep this string stable.
 const ERR_NO_KEY: &str = "no_api_key";
 
-/// Used when the user hasn't picked a voice yet.
-const DEFAULT_VOICE: &str = "en-US-Neural2-F";
+/// Used when the user hasn't picked a language yet. There is deliberately no
+/// default *voice*: omitting the name lets Google choose one that matches the
+/// language, which can't produce a mismatched pair.
 const DEFAULT_LANG: &str = "en-US";
 
 /// Reads the user's Google Cloud TTS API key from the system keychain.
@@ -143,18 +144,25 @@ pub async fn synthesize_speech(text: String, app: AppHandle) -> Result<String, S
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| DEFAULT_LANG.to_string());
     // A voice saved before the picker was filtered may be one of the Gemini
-    // names, which would 400. Fall back rather than fail, so read-aloud keeps
-    // working until the user picks again.
+    // names, and a voice only ever belongs to one language, so a saved voice can
+    // also disagree with the saved language. Either way, drop the name and let
+    // Google pick for the requested language: sending a mismatched pair is a
+    // 400 ("language code doesn't match the voice"), and falling back to a fixed
+    // English voice would silently override the user's language.
     let voice = store
         .get("tts_voice")
         .and_then(|v| v.as_str().map(str::to_string))
         .filter(|s| !s.trim().is_empty())
-        .filter(|s| s.starts_with(&format!("{lang}-")))
-        .unwrap_or_else(|| DEFAULT_VOICE.to_string());
+        .filter(|s| s.starts_with(&format!("{lang}-")));
+
+    let voice_json = match &voice {
+        Some(name) => serde_json::json!({ "languageCode": lang, "name": name }),
+        None => serde_json::json!({ "languageCode": lang }),
+    };
 
     let body = serde_json::json!({
         "input": { "text": text.trim() },
-        "voice": { "languageCode": lang, "name": voice },
+        "voice": voice_json,
         "audioConfig": { "audioEncoding": "MP3" }
     });
 
