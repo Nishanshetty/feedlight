@@ -10,9 +10,11 @@
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Tailwind v4 reads the design tokens from the existing config file; the
+   container-query plugin is gone because @container is built into v4. */
+@config "../tailwind.config.ts";
 
 /* ── Lumina theme tokens (RGB channel triplets for Tailwind <alpha-value>) ──
    Light only, by design: "Digital Paper" is a single tonal system. Elevation
