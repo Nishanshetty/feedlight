@@ -33,6 +33,47 @@ pub fn read_secret(key: &str) -> Result<String, String> {
     }
 }
 
+/// Writes a keychain secret, replacing whatever was there. Empty clears it.
+pub fn write_secret(key: &str, value: &str) -> Result<(), String> {
+    if value.is_empty() {
+        return delete_secret(key);
+    }
+    match set_generic_password(SERVICE, key, value.as_bytes()) {
+        Ok(()) => Ok(()),
+        Err(e) if e.code() == ERR_DUPLICATE => {
+            delete_generic_password(SERVICE, key).map_err(|e| e.to_string())?;
+            set_generic_password(SERVICE, key, value.as_bytes()).map_err(|e| e.to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Removes a secret. Not-found is success: the caller wanted it gone.
+pub fn delete_secret(key: &str) -> Result<(), String> {
+    match delete_generic_password(SERVICE, key) {
+        Ok(()) => Ok(()),
+        Err(e) if e.code() == ERR_NOT_FOUND => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Reads a secret under its current name, and if only the old name exists,
+/// moves it forward and returns it. Renaming a keychain entry otherwise drops
+/// the key silently: the user would have to paste it again, with no hint why.
+///
+/// One-shot — after the first read the current name exists and this never runs
+/// again. A failed copy leaves the old entry alone.
+pub fn read_secret_renamed(legacy: &str, current: &str) -> Result<String, String> {
+    match read_secret(current) {
+        Err(e) if e == ERR_NO_KEY => {}
+        other => return other,
+    }
+    let value = read_secret(legacy)?;
+    write_secret(current, &value)?;
+    delete_secret(legacy)?;
+    Ok(value)
+}
+
 #[tauri::command]
 pub fn get_credential(key: String) -> Result<Option<String>, String> {
     match get_generic_password(SERVICE, &key) {
@@ -44,17 +85,5 @@ pub fn get_credential(key: String) -> Result<Option<String>, String> {
 
 #[tauri::command]
 pub fn set_credential(key: String, value: String) -> Result<(), String> {
-    if value.is_empty() {
-        return match delete_generic_password(SERVICE, &key) {
-            Ok(()) | Err(_) => Ok(()), // ignore not-found on delete
-        };
-    }
-    match set_generic_password(SERVICE, &key, value.as_bytes()) {
-        Ok(()) => Ok(()),
-        Err(e) if e.code() == ERR_DUPLICATE => {
-            delete_generic_password(SERVICE, &key).map_err(|e| e.to_string())?;
-            set_generic_password(SERVICE, &key, value.as_bytes()).map_err(|e| e.to_string())
-        }
-        Err(e) => Err(e.to_string()),
-    }
+    write_secret(&key, &value)
 }

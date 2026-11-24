@@ -6,7 +6,7 @@ import {
   getYouTubeApiKey, setYouTubeApiKey,
   getAiSettings, setAiSettings, aiConfig,
   getGeminiApiKey, setGeminiApiKey, GEMINI_DEFAULT_MODEL,
-  getOllamaApiKey, setOllamaApiKey,
+  getLocalAiApiKey, setLocalAiApiKey,
   getRefreshIntervalSecs, setRefreshIntervalSecs,
   getObsidianVaultPath, setObsidianVaultPath,
   getGoogleTtsApiKey, setGoogleTtsApiKey,
@@ -156,7 +156,8 @@ const GEMINI_MODELS: { value: string; hint: string }[] = [
   { value: "gemini-2.5-pro", hint: "Most capable, slower" },
 ];
 
-/** Decoration for the Ollama picker: "3B Q4_0 · 2.0 GB". Empty on old Ollama. */
+/** Decoration for the Local model picker: "3B Q4_0 · 2.0 GB". Most servers
+ *  report only a name, in which case this is empty. */
 function modelHint(m: LocalModel): string {
   const spec = [m.parameterSize, m.quantization].filter(Boolean).join(" ");
   const size = m.sizeMb ? `${(m.sizeMb / 1024).toFixed(1)} GB` : "";
@@ -173,8 +174,8 @@ function AiSection() {
   const [checkMessage, setCheckMessage] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
-  const [ollamaKey, setOllamaKey] = useState("");
-  const [hasOllamaKey, setHasOllamaKey] = useState(false);
+  const [localKey, setLocalKey] = useState("");
+  const [hasLocalKey, setHasLocalKey] = useState(false);
   const [keySaveState, setKeySaveState] = useState<SaveState>("idle");
   const [localModels, setLocalModels] = useState<LocalModel[] | null>(null);
   const [modelsState, setModelsState] = useState<"idle" | "loading" | "error">("idle");
@@ -192,7 +193,7 @@ function AiSection() {
     // Only whether a key exists — never the key itself, so the secret stays out
     // of component state and the DOM.
     getGeminiApiKey().then((k) => setHasGeminiKey(!!k.trim())).catch(console.error);
-    getOllamaApiKey().then((k) => setHasOllamaKey(!!k.trim())).catch(console.error);
+    getLocalAiApiKey().then((k) => setHasLocalKey(!!k.trim())).catch(console.error);
   }, []);
 
   async function save(updated: AiSettings) {
@@ -207,7 +208,7 @@ function AiSection() {
   }
 
   async function saveKey(provider: AiProvider) {
-    const trimmed = (provider === "gemini" ? geminiKey : ollamaKey).trim();
+    const trimmed = (provider === "gemini" ? geminiKey : localKey).trim();
     if (!trimmed) return;
     setKeySaveState("saving");
     try {
@@ -216,9 +217,9 @@ function AiSection() {
         setHasGeminiKey(true);
         setGeminiKey("");
       } else {
-        await setOllamaApiKey(trimmed);
-        setHasOllamaKey(true);
-        setOllamaKey("");
+        await setLocalAiApiKey(trimmed);
+        setHasLocalKey(true);
+        setLocalKey("");
       }
       setKeySaveState("saved");
       setCheckState("idle");
@@ -234,13 +235,13 @@ function AiSection() {
     }
   }
 
-  /** Local Ollama usually needs no key, so clearing it is a first-class action. */
-  async function clearOllamaKey() {
+  /** Plain local Ollama needs no key, so clearing one is a first-class action. */
+  async function clearLocalKey() {
     setKeySaveState("saving");
     try {
-      await setOllamaApiKey("");
-      setHasOllamaKey(false);
-      setOllamaKey("");
+      await setLocalAiApiKey("");
+      setHasLocalKey(false);
+      setLocalKey("");
       setKeySaveState("saved");
       setTimeout(() => setKeySaveState("idle"), 2000);
       // Same reasoning as saving: an instance that does need a key now fails
@@ -425,21 +426,21 @@ function AiSection() {
               <div className="flex gap-2">
                 <input
                   type="password"
-                  value={ollamaKey}
-                  onChange={(e) => setOllamaKey(e.target.value)}
-                  placeholder={hasOllamaKey ? "••••••••  saved — enter a new key to replace" : settings.localProtocol === "ollama" ? "No key needed for a local instance" : "Bearer token"}
+                  value={localKey}
+                  onChange={(e) => setLocalKey(e.target.value)}
+                  placeholder={hasLocalKey ? "••••••••  saved — enter a new key to replace" : settings.localProtocol === "ollama" ? "No key needed for a local instance" : "Bearer token"}
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <button
                   onClick={() => saveKey("ollama")}
-                  disabled={keySaveState === "saving" || !ollamaKey.trim()}
+                  disabled={keySaveState === "saving" || !localKey.trim()}
                   className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
                 >
                   {keySaveState === "saving" ? "Saving…" : keySaveState === "saved" ? "Saved ✓" : keySaveState === "error" ? "Error" : "Save"}
                 </button>
-                {hasOllamaKey && (
+                {hasLocalKey && (
                   <button
-                    onClick={clearOllamaKey}
+                    onClick={clearLocalKey}
                     disabled={keySaveState === "saving"}
                     className="shrink-0 ghost-border bg-surface-container-low px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant hover:text-on-surface disabled:opacity-40"
                   >

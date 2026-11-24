@@ -2,14 +2,18 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 
 use super::{gemini, ollama, openai};
-use crate::commands::credentials::{read_secret, ERR_NO_KEY};
+use crate::commands::credentials::{read_secret_renamed, ERR_NO_KEY};
 
 /// Default Ollama endpoint, used when the frontend sends an empty base URL.
 const OLLAMA_DEFAULT_URL: &str = "http://localhost:11434";
 
-/// Keychain name of the Local provider's bearer token. The name predates the
-/// OpenAI-compatible protocol and is kept so existing installs keep their key.
-pub const LOCAL_KEY: &str = "ollama_api_key";
+/// Keychain name of the Local provider's bearer token. It covers both local
+/// protocols, so the provider-neutral name is the honest one.
+pub const LOCAL_KEY: &str = "local_ai_api_key";
+
+/// Name this key had while the Local provider could only be Ollama. Read once
+/// and moved forward, so nobody has to re-paste a working key.
+pub const LOCAL_KEY_LEGACY: &str = "ollama_api_key";
 
 /// Which backend answers AI requests. Mirrors `AiProvider` in `lib/settings.ts`.
 #[derive(Deserialize, Clone, Copy, PartialEq)]
@@ -90,7 +94,7 @@ pub fn http_client(timeout_secs: u64) -> Result<reqwest::Client, String> {
 /// no header: a plain local Ollama is unaffected, and an instance that ignores
 /// `Authorization` still works.
 pub fn local_api_key() -> Result<Option<String>, String> {
-    match read_secret(LOCAL_KEY) {
+    match read_secret_renamed(LOCAL_KEY_LEGACY, LOCAL_KEY) {
         Ok(key) => Ok(Some(key)),
         Err(e) if e == ERR_NO_KEY => Ok(None),
         Err(e) => Err(e),

@@ -245,15 +245,17 @@ Two stores, by sensitivity:
   `ollama_*` keys predate multi-provider support and are kept so existing installs
   upgrade cleanly; `ollama_url` is the base URL for either local protocol.)
 - **Secrets** → OS keychain (service `app.feedlight`) via the `credentials` commands:
-  `youtube_api_key`, `gcp_tts_api_key`, `gemini_api_key`, `ollama_api_key`. These never
+  `youtube_api_key`, `gcp_tts_api_key`, `gemini_api_key`, `local_ai_api_key`. These never
   touch the plaintext store, and provider commands read them in Rust rather than
-  accepting them over IPC (`credentials::read_secret`).
+  accepting them over IPC (`credentials::read_secret`). `local_ai_api_key` was
+  `ollama_api_key` while Local could only mean Ollama; `read_secret_renamed`
+  moves an existing key forward on the first read, on both sides.
 
 AI is **off by default** and enabled from Settings, which also picks the provider.
 The **Local** provider stays on your machine and speaks one of two protocols
 (`ai_local_protocol`): **Ollama** (`/api/tags`, `/api/chat`, `/api/generate`) or
 **OpenAI-compatible** (`/v1/models`, `/v1/chat/completions` — llama.cpp's server,
-vLLM, LM Studio, OpenRouter, Ollama's own `/v1` shim). `ollama_api_key` is shared by
+vLLM, LM Studio, OpenRouter, Ollama's own `/v1` shim). `local_ai_api_key` is shared by
 both and optional: absent means no `Authorization` header, so a plain local Ollama is
 unaffected; present, it is sent as a bearer token to that host.
 Choosing **Gemini** sends article text to Google's API under the user's own

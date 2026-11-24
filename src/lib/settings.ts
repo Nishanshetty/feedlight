@@ -241,16 +241,31 @@ export async function setGeminiApiKey(key: string): Promise<void> {
 }
 
 /**
- * Ollama bearer token — also keychain, also never sent over IPC with a request.
- * Optional: a plain local Ollama needs none, and an empty value clears it.
- * Needed when the instance sits behind a proxy or on another machine.
+ * Local provider bearer token — keychain, and never sent over IPC with a
+ * request. Optional for Ollama (a plain local instance needs none, and an
+ * empty value clears it), usually required for an OpenAI-compatible server.
+ *
+ * Reads the current name first and falls back to the name used while Local
+ * could only mean Ollama, moving the key forward so an existing install does
+ * not silently lose it. The Rust side does the same migration on its own read.
  */
-export async function getOllamaApiKey(): Promise<string> {
-  return (await invoke<string | null>("get_credential", { key: "ollama_api_key" })) ?? "";
+const LOCAL_AI_KEY = "local_ai_api_key";
+const LOCAL_AI_KEY_LEGACY = "ollama_api_key";
+
+export async function getLocalAiApiKey(): Promise<string> {
+  const current = await invoke<string | null>("get_credential", { key: LOCAL_AI_KEY });
+  if (current?.trim()) return current;
+  const legacy = await invoke<string | null>("get_credential", { key: LOCAL_AI_KEY_LEGACY });
+  if (legacy?.trim()) {
+    await setLocalAiApiKey(legacy);
+    await invoke("set_credential", { key: LOCAL_AI_KEY_LEGACY, value: "" });
+    return legacy;
+  }
+  return "";
 }
 
-export async function setOllamaApiKey(key: string): Promise<void> {
-  await invoke("set_credential", { key: "ollama_api_key", value: key });
+export async function setLocalAiApiKey(key: string): Promise<void> {
+  await invoke("set_credential", { key: LOCAL_AI_KEY, value: key });
 }
 
 // ── Reset ───────────────────────────────────────────────────────────────────
@@ -267,5 +282,6 @@ export async function resetSettings(): Promise<void> {
   await setYouTubeApiKey("");
   await setGoogleTtsApiKey("");
   await setGeminiApiKey("");
-  await setOllamaApiKey("");
+  await setLocalAiApiKey("");
+  await invoke("set_credential", { key: LOCAL_AI_KEY_LEGACY, value: "" });
 }
