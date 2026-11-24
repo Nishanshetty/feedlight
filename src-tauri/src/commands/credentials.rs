@@ -4,6 +4,35 @@ const SERVICE: &str = "app.feedlight";
 const ERR_NOT_FOUND: i32 = -25300; // errSecItemNotFound
 const ERR_DUPLICATE: i32 = -25299; // errSecDuplicateItem
 
+/// Sentinel the frontend matches on to point the user at Settings. Kept stable:
+/// `SettingsPage.tsx` and `tts.rs` both look for this exact string.
+pub const ERR_NO_KEY: &str = "no_api_key";
+
+/// Reads a keychain secret for Rust-side callers — the key never travels over
+/// IPC, the command that needs it looks it up itself.
+///
+/// `Err(ERR_NO_KEY)` separates "nothing stored yet" from a keychain failure, so
+/// the caller can show "save a key in Settings" instead of "Keychain error".
+pub fn read_secret(key: &str) -> Result<String, String> {
+    match get_generic_password(SERVICE, key) {
+        Ok(bytes) => {
+            let value =
+                String::from_utf8(bytes).map_err(|e| format!("Key encoding error: {e}"))?;
+            // Trim before the emptiness check, not just before the use: a pasted
+            // key with a trailing newline would otherwise reach the request
+            // verbatim and come back as an opaque auth failure.
+            let value = value.trim().to_string();
+            if value.is_empty() {
+                Err(ERR_NO_KEY.to_string())
+            } else {
+                Ok(value)
+            }
+        }
+        Err(e) if e.code() == ERR_NOT_FOUND => Err(ERR_NO_KEY.to_string()),
+        Err(e) => Err(format!("Keychain error: {e}")),
+    }
+}
+
 #[tauri::command]
 pub fn get_credential(key: String) -> Result<Option<String>, String> {
     match get_generic_password(SERVICE, &key) {
