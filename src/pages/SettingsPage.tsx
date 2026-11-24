@@ -214,12 +214,16 @@ function AiSection() {
         await setOllamaApiKey(trimmed);
         setHasOllamaKey(true);
         setOllamaKey("");
-        loadOllamaModels();
       }
       setKeySaveState("saved");
       setCheckState("idle");
       setCheckMessage("");
       setTimeout(() => setKeySaveState("idle"), 2000);
+      // Saving a key is only half the action. Verify it against the provider
+      // right away, so the verdict lands in the ✓/✗ line instead of waiting
+      // for a Test click — and so a wrong key is visible before an article is
+      // opened and the summary silently fails.
+      await checkConnection();
     } catch {
       setKeySaveState("error");
     }
@@ -233,8 +237,10 @@ function AiSection() {
       setHasOllamaKey(false);
       setOllamaKey("");
       setKeySaveState("saved");
-      loadOllamaModels();
       setTimeout(() => setKeySaveState("idle"), 2000);
+      // Same reasoning as saving: an instance that does need a key now fails
+      // visibly, rather than at the next summary request.
+      await checkConnection();
     } catch {
       setKeySaveState("error");
     }
