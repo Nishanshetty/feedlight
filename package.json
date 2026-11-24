@@ -1,7 +1,7 @@
 {
   "name": "feedlight",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,32 +16,34 @@
     "@fontsource/inter": "^5.3.0",
     "@fontsource/playfair-display": "^5.3.0",
     "@mozilla/readability": "^0.6.0",
-    "@tanstack/react-router": "^1.170.10",
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-dialog": "^2.7.1",
-    "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-sql": "^2.4.0",
-    "@tauri-apps/plugin-store": "^2.4.3",
+    "@tanstack/react-router": "^1.170.46",
+    "@tauri-apps/api": "^2.12.5",
+    "@tauri-apps/plugin-dialog": "^2.8.4",
+    "@tauri-apps/plugin-opener": "^2.7.3",
+    "@tauri-apps/plugin-sql": "^2.6.0",
+    "@tauri-apps/plugin-store": "^2.5.1",
     "@types/dompurify": "^3.0.5",
     "@types/uuid": "^10.0.0",
-    "dompurify": "^3.4.8",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "dompurify": "^3.5.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.3"
   },
   "devDependencies": {
-    "@tailwindcss/container-queries": "^0.1.1",
-    "@tailwindcss/typography": "^0.5.19",
-    "@tauri-apps/cli": "^2",
+    "@tailwindcss/postcss": "^4.3.5",
+    "@tailwindcss/typography": "^0.5.20",
+    "@tauri-apps/cli": "^2.12.6",
     "@types/mozilla-readability": "^0.2.1",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^4.6.0",
-    "autoprefixer": "^10.5.0",
-    "postcss": "^8.5.15",
-    "tailwindcss": "^3.4.19",
-    "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "postcss": "^8.5.33",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  },
+  "overrides": {
+    "postcss-selector-parser": "^6.1.5"
   }
 }
