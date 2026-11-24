@@ -10,6 +10,7 @@ mod provider;
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 
+pub use ollama::OllamaModel;
 pub use provider::{AiConfig, ChatMessage};
 
 #[derive(Deserialize)]
@@ -25,10 +26,11 @@ pub struct DigestResult {
     pub article_count: usize,
 }
 
-/// Lists the models installed on an Ollama instance. Powers the Settings "Test"
-/// button; `base_url` comes straight from the field the user is editing.
+/// Lists the models installed on an Ollama instance. Powers both the Settings
+/// model picker and the "Test" button; `base_url` comes straight from the field
+/// the user is editing, so an unsaved URL is still checked as typed.
 #[tauri::command]
-pub async fn check_ollama(base_url: String) -> Result<Vec<String>, String> {
+pub async fn list_ollama_models(base_url: String) -> Result<Vec<OllamaModel>, String> {
     ollama::list_models(&base_url).await
 }
 

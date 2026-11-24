@@ -6,6 +6,7 @@ import {
   getYouTubeApiKey, setYouTubeApiKey,
   getAiSettings, setAiSettings, aiConfig,
   getGeminiApiKey, setGeminiApiKey, GEMINI_DEFAULT_MODEL,
+  getOllamaApiKey, setOllamaApiKey,
   getRefreshIntervalSecs, setRefreshIntervalSecs,
   getObsidianVaultPath, setObsidianVaultPath,
   getGoogleTtsApiKey, setGoogleTtsApiKey,
@@ -15,7 +16,7 @@ import {
   getElevenLabsVoice, setElevenLabsVoice,
   getElevenLabsModel, setElevenLabsModel, ELEVENLABS_DEFAULT_MODEL,
   resetSettings,
-  type AiSettings, type AiProvider, type TtsEngine,
+  type AiSettings, type AiProvider, type TtsEngine, type OllamaModel,
 } from "../lib/settings";
 import { eraseAllData } from "../lib/db";
 import { exportFeedsToOpml } from "../lib/opml";
@@ -150,6 +151,13 @@ const GEMINI_MODELS: { value: string; hint: string }[] = [
   { value: "gemini-2.5-pro", hint: "Most capable, slower" },
 ];
 
+/** Decoration for the Ollama picker: "3B Q4_0 · 2.0 GB". Empty on old Ollama. */
+function modelHint(m: OllamaModel): string {
+  const spec = [m.parameterSize, m.quantization].filter(Boolean).join(" ");
+  const size = m.sizeMb ? `${(m.sizeMb / 1024).toFixed(1)} GB` : "";
+  return [spec, size].filter(Boolean).join(" · ");
+}
+
 function AiSection() {
   const [settings, setSettings] = useState<AiSettings>({
     enabled: false, provider: "ollama", ollamaUrl: "http://localhost:11434",
@@ -160,13 +168,26 @@ function AiSection() {
   const [checkMessage, setCheckMessage] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
+  const [ollamaKey, setOllamaKey] = useState("");
+  const [hasOllamaKey, setHasOllamaKey] = useState(false);
   const [keySaveState, setKeySaveState] = useState<SaveState>("idle");
+  const [ollamaModels, setOllamaModels] = useState<OllamaModel[] | null>(null);
+  const [modelsState, setModelsState] = useState<"idle" | "loading" | "error">("idle");
+  const [modelsMessage, setModelsMessage] = useState("");
 
   useEffect(() => {
-    getAiSettings().then(setSettings).catch(console.error);
+    getAiSettings()
+      .then((loaded) => {
+        setSettings(loaded);
+        // One listing per settings load, keyed to the URL as saved — typing a
+        // new URL reloads the list on blur instead of on every keystroke.
+        if (loaded.provider === "ollama") loadOllamaModels(loaded.ollamaUrl);
+      })
+      .catch(console.error);
     // Only whether a key exists — never the key itself, so the secret stays out
     // of component state and the DOM.
     getGeminiApiKey().then((k) => setHasGeminiKey(!!k.trim())).catch(console.error);
+    getOllamaApiKey().then((k) => setHasOllamaKey(!!k.trim())).catch(console.error);
   }, []);
 
   async function save(updated: AiSettings) {
@@ -180,14 +201,21 @@ function AiSection() {
     }
   }
 
-  async function saveGeminiKey() {
-    const trimmed = geminiKey.trim();
+  async function saveKey(provider: AiProvider) {
+    const trimmed = (provider === "gemini" ? geminiKey : ollamaKey).trim();
     if (!trimmed) return;
     setKeySaveState("saving");
     try {
-      await setGeminiApiKey(trimmed);
-      setHasGeminiKey(true);
-      setGeminiKey("");
+      if (provider === "gemini") {
+        await setGeminiApiKey(trimmed);
+        setHasGeminiKey(true);
+        setGeminiKey("");
+      } else {
+        await setOllamaApiKey(trimmed);
+        setHasOllamaKey(true);
+        setOllamaKey("");
+        loadOllamaModels();
+      }
       setKeySaveState("saved");
       setCheckState("idle");
       setCheckMessage("");
@@ -197,14 +225,49 @@ function AiSection() {
     }
   }
 
+  /** Local Ollama usually needs no key, so clearing it is a first-class action. */
+  async function clearOllamaKey() {
+    setKeySaveState("saving");
+    try {
+      await setOllamaApiKey("");
+      setHasOllamaKey(false);
+      setOllamaKey("");
+      setKeySaveState("saved");
+      loadOllamaModels();
+      setTimeout(() => setKeySaveState("idle"), 2000);
+    } catch {
+      setKeySaveState("error");
+    }
+  }
+
+  async function loadOllamaModels(url = settings.ollamaUrl) {
+    setModelsState("loading");
+    setModelsMessage("");
+    try {
+      const list = await invoke<OllamaModel[]>("list_ollama_models", { baseUrl: url });
+      setOllamaModels(list);
+      setModelsState("idle");
+      setModelsMessage(
+        list.length === 0
+          ? "Ollama reachable, but no models installed. Run: ollama pull llama3.2"
+          : `${list.length} model${list.length === 1 ? "" : "s"} installed`
+      );
+    } catch (err) {
+      setOllamaModels(null);
+      setModelsState("error");
+      setModelsMessage(String(err));
+    }
+  }
+
   async function checkOllama() {
-    const models = await invoke<string[]>("check_ollama", { baseUrl: settings.ollamaUrl });
-    const match = models.find((m) => m.startsWith(settings.ollamaModel));
+    const models = await invoke<OllamaModel[]>("list_ollama_models", { baseUrl: settings.ollamaUrl });
+    setOllamaModels(models);
+    const match = models.find((m) => m.name.startsWith(settings.ollamaModel));
     if (match) {
-      setCheckMessage(`Model "${match}" found`);
+      setCheckMessage(`Model "${match.name}" found`);
       setCheckState("ok");
     } else if (models.length > 0) {
-      setCheckMessage(`Ollama reachable. Model "${settings.ollamaModel}" not found. Available: ${models.slice(0, 3).join(", ")}`);
+      setCheckMessage(`Ollama reachable. Model "${settings.ollamaModel}" not found. Available: ${models.slice(0, 3).map((m) => m.name).join(", ")}`);
       setCheckState("error");
     } else {
       setCheckMessage("Ollama reachable but no models installed. Run: ollama pull " + settings.ollamaModel);
@@ -286,7 +349,7 @@ function AiSection() {
                 <input
                   value={settings.ollamaUrl}
                   onChange={(e) => setSettings((s) => ({ ...s, ollamaUrl: e.target.value }))}
-                  onBlur={() => save(settings)}
+                  onBlur={() => { save(settings); loadOllamaModels(settings.ollamaUrl); }}
                   placeholder="http://localhost:11434"
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
@@ -294,15 +357,63 @@ function AiSection() {
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-headline font-semibold text-on-surface">Model</p>
+              <p className="text-sm font-headline font-semibold text-on-surface">API Key (optional)</p>
+              <p className="text-xs font-body text-on-surface-variant">
+                Only needed when Ollama sits behind a proxy or on another machine. Sent as a bearer
+                token, stored in your macOS keychain, never written to the settings file.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={ollamaKey}
+                  onChange={(e) => setOllamaKey(e.target.value)}
+                  placeholder={hasOllamaKey ? "••••••••  saved — enter a new key to replace" : "No key needed for a local instance"}
+                  className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  onClick={() => saveKey("ollama")}
+                  disabled={keySaveState === "saving" || !ollamaKey.trim()}
+                  className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {keySaveState === "saving" ? "Saving…" : keySaveState === "saved" ? "Saved ✓" : keySaveState === "error" ? "Error" : "Save"}
+                </button>
+                {hasOllamaKey && (
+                  <button
+                    onClick={clearOllamaKey}
+                    disabled={keySaveState === "saving"}
+                    className="shrink-0 ghost-border bg-surface-container-low px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant hover:text-on-surface disabled:opacity-40"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-sm font-headline font-semibold text-on-surface">Model</p>
+                <button
+                  onClick={() => loadOllamaModels()}
+                  disabled={modelsState === "loading"}
+                  className="text-ui-small font-label uppercase tracking-[0.14em] text-on-surface-variant hover:text-on-surface disabled:opacity-40"
+                >
+                  {modelsState === "loading" ? "Loading…" : "Reload list"}
+                </button>
+              </div>
               <div className="flex gap-2">
                 <input
                   value={settings.ollamaModel}
                   onChange={(e) => setSettings((s) => ({ ...s, ollamaModel: e.target.value }))}
                   onBlur={() => save(settings)}
                   placeholder="llama3.2"
+                  list="ollama-models"
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
+                <datalist id="ollama-models">
+                  {(ollamaModels ?? []).map((m) => (
+                    <option key={m.name} value={m.name}>{modelHint(m)}</option>
+                  ))}
+                </datalist>
                 <button
                   onClick={checkConnection}
                   disabled={checkState === "checking"}
@@ -311,6 +422,31 @@ function AiSection() {
                   {checkState === "checking" ? "Checking…" : "Test"}
                 </button>
               </div>
+              {ollamaModels && ollamaModels.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {ollamaModels.map((m) => (
+                    <button
+                      key={m.name}
+                      onClick={() => update({ ollamaModel: m.name })}
+                      aria-pressed={settings.ollamaModel === m.name}
+                      className={[
+                        "px-2 py-1 text-ui-small font-body transition-colors",
+                        settings.ollamaModel === m.name
+                          ? "bg-primary-container text-on-primary-container"
+                          : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
+                      ].join(" ")}
+                    >
+                      {m.name}
+                      <span className="ml-1 opacity-60">{modelHint(m)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {modelsMessage && (
+                <p className={`text-ui-small font-body ${modelsState === "error" ? "text-error" : "text-on-surface-variant"}`}>
+                  {modelsMessage}
+                </p>
+              )}
             </div>
           </>
         ) : (
@@ -329,8 +465,8 @@ function AiSection() {
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <button
-                  onClick={saveGeminiKey}
-                  disabled={keySaveState === "saving"}
+                  onClick={() => saveKey("gemini")}
+                  disabled={keySaveState === "saving" || !geminiKey.trim()}
                   className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
                 >
                   {keySaveState === "saving" ? "Saving…" : keySaveState === "saved" ? "Saved ✓" : keySaveState === "error" ? "Error" : "Save"}

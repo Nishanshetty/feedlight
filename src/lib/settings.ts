@@ -166,6 +166,16 @@ export type AiConfig = {
   baseUrl?: string;
 };
 
+/** One installed Ollama model, mirroring `OllamaModel` in Rust. The detail
+ *  fields are absent on older Ollama versions, so treat them as decoration. */
+export type OllamaModel = {
+  name: string;
+  sizeMb?: number;
+  parameterSize?: string;
+  quantization?: string;
+  modifiedAt?: string;
+};
+
 export function aiConfig(settings: AiSettings): AiConfig {
   return settings.provider === "gemini"
     ? { provider: "gemini", model: settings.geminiModel }
@@ -205,6 +215,19 @@ export async function setGeminiApiKey(key: string): Promise<void> {
   await invoke("set_credential", { key: "gemini_api_key", value: key });
 }
 
+/**
+ * Ollama bearer token — also keychain, also never sent over IPC with a request.
+ * Optional: a plain local Ollama needs none, and an empty value clears it.
+ * Needed when the instance sits behind a proxy or on another machine.
+ */
+export async function getOllamaApiKey(): Promise<string> {
+  return (await invoke<string | null>("get_credential", { key: "ollama_api_key" })) ?? "";
+}
+
+export async function setOllamaApiKey(key: string): Promise<void> {
+  await invoke("set_credential", { key: "ollama_api_key", value: key });
+}
+
 // ── Reset ───────────────────────────────────────────────────────────────────
 
 /**
@@ -219,4 +242,5 @@ export async function resetSettings(): Promise<void> {
   await setYouTubeApiKey("");
   await setGoogleTtsApiKey("");
   await setGeminiApiKey("");
+  await setOllamaApiKey("");
 }

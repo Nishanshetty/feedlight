@@ -100,3 +100,42 @@ pub fn parse_json_array(raw: &str, what: &str) -> Result<Vec<String>, String> {
     }
     serde_json::from_str(&raw[start..=end]).map_err(|e| format!("Could not parse {what}: {e}"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_a_plain_json_array() {
+        assert_eq!(
+            parse_json_array("[\"a\", \"b\", \"c\"]", "takeaways").unwrap(),
+            ["a", "b", "c"]
+        );
+    }
+
+    #[test]
+    fn strips_prose_and_code_fences_around_the_array() {
+        let raw = "Here are three takeaways:\n```json\n[\"one\", \"two\", \"three\"]\n```\nHope that helps.";
+        assert_eq!(parse_json_array(raw, "takeaways").unwrap().len(), 3);
+    }
+
+    #[test]
+    fn takes_the_widest_array_span_not_the_first_bracket_pair() {
+        // A model that echoes the example from the prompt before answering.
+        let raw = "[\"First.\"], example: [\"Second.\", \"Third.\"]";
+        assert!(parse_json_array(raw, "takeaways").is_err());
+        let good = "[\"First.\", \"Second.\"]";
+        assert_eq!(parse_json_array(good, "takeaways").unwrap().len(), 2);
+    }
+
+    #[test]
+    fn fails_with_the_feature_name_when_no_array_is_present() {
+        let err = parse_json_array("no array here", "queries").unwrap_err();
+        assert!(err.contains("queries"), "{err}");
+    }
+
+    #[test]
+    fn an_empty_array_is_valid_and_not_an_error() {
+        assert!(parse_json_array("[]", "suggestions").unwrap().is_empty());
+    }
+}

@@ -160,7 +160,7 @@ Grouped by module under [src-tauri/src/commands/](../src-tauri/src/commands/):
 | `feed` | `fetch_feed`, `resolve_youtube_handle` | RSS/Atom fetch + autodiscovery; YouTube `@handle` → channel |
 | `extract` | `fetch_article_html`, `fetch_image_base64` | Fetch raw HTML for Readability; inline images past CSP |
 | `tts` | `synthesize_speech`, `list_tts_voices` | Google Cloud TTS (REST, user API key) |
-| `ai` | `check_ollama`, `check_gemini`, `summarize_article`, `chat_article`, `suggest_questions`, `key_takeaways`, `generate_digest`, `generate_discover_queries` | Prompts in `ai/mod.rs`; transport per provider (`ai/ollama.rs`, `ai/gemini.rs`) behind `ai/provider.rs` |
+| `ai` | `list_ollama_models`, `check_gemini`, `summarize_article`, `chat_article`, `suggest_questions`, `key_takeaways`, `generate_digest`, `generate_discover_queries` | Prompts in `ai/mod.rs`; transport per provider (`ai/ollama.rs`, `ai/gemini.rs`) behind `ai/provider.rs` |
 | `video` | `open_video_window` | Open a YouTube watch page top-level in its own window |
 | `export` | `export_markdown` | Write highlights markdown (e.g. to an Obsidian vault) |
 
@@ -244,11 +244,13 @@ Two stores, by sensitivity:
   `ai_provider`, `ollama_url`, `ollama_model`, `gemini_model`. (The `ollama_*` keys
   predate multi-provider support and are kept so existing installs upgrade cleanly.)
 - **Secrets** → OS keychain (service `app.feedlight`) via the `credentials` commands:
-  `youtube_api_key`, `gcp_tts_api_key`, `gemini_api_key`. These never touch the
-  plaintext store, and provider commands read them in Rust rather than accepting
-  them over IPC.
+  `youtube_api_key`, `gcp_tts_api_key`, `gemini_api_key`, `ollama_api_key`. These never
+  touch the plaintext store, and provider commands read them in Rust rather than
+  accepting them over IPC (`credentials::read_secret`).
 
 AI is **off by default** and enabled from Settings, which also picks the provider.
 With the default **Ollama** provider everything runs locally and nothing leaves the
-machine. Choosing **Gemini** sends article text to Google's API under the user's own
+machine; `ollama_api_key` is optional and only used when the instance sits behind a
+proxy or on another host, in which case it is sent as a bearer token to that host.
+Choosing **Gemini** sends article text to Google's API under the user's own
 key — the trade-off is stated in the Settings panel.

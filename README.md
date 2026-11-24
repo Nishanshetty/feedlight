@@ -66,7 +66,7 @@ Open **Settings** (gear icon in the top bar) to configure optional integrations:
 |---------|----------------|---------|
 | **YouTube Data API key** | [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → YouTube Data API v3 | Subscribing to `@handle` YouTube channels |
 | **Google Cloud TTS credentials** | GCP Console → IAM → Service Accounts → create key (JSON) | Article read-aloud feature |
-| **Ollama URL + model** | [ollama.com](https://ollama.com) — install locally, then `ollama pull llama3.2` | AI features, run locally |
+| **Ollama URL + model** | [ollama.com](https://ollama.com) — install locally, then `ollama pull llama3.2` | AI features, run locally. A bearer key is optional, only for a proxied or remote instance |
 | **Gemini API key** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | AI features, run in the cloud |
 
 Preferences live in the app data directory via `tauri-plugin-store`; API keys live in the macOS keychain, never in the plaintext store. Each key is sent only to the service it belongs to, over HTTPS. Selecting Gemini also sends **article text** to Google — every other feature, including local Ollama, keeps article content on your machine.
@@ -81,7 +81,12 @@ Google under your own key.
 
 1. Install [Ollama](https://ollama.com) and pull a model: `ollama pull llama3.2`
 2. Open Feedlight → Settings → **AI**, toggle it on, choose **Local**
-3. Confirm the URL (`http://localhost:11434`), hit **Test**
+3. Confirm the URL (`http://localhost:11434`) — the model field fills itself from
+   whatever your instance has installed; pick one or type a name
+4. Hit **Test**
+
+Only running Ollama behind a proxy or on another machine? Save its key under
+**API key** — it goes to the keychain and is sent as a bearer token to that host.
 
 **Gemini**
 
