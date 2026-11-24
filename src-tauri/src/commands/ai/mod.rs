@@ -5,13 +5,13 @@
 
 mod gemini;
 mod ollama;
+mod openai;
 mod provider;
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 
-pub use ollama::OllamaModel;
-pub use provider::{AiConfig, ChatMessage};
+pub use provider::{AiConfig, ChatMessage, LocalModel, LocalProtocol};
 
 #[derive(Deserialize)]
 pub struct DigestArticle {
@@ -26,12 +26,19 @@ pub struct DigestResult {
     pub article_count: usize,
 }
 
-/// Lists the models installed on an Ollama instance. Powers both the Settings
-/// model picker and the "Test" button; `base_url` comes straight from the field
-/// the user is editing, so an unsaved URL is still checked as typed.
+/// Lists the models the Local provider offers, over whichever protocol it is
+/// configured for. Powers both the Settings model picker and the "Test" button;
+/// `base_url` comes straight from the field the user is editing, so an unsaved
+/// URL is still checked as typed.
 #[tauri::command]
-pub async fn list_ollama_models(base_url: String) -> Result<Vec<OllamaModel>, String> {
-    ollama::list_models(&base_url).await
+pub async fn list_local_models(
+    base_url: String,
+    protocol: LocalProtocol,
+) -> Result<Vec<LocalModel>, String> {
+    match protocol {
+        LocalProtocol::Ollama => ollama::list_models(&base_url).await,
+        LocalProtocol::OpenAi => openai::list_models(&base_url).await,
+    }
 }
 
 /// Verifies the saved key and the chosen model with a minimal generation.

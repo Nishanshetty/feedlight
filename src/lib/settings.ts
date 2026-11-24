@@ -134,12 +134,21 @@ export async function setObsidianVaultPath(path: string): Promise<void> {
 export type AiProvider = "ollama" | "gemini";
 
 /**
+ * Which wire protocol the Local provider speaks. Mirrors `LocalProtocol` in
+ * Rust. "ollama" is the default so configs written before this existed are
+ * read unchanged; "openai" covers llama.cpp's server, vLLM, LM Studio,
+ * OpenRouter and Ollama's own `/v1` shim.
+ */
+export type LocalProtocol = "ollama" | "openai";
+
+/**
  * Both providers are configured independently and persist side by side, so
  * switching back and forth doesn't lose the other one's setup.
  */
 export type AiSettings = {
   enabled: boolean;
   provider: AiProvider;
+  localProtocol: LocalProtocol;
   ollamaUrl: string;
   ollamaModel: string;
   geminiModel: string;
@@ -150,6 +159,7 @@ export const GEMINI_DEFAULT_MODEL = "gemini-3.6-flash";
 const AI_DEFAULTS: AiSettings = {
   enabled: false,
   provider: "ollama",
+  localProtocol: "ollama",
   ollamaUrl: "http://localhost:11434",
   ollamaModel: "llama3.2",
   geminiModel: GEMINI_DEFAULT_MODEL,
@@ -164,22 +174,32 @@ export type AiConfig = {
   provider: AiProvider;
   model: string;
   baseUrl?: string;
+  protocol: LocalProtocol;
 };
 
-/** One installed Ollama model, mirroring `OllamaModel` in Rust. The detail
- *  fields are absent on older Ollama versions, so treat them as decoration. */
-export type OllamaModel = {
+/**
+ * One model the Local provider offers, mirroring `LocalModel` in Rust. Only
+ * `name` is guaranteed: Ollama reports size and quantisation, an
+ * OpenAI-compatible server usually reports nothing but the id.
+ */
+export type LocalModel = {
   name: string;
   sizeMb?: number;
   parameterSize?: string;
   quantization?: string;
   modifiedAt?: string;
+  contextLength?: number;
 };
 
 export function aiConfig(settings: AiSettings): AiConfig {
   return settings.provider === "gemini"
-    ? { provider: "gemini", model: settings.geminiModel }
-    : { provider: "ollama", model: settings.ollamaModel, baseUrl: settings.ollamaUrl };
+    ? { provider: "gemini", model: settings.geminiModel, protocol: settings.localProtocol }
+    : {
+        provider: "ollama",
+        model: settings.ollamaModel,
+        baseUrl: settings.ollamaUrl,
+        protocol: settings.localProtocol,
+      };
 }
 
 // The `ollama_*` store keys predate multi-provider support and are kept as-is so
@@ -190,6 +210,10 @@ export async function getAiSettings(): Promise<AiSettings> {
   return {
     enabled: (await store.get<boolean>("ollama_enabled")) ?? AI_DEFAULTS.enabled,
     provider: provider === "gemini" ? "gemini" : AI_DEFAULTS.provider,
+    localProtocol:
+      (await store.get<string>("ai_local_protocol")) === "openai"
+        ? "openai"
+        : AI_DEFAULTS.localProtocol,
     ollamaUrl: (await store.get<string>("ollama_url")) ?? AI_DEFAULTS.ollamaUrl,
     ollamaModel: (await store.get<string>("ollama_model")) ?? AI_DEFAULTS.ollamaModel,
     geminiModel: (await store.get<string>("gemini_model")) ?? AI_DEFAULTS.geminiModel,
@@ -200,6 +224,7 @@ export async function setAiSettings(settings: AiSettings): Promise<void> {
   const store = await getStore();
   await store.set("ollama_enabled", settings.enabled);
   await store.set("ai_provider", settings.provider);
+  await store.set("ai_local_protocol", settings.localProtocol);
   await store.set("ollama_url", settings.ollamaUrl);
   await store.set("ollama_model", settings.ollamaModel);
   await store.set("gemini_model", settings.geminiModel);

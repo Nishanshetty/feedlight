@@ -82,7 +82,7 @@ pub fn run() {
             commands::tts::list_tts_voices,
             commands::tts::synthesize_speech_elevenlabs,
             commands::tts::list_elevenlabs_voices,
-            commands::ai::list_ollama_models,
+            commands::ai::list_local_models,
             commands::ai::check_gemini,
             commands::ai::summarize_article,
             commands::ai::chat_article,

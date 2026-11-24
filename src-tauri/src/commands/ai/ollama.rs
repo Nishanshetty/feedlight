@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 
-use super::provider::{AiConfig, ChatMessage};
-use crate::commands::credentials::{read_secret, ERR_NO_KEY};
+use super::provider::{http_client, status_error, with_auth, AiConfig, ChatMessage, LocalModel};
+
+const WHAT: &str = "Ollama";
 
 #[derive(Deserialize)]
 struct TagsResponse {
@@ -27,19 +28,6 @@ struct ModelDetails {
     parameter_size: Option<String>,
     #[serde(default)]
     quantization_level: Option<String>,
-}
-
-/// One installed Ollama model, shaped for the Settings model picker. `size_mb`
-/// is rounded from the byte count Ollama reports; the detail fields are absent
-/// on older Ollama versions, so the UI treats them as optional decoration.
-#[derive(Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct OllamaModel {
-    pub name: String,
-    pub size_mb: Option<u64>,
-    pub parameter_size: Option<String>,
-    pub quantization: Option<String>,
-    pub modified_at: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -77,47 +65,6 @@ struct ChatStreamChunk {
     message: Option<ChatResponseMessage>,
 }
 
-fn client(timeout_secs: u64) -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(timeout_secs))
-        .build()
-        .map_err(|e| e.to_string())
-}
-
-/// Ollama on localhost normally needs no credentials, but a protected instance
-/// (a reverse proxy, another machine on the LAN, ollama.com) does. The token is
-/// stored in the keychain like every other key, so it never crosses IPC.
-///
-/// No stored key means no header: plain local setups are unaffected, and an
-/// instance that ignores `Authorization` still works.
-fn auth_token() -> Result<Option<String>, String> {
-    match read_secret("ollama_api_key") {
-        Ok(token) => Ok(Some(token)),
-        Err(e) if e == ERR_NO_KEY => Ok(None),
-        Err(e) => Err(e),
-    }
-}
-
-/// Applies the bearer header to a request builder when a token is stored.
-fn with_auth(req: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder, String> {
-    Ok(match auth_token()? {
-        Some(token) => req.bearer_auth(token),
-        None => req,
-    })
-}
-
-/// Turns a failed status into something the user can act on. On a local
-/// instance 401/403 nearly always means a key is stored that the instance does
-/// not want, or a key is missing that it does.
-fn status_error(status: reqwest::StatusCode) -> String {
-    if status.as_u16() == 401 || status.as_u16() == 403 {
-        return format!(
-            "Ollama rejected the request ({status}). If this instance requires a key, save it under AI \u{203a} API key; if it does not, clear the key."
-        );
-    }
-    format!("Ollama returned HTTP {status}")
-}
-
 /// Reads an NDJSON streaming response line by line, buffering across chunk
 /// boundaries (a JSON line or UTF-8 sequence may be split between chunks).
 async fn read_ndjson_lines<F: FnMut(&str)>(
@@ -151,16 +98,16 @@ async fn read_ndjson_lines<F: FnMut(&str)>(
 }
 
 /// Lists the models installed on an Ollama instance, newest name first.
-pub async fn list_models(base_url: &str) -> Result<Vec<OllamaModel>, String> {
+pub async fn list_models(base_url: &str) -> Result<Vec<LocalModel>, String> {
     let url = format!("{}/api/tags", base_url.trim_end_matches('/'));
-    let resp = with_auth(client(5)?.get(&url))?
+    let resp = with_auth(http_client(5)?.get(&url))?
         .send()
         .await
         .map_err(|e| format!("Cannot reach Ollama: {e}"))?;
 
     let status = resp.status();
     if !status.is_success() {
-        return Err(status_error(status));
+        return Err(status_error(status, WHAT));
     }
 
     let tags: TagsResponse = resp
@@ -174,10 +121,10 @@ pub async fn list_models(base_url: &str) -> Result<Vec<OllamaModel>, String> {
 /// Turns Ollama's `/api/tags` entries into picker rows. Bytes become MB rounded
 /// up, and the optional `details` block is flattened — older Ollama versions
 /// omit it, which must not fail the whole listing.
-fn map_tag_models(models: Vec<TagModel>) -> Vec<OllamaModel> {
-    let mut mapped: Vec<OllamaModel> = models
+fn map_tag_models(models: Vec<TagModel>) -> Vec<LocalModel> {
+    let mut mapped: Vec<LocalModel> = models
         .into_iter()
-        .map(|m| OllamaModel {
+        .map(|m| LocalModel {
             size_mb: m.size.map(|bytes| (bytes + 999_999) / 1_000_000),
             parameter_size: m
                 .details
@@ -188,6 +135,9 @@ fn map_tag_models(models: Vec<TagModel>) -> Vec<OllamaModel> {
                 .as_ref()
                 .and_then(|d| d.quantization_level.clone()),
             modified_at: m.modified_at,
+            // `/api/tags` does not report a context window; that needs
+            // `/api/show` per model, which the picker does not pay for.
+            context_length: None,
             name: m.name,
         })
         .collect();
@@ -203,13 +153,13 @@ pub async fn complete(cfg: &AiConfig, prompt: String, timeout_secs: u64) -> Resu
         stream: false,
     };
 
-    let resp = with_auth(client(timeout_secs)?.post(&url).json(&body))?
+    let resp = with_auth(http_client(timeout_secs)?.post(&url).json(&body))?
         .send()
         .await
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(status_error(resp.status()));
+        return Err(status_error(resp.status(), WHAT));
     }
 
     let result: GenerateResponse = resp
@@ -233,13 +183,13 @@ pub async fn complete_stream(
         stream: true,
     };
 
-    let mut resp = with_auth(client(timeout_secs)?.post(&url).json(&body))?
+    let mut resp = with_auth(http_client(timeout_secs)?.post(&url).json(&body))?
         .send()
         .await
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(status_error(resp.status()));
+        return Err(status_error(resp.status(), WHAT));
     }
 
     let mut full = String::new();
@@ -281,13 +231,13 @@ pub async fn chat_stream(
         stream: true,
     };
 
-    let mut resp = with_auth(client(timeout_secs)?.post(&url).json(&body))?
+    let mut resp = with_auth(http_client(timeout_secs)?.post(&url).json(&body))?
         .send()
         .await
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(status_error(resp.status()));
+        return Err(status_error(resp.status(), WHAT));
     }
 
     let mut full = String::new();
@@ -310,7 +260,7 @@ pub async fn chat_stream(
 mod tests {
     use super::*;
 
-    fn parse_tags(json: &str) -> Vec<OllamaModel> {
+    fn parse_tags(json: &str) -> Vec<LocalModel> {
         map_tag_models(serde_json::from_str::<TagsResponse>(json).unwrap().models)
     }
 
@@ -361,10 +311,16 @@ mod tests {
     #[test]
     fn auth_failures_point_at_the_settings_field_instead_of_a_bare_status() {
         for code in [401u16, 403] {
-            let msg = status_error(reqwest::StatusCode::from_u16(code).unwrap());
+            let msg = status_error(reqwest::StatusCode::from_u16(code).unwrap(), WHAT);
             assert!(msg.contains("API key"), "{msg}");
         }
-        let other = status_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR);
+        let other = status_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR, WHAT);
         assert_eq!(other, "Ollama returned HTTP 500 Internal Server Error");
+    }
+
+    #[test]
+    fn a_404_names_the_protocol_switch_because_that_is_the_usual_cause() {
+        let msg = status_error(reqwest::StatusCode::NOT_FOUND, WHAT);
+        assert!(msg.contains("protocol"), "{msg}");
     }
 }

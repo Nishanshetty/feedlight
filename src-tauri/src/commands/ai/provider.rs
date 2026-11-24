@@ -1,10 +1,15 @@
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 
-use super::{gemini, ollama};
+use super::{gemini, ollama, openai};
+use crate::commands::credentials::{read_secret, ERR_NO_KEY};
 
 /// Default Ollama endpoint, used when the frontend sends an empty base URL.
 const OLLAMA_DEFAULT_URL: &str = "http://localhost:11434";
+
+/// Keychain name of the Local provider's bearer token. The name predates the
+/// OpenAI-compatible protocol and is kept so existing installs keep their key.
+pub const LOCAL_KEY: &str = "ollama_api_key";
 
 /// Which backend answers AI requests. Mirrors `AiProvider` in `lib/settings.ts`.
 #[derive(Deserialize, Clone, Copy, PartialEq)]
@@ -14,9 +19,21 @@ pub enum AiProvider {
     Gemini,
 }
 
-/// Everything a provider needs to service one request. `base_url` only means
-/// anything for Ollama — Gemini reads its key from the keychain, so no secret
-/// ever crosses the IPC boundary.
+/// Which wire protocol the Local provider speaks. `ollama` is the default, so a
+/// config written before this field existed keeps working unchanged.
+#[derive(Deserialize, Clone, Copy, PartialEq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum LocalProtocol {
+    #[default]
+    Ollama,
+    /// Anything speaking the OpenAI chat-completions surface: llama.cpp's
+    /// server, vLLM, LM Studio, OpenRouter — and Ollama's own `/v1` shim.
+    OpenAi,
+}
+
+/// Everything a provider needs to service one request. `base_url` and
+/// `protocol` only mean anything for the Local provider — Gemini reads its key
+/// from the keychain, so no secret ever crosses the IPC boundary.
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AiConfig {
@@ -24,15 +41,82 @@ pub struct AiConfig {
     pub model: String,
     #[serde(default)]
     pub base_url: Option<String>,
+    #[serde(default)]
+    pub protocol: LocalProtocol,
 }
 
 impl AiConfig {
-    pub fn ollama_url(&self) -> &str {
+    fn trimmed_base_url(&self) -> Option<&str> {
         self.base_url
             .as_deref()
             .map(|u| u.trim().trim_end_matches('/'))
             .filter(|u| !u.is_empty())
-            .unwrap_or(OLLAMA_DEFAULT_URL)
+    }
+
+    pub fn ollama_url(&self) -> &str {
+        self.trimmed_base_url().unwrap_or(OLLAMA_DEFAULT_URL)
+    }
+
+    pub fn openai_url(&self) -> String {
+        openai_base(self.trimmed_base_url())
+    }
+}
+
+/// Base URL for the OpenAI surface, with `/v1` appended when it is missing.
+/// llama.cpp, vLLM and LM Studio all mount the API under `/v1`, and people
+/// habitually paste the bare host — so both spellings have to work.
+pub fn openai_base(base_url: Option<&str>) -> String {
+    let base = base_url
+        .map(|u| u.trim().trim_end_matches('/'))
+        .filter(|u| !u.is_empty())
+        .unwrap_or(OLLAMA_DEFAULT_URL);
+    if base.ends_with("/v1") {
+        base.to_string()
+    } else {
+        format!("{base}/v1")
+    }
+}
+
+// ── Shared transport helpers for the Local provider ──────────────────────────
+
+pub fn http_client(timeout_secs: u64) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(timeout_secs))
+        .build()
+        .map_err(|e| e.to_string())
+}
+
+/// The Local provider's bearer token, whatever protocol it speaks. Absent means
+/// no header: a plain local Ollama is unaffected, and an instance that ignores
+/// `Authorization` still works.
+pub fn local_api_key() -> Result<Option<String>, String> {
+    match read_secret(LOCAL_KEY) {
+        Ok(key) => Ok(Some(key)),
+        Err(e) if e == ERR_NO_KEY => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// Applies the bearer header to a request builder when a token is stored.
+pub fn with_auth(req: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder, String> {
+    Ok(match local_api_key()? {
+        Some(token) => req.bearer_auth(token),
+        None => req,
+    })
+}
+
+/// Turns a failed status into something the user can act on. 401/403 nearly
+/// always means a key is stored that the instance does not want, or missing
+/// that it does; 404 means the URL points at something that is not this API.
+pub fn status_error(status: reqwest::StatusCode, what: &str) -> String {
+    match status.as_u16() {
+        401 | 403 => format!(
+            "{what} rejected the request ({status}). If it requires a key, save it under AI \u{203a} API key; if it does not, clear the key."
+        ),
+        404 => format!(
+            "{what} returned 404 at {status}. Check the base URL and protocol: an OpenAI-compatible server needs the OpenAI protocol, Ollama needs Ollama."
+        ),
+        _ => format!("{what} returned HTTP {status}"),
     }
 }
 
@@ -42,11 +126,28 @@ pub struct ChatMessage {
     pub content: String,
 }
 
+/// One model the Local provider offers, for the Settings picker. Every field
+/// but `name` is decoration: Ollama reports size and quantisation, an
+/// OpenAI-compatible server usually reports only an id.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalModel {
+    pub name: String,
+    pub size_mb: Option<u64>,
+    pub parameter_size: Option<String>,
+    pub quantization: Option<String>,
+    pub modified_at: Option<String>,
+    pub context_length: Option<u64>,
+}
+
 /// One-shot completion. Used by the features that parse structured output
 /// (takeaways, suggested questions, digest, discover queries).
 pub async fn complete(cfg: &AiConfig, prompt: String, timeout_secs: u64) -> Result<String, String> {
     match cfg.provider {
-        AiProvider::Ollama => ollama::complete(cfg, prompt, timeout_secs).await,
+        AiProvider::Ollama => match cfg.protocol {
+            LocalProtocol::Ollama => ollama::complete(cfg, prompt, timeout_secs).await,
+            LocalProtocol::OpenAi => openai::complete(cfg, prompt, timeout_secs).await,
+        },
         AiProvider::Gemini => gemini::complete(cfg, prompt, timeout_secs).await,
     }
 }
@@ -60,7 +161,10 @@ pub async fn complete_stream(
     on_token: &Channel<String>,
 ) -> Result<String, String> {
     match cfg.provider {
-        AiProvider::Ollama => ollama::complete_stream(cfg, prompt, timeout_secs, on_token).await,
+        AiProvider::Ollama => match cfg.protocol {
+            LocalProtocol::Ollama => ollama::complete_stream(cfg, prompt, timeout_secs, on_token).await,
+            LocalProtocol::OpenAi => openai::complete_stream(cfg, prompt, timeout_secs, on_token).await,
+        },
         AiProvider::Gemini => gemini::complete_stream(cfg, prompt, timeout_secs, on_token).await,
     }
 }
@@ -76,9 +180,14 @@ pub async fn chat_stream(
     on_token: &Channel<String>,
 ) -> Result<String, String> {
     match cfg.provider {
-        AiProvider::Ollama => {
-            ollama::chat_stream(cfg, system, history, question, timeout_secs, on_token).await
-        }
+        AiProvider::Ollama => match cfg.protocol {
+            LocalProtocol::Ollama => {
+                ollama::chat_stream(cfg, system, history, question, timeout_secs, on_token).await
+            }
+            LocalProtocol::OpenAi => {
+                openai::chat_stream(cfg, system, history, question, timeout_secs, on_token).await
+            }
+        },
         AiProvider::Gemini => {
             gemini::chat_stream(cfg, system, history, question, timeout_secs, on_token).await
         }
@@ -137,5 +246,31 @@ mod tests {
     #[test]
     fn an_empty_array_is_valid_and_not_an_error() {
         assert!(parse_json_array("[]", "suggestions").unwrap().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod url_tests {
+    use super::openai_base;
+
+    #[test]
+    fn appends_v1_to_a_bare_host_because_that_is_how_people_paste_it() {
+        assert_eq!(openai_base(Some("http://192.168.0.109:8080")), "http://192.168.0.109:8080/v1");
+    }
+
+    #[test]
+    fn keeps_v1_when_it_is_already_there() {
+        assert_eq!(openai_base(Some("http://192.168.0.109:8080/v1")), "http://192.168.0.109:8080/v1");
+    }
+
+    #[test]
+    fn tolerates_trailing_slashes_and_surrounding_spaces() {
+        assert_eq!(openai_base(Some("  https://api.example.com/v1/  ")), "https://api.example.com/v1");
+    }
+
+    #[test]
+    fn falls_back_to_the_local_ollama_port_when_the_field_is_empty() {
+        assert_eq!(openai_base(None), "http://localhost:11434/v1");
+        assert_eq!(openai_base(Some("   ")), "http://localhost:11434/v1");
     }
 }
