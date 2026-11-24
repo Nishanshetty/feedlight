@@ -39,12 +39,32 @@ feature → code map, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 | `src-tauri/src/crawler.rs` | Background feed refresh loop |
 | `src-tauri/migrations/` | SQLite migrations |
 
+## Tests
+
+```bash
+npm test              # Vitest, frontend unit tests (jsdom)
+npm run test:watch    # watch mode
+cd src-tauri && cargo test --lib   # Rust unit tests
+```
+
+Tests sit next to the code they cover: `src/lib/*.test.ts` for the frontend,
+`#[cfg(test)] mod tests` at the bottom of each Rust module. Both suites run in CI
+([`.github/workflows/test.yml`](.github/workflows/test.yml)) on every push and PR.
+
+What is covered today is the pure logic — feed classification, OPML output, date
+ranges, highlight anchoring, URL validation, feed-URL discovery, filename
+sanitising. The Tauri command surface (network, keychain, SQLite) is not covered
+yet; adding it means either an in-memory SQLite fixture or a mock IPC layer.
+
+When you fix a bug, add the test that would have caught it first.
+
 ## Before opening a PR
 
 ```bash
-npm run typecheck     # TypeScript — must pass
-npm run lint          # ESLint
-cd src-tauri && cargo check   # Rust — must pass
+npm test                  # Vitest — must pass
+npx tsc --noEmit          # TypeScript — must pass
+cd src-tauri && cargo test --lib   # Rust — must pass
+cd src-tauri && cargo check        # Rust — must pass
 ```
 
 ## Guidelines
