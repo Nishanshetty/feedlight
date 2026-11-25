@@ -66,7 +66,7 @@ Open **Settings** (gear icon in the top bar) to configure optional integrations:
 |---------|----------------|---------|
 | **YouTube Data API key** | [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → YouTube Data API v3 | Subscribing to `@handle` YouTube channels |
 | **Google Cloud TTS credentials** | GCP Console → IAM → Service Accounts → create key (JSON) | Article read-aloud feature |
-| **Local model URL** | [ollama.com](https://ollama.com) (`ollama pull llama3.2`), or any OpenAI-compatible server: llama.cpp, vLLM, LM Studio | AI features, run locally. A bearer key is optional for Ollama, usually required for the others |
+| **Local API URL** | [ollama.com](https://ollama.com) (`ollama pull llama3.2`), or any OpenAI-compatible server: llama.cpp, vLLM, LM Studio | AI features, run locally. Ollama needs no key; an OpenAI-compatible server usually wants a bearer key |
 | **Gemini API key** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | AI features, run in the cloud |
 
 Preferences live in the app data directory via `tauri-plugin-store`; API keys live in the macOS keychain, never in the plaintext store. Each key is sent only to the service it belongs to, over HTTPS. Selecting Gemini also sends **article text** to Google — every other feature, including the Local provider, keeps article content on your machine.
@@ -81,7 +81,7 @@ Google under your own key.
 
 1. Install [Ollama](https://ollama.com) and pull a model: `ollama pull llama3.2`
 2. Open Feedlight → Settings → **AI**, toggle it on, choose **Local**
-3. Confirm the URL (`http://localhost:11434`) — the model field fills itself from
+3. Confirm the Local API URL (`http://localhost:11434`) — the model field fills itself from
    whatever your instance has installed; pick one or type a name
 4. Hit **Test**
 
@@ -90,11 +90,12 @@ Google under your own key.
 1. Run any server that speaks `/v1/models` and `/v1/chat/completions` — llama.cpp's
    `llama-server` on port 8080, vLLM, LM Studio's local server
 2. Settings → **AI** → **Local**, set the protocol to **OpenAI-compatible**
-3. Set the base URL (`http://192.168.1.10:8080` — `/v1` is added for you), save the
+3. Set the Local API URL (`http://192.168.1.10:8080` — `/v1` is added for you), save the
    bearer key under **API key**, then pick a model from the list
 
-Only running Ollama behind a proxy or on another machine? Save its key under
-**API key** — it goes to the keychain and is sent as a bearer token to that host.
+The **API key** field only appears for the OpenAI-compatible protocol. Ollama's own API has
+no notion of one, so the Ollama protocol never sends an `Authorization` header — a key you
+saved for the other protocol stays in the keychain, unused, until you switch back.
 
 **Gemini**
 
