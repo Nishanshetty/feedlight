@@ -13,7 +13,15 @@ fn is_private_ip(ip: &IpAddr) -> bool {
                 || (o[0] == 169 && o[1] == 254)
         }
         IpAddr::V6(ipv6) => {
+            // `http://[::ffff:127.0.0.1]/` parses as IPv6, and `is_loopback()`
+            // does not look through the IPv4-mapped prefix. Send those through
+            // the V4 rules instead of judging them as plain v6 segments.
+            if let Some(mapped) = ipv6.to_ipv4_mapped() {
+                return is_private_ip(&IpAddr::V4(mapped));
+            }
+
             ipv6.is_loopback()
+                || ipv6.is_unspecified()
                 || (ipv6.segments()[0] & 0xfe00) == 0xfc00
                 || (ipv6.segments()[0] & 0xffc0) == 0xfe80
         }
@@ -31,6 +39,10 @@ fn validate_url(raw: &str) -> Result<(), String> {
         .host_str()
         .ok_or_else(|| "URL has no host".to_string())?
         .to_lowercase();
+
+    // `Url::host_str()` keeps the brackets around IPv6 literals (`"[::1]"`),
+    // which would otherwise slip past both the name check and IpAddr parsing.
+    let host = host.strip_prefix('[').and_then(|h| h.strip_suffix(']')).unwrap_or(&host);
 
     if host == "localhost" || host == "::1" {
         return Err("Access to local addresses is not allowed".to_string());
@@ -132,4 +144,68 @@ pub async fn fetch_image_base64(url: String) -> Result<ImageData, String> {
         mime,
         data: base64::engine::general_purpose::STANDARD.encode(&bytes),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_plain_http_and_https_urls() {
+        assert!(validate_url("https://example.com/article").is_ok());
+        assert!(validate_url("http://example.com/a/b?c=1").is_ok());
+    }
+
+    #[test]
+    fn rejects_non_http_schemes() {
+        for url in ["file:///etc/passwd", "ftp://example.com/x", "tauri://localhost", "javascript:alert(1)"] {
+            assert!(validate_url(url).is_err(), "should reject {url}");
+        }
+    }
+
+    #[test]
+    fn rejects_malformed_urls_and_missing_hosts() {
+        assert!(validate_url("not a url").is_err());
+        assert!(validate_url("https://").is_err());
+    }
+
+    #[test]
+    fn rejects_loopback_hostnames_case_insensitively() {
+        assert!(validate_url("http://localhost:11434/api").is_err());
+        assert!(validate_url("http://LOCALHOST/").is_err());
+        assert!(validate_url("http://[::1]/").is_err());
+    }
+
+    #[test]
+    fn rejects_private_and_link_local_ip_literals() {
+        for url in [
+            "http://127.0.0.1/",
+            "http://10.1.2.3/",
+            "http://192.168.1.1/",
+            "http://172.16.0.1/",
+            "http://172.31.255.255/",
+            "http://169.254.1.1/",
+            "http://0.0.0.0/",
+            "http://[::1]/",
+            "http://[fd00::1]/",
+            "http://[fe80::1]/",
+            "http://[::]/",
+            "http://[::ffff:127.0.0.1]/",
+            "http://[::ffff:10.1.2.3]/",
+            "http://[::ffff:192.168.1.1]/",
+        ] {
+            assert!(validate_url(url).is_err(), "should reject {url}");
+        }
+    }
+
+    #[test]
+    fn allows_public_ip_literals_and_public_ranges_that_look_similar() {
+        assert!(validate_url("http://8.8.8.8/").is_ok());
+        // Just outside the private ranges.
+        assert!(validate_url("http://172.15.0.1/").is_ok());
+        assert!(validate_url("http://172.32.0.1/").is_ok());
+        assert!(validate_url("http://100.1.1.1/").is_ok());
+        // An IPv4-mapped literal of a public address is still public.
+        assert!(validate_url("http://[::ffff:8.8.8.8]/").is_ok());
+    }
 }

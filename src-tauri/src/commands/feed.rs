@@ -217,3 +217,125 @@ pub async fn resolve_youtube_handle(handle: String, api_key: String) -> Result<S
 
     Ok(format!("https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strip_html_removes_tags_and_collapses_whitespace() {
+        assert_eq!(strip_html("<p>one  <b>two</b>   three</p>"), "one two three");
+        assert_eq!(strip_html("no markup"), "no markup");
+        assert_eq!(strip_html(""), "");
+    }
+
+    #[test]
+    fn strip_html_is_tag_delimited_not_quote_aware() {
+        // The stripper ends a tag at the first '>' regardless of attribute
+        // quoting, so a '>' inside an attribute value leaks the trailing quote.
+        // Documented behaviour, not an assertion of intent: feed content is
+        // plain text here, and the reader sanitises separately with DOMPurify.
+        assert_eq!(strip_html("<a href=\"x\" title=\"<b>\">text</a>"), "\"text");
+        assert_eq!(strip_html("<p title=\"a>b\">text</p>"), "b\"text");
+    }
+
+    #[test]
+    fn youtube_channel_and_user_urls_become_feed_urls() {
+        assert_eq!(
+            youtube_to_feed_url("https://www.youtube.com/channel/UC123"),
+            Some("https://www.youtube.com/feeds/videos.xml?channel_id=UC123".to_string())
+        );
+        assert_eq!(
+            youtube_to_feed_url("https://youtube.com/user/someone"),
+            Some("https://www.youtube.com/feeds/videos.xml?user=someone".to_string())
+        );
+    }
+
+    #[test]
+    fn youtube_feed_urls_pass_through_unchanged() {
+        let raw = "https://www.youtube.com/feeds/videos.xml?channel_id=UC123";
+        assert_eq!(youtube_to_feed_url(raw), Some(raw.to_string()));
+    }
+
+    #[test]
+    fn youtube_urls_without_a_feed_mapping_are_rejected() {
+        // @handle needs the API key, watch pages are not feeds.
+        assert_eq!(youtube_to_feed_url("https://youtube.com/@handle"), None);
+        assert_eq!(youtube_to_feed_url("https://youtube.com/watch?v=abc"), None);
+    }
+
+    #[test]
+    fn non_youtube_hosts_are_not_mapped() {
+        assert_eq!(youtube_to_feed_url("https://notyoutube.com/channel/UC1"), None);
+        assert_eq!(youtube_to_feed_url("https://youtube.com.evil.test/channel/UC1"), None);
+    }
+
+    #[test]
+    fn discover_feed_url_prefers_the_first_alternate_link() {
+        let html = "<html><head>\
+            <link rel='alternate' type='application/atom+xml' href='/atom.xml'>\
+            <link rel='alternate' type='application/rss+xml' href='/rss.xml'>\
+            </head><body></body></html>";
+        assert_eq!(
+            discover_feed_url(html, "https://example.com/blog/"),
+            Some("https://example.com/atom.xml".to_string())
+        );
+    }
+
+    #[test]
+    fn discover_feed_url_resolves_relative_href_against_the_base() {
+        let html = "<link rel='alternate' type='application/rss+xml' href='feed.xml'>";
+        assert_eq!(
+            discover_feed_url(html, "https://example.com/blog/index.html"),
+            Some("https://example.com/blog/feed.xml".to_string())
+        );
+    }
+
+    #[test]
+    fn discover_feed_url_accepts_absolute_hrefs_and_feed_json() {
+        let html = "<link rel='alternate' type='application/feed+json' href='https://cdn.example.com/f.json'>";
+        assert_eq!(
+            discover_feed_url(html, "https://example.com/"),
+            Some("https://cdn.example.com/f.json".to_string())
+        );
+    }
+
+    #[test]
+    fn discover_feed_url_ignores_unrelated_link_tags() {
+        let html = "<link rel='alternate' type='text/html' href='/de/index.html'>\
+                    <link rel='stylesheet' type='application/rss+xml' href='/s.css'>";
+        assert_eq!(discover_feed_url(html, "https://example.com/"), None);
+    }
+
+    #[test]
+    fn parse_feed_bytes_reads_a_minimal_rss_document() {
+        let xml = r#"<?xml version="1.0"?>
+<rss version="2.0"><channel>
+  <title>Test Feed</title>
+  <link>https://example.com</link>
+  <item>
+    <title>First post</title>
+    <link>https://example.com/first</link>
+    <guid>https://example.com/first</guid>
+    <description>Hello &lt;b&gt;world&lt;/b&gt;</description>
+    <pubDate>Fri, 02 Jan 2026 10:00:00 GMT</pubDate>
+  </item>
+</channel></rss>"#;
+        let parsed = parse_feed_bytes(xml.as_bytes()).expect("feed should parse");
+        assert_eq!(parsed.title.as_deref(), Some("Test Feed"));
+        assert_eq!(parsed.items.len(), 1);
+        assert_eq!(parsed.items[0].title.as_deref(), Some("First post"));
+        assert_eq!(parsed.items[0].link.as_deref(), Some("https://example.com/first"));
+        // 2 Jan 2026 is a Friday. feed-rs ignores the weekday, so a wrong one
+        // here would go unnoticed — pin the parsed instant instead.
+        assert_eq!(
+            parsed.items[0].published_at.as_deref(),
+            Some("2026-01-02T10:00:00+00:00")
+        );
+    }
+
+    #[test]
+    fn parse_feed_bytes_rejects_non_feed_content() {
+        assert!(parse_feed_bytes(b"<html><body>not a feed</body></html>").is_err());
+    }
+}

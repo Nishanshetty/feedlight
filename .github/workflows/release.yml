@@ -34,7 +34,9 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Same floor as the test workflow: Vite 8 needs Node 20.19+/22.x, and
+          # the Vitest job already runs on 22.
+          node-version: 22
           cache: npm
 
       - name: Install Rust stable

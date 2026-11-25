@@ -33,3 +33,43 @@ pub async fn export_markdown(dir: String, filename: String, content: String) -> 
     fs::write(&path, content).map_err(|e| format!("Failed to write file: {e}"))?;
     Ok(path.display().to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keeps_ordinary_titles_untouched() {
+        assert_eq!(sanitize_filename("A Good Title"), "A Good Title");
+    }
+
+    #[test]
+    fn replaces_path_and_shell_metacharacters_with_spaces() {
+        assert_eq!(
+            sanitize_filename(r#"a/b\c:d*e?f"g<h>i|j"#),
+            "a b c d e f g h i j"
+        );
+    }
+
+    #[test]
+    fn collapses_whitespace_and_trims() {
+        assert_eq!(sanitize_filename("  many   spaces \n here "), "many spaces here");
+    }
+
+    #[test]
+    fn falls_back_to_untitled_when_nothing_survives() {
+        assert_eq!(sanitize_filename("///"), "Untitled");
+        assert_eq!(sanitize_filename(""), "Untitled");
+    }
+
+    #[test]
+    fn truncates_to_120_characters() {
+        let long = "x".repeat(400);
+        assert_eq!(sanitize_filename(&long).chars().count(), 120);
+    }
+
+    #[test]
+    fn keeps_non_ascii_titles() {
+        assert_eq!(sanitize_filename("Übertragung — Artikel"), "Übertragung — Artikel");
+    }
+}
