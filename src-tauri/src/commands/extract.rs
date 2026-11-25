@@ -13,7 +13,15 @@ fn is_private_ip(ip: &IpAddr) -> bool {
                 || (o[0] == 169 && o[1] == 254)
         }
         IpAddr::V6(ipv6) => {
+            // `http://[::ffff:127.0.0.1]/` parses as IPv6, and `is_loopback()`
+            // does not look through the IPv4-mapped prefix. Send those through
+            // the V4 rules instead of judging them as plain v6 segments.
+            if let Some(mapped) = ipv6.to_ipv4_mapped() {
+                return is_private_ip(&IpAddr::V4(mapped));
+            }
+
             ipv6.is_loopback()
+                || ipv6.is_unspecified()
                 || (ipv6.segments()[0] & 0xfe00) == 0xfc00
                 || (ipv6.segments()[0] & 0xffc0) == 0xfe80
         }
@@ -181,6 +189,10 @@ mod tests {
             "http://[::1]/",
             "http://[fd00::1]/",
             "http://[fe80::1]/",
+            "http://[::]/",
+            "http://[::ffff:127.0.0.1]/",
+            "http://[::ffff:10.1.2.3]/",
+            "http://[::ffff:192.168.1.1]/",
         ] {
             assert!(validate_url(url).is_err(), "should reject {url}");
         }
@@ -193,5 +205,7 @@ mod tests {
         assert!(validate_url("http://172.15.0.1/").is_ok());
         assert!(validate_url("http://172.32.0.1/").is_ok());
         assert!(validate_url("http://100.1.1.1/").is_ok());
+        // An IPv4-mapped literal of a public address is still public.
+        assert!(validate_url("http://[::ffff:8.8.8.8]/").is_ok());
     }
 }
