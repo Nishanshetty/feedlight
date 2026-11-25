@@ -10,9 +10,21 @@
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Tailwind v4 reads the design tokens from the existing config file; the
+   container-query plugin is gone because @container is built into v4. */
+@config "../tailwind.config.ts";
+
+/* v4 changed two defaults this design depends on. Preflight now gives buttons
+   `cursor: default` where v3 gave the hand, and `shadow-sm` renders what v3's
+   `shadow` did — the components use `shadow-xs` to keep the old weight. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 /* ── Lumina theme tokens (RGB channel triplets for Tailwind <alpha-value>) ──
    Light only, by design: "Digital Paper" is a single tonal system. Elevation
