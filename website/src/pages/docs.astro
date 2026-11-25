@@ -307,6 +307,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
         <ul>
           <li><strong>System</strong> — the voices built into macOS. Free, offline, and need no setup.</li>
           <li><strong>Google</strong> — Google Cloud's higher-quality voices (including <strong>Neural2</strong>). Needs a Google Cloud API key and is billed to your own Google account.</li>
+          <li><strong>ElevenLabs</strong> — premium voices on your own ElevenLabs key, billed to your ElevenLabs account.</li>
         </ul>
         <h3>Using Google Cloud voices</h3>
         <p>System voices work out of the box. To use Google's higher-quality voices instead:</p>
@@ -323,22 +324,54 @@ npm run tauri build    # production .dmg + .app</code></pre>
           <strong>Listen</strong> button in the selection toolbar — to jump playback to that spot.
         </p>
         <p class="callout">
-          Your API key is stored locally on your Mac via <code>tauri-plugin-store</code>; audio is synthesized through your
+          Your API key is stored in your Mac's keychain, never in the settings file; audio is synthesized through your
           own Google Cloud project, and standard Google Cloud TTS pricing applies. System voices stay entirely on your Mac.
         </p>
 
         <!-- ════════════════════ AI ════════════════════ -->
         <h2 id="ai">AI features</h2>
         <p>
-          Feedlight's AI runs entirely on your own machine through <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> —
-          a local LLM runtime. Nothing is sent to a cloud service, and there are no API keys or usage fees.
+          AI is off by default. When you switch it on you pick one provider: <strong>Local</strong>, which runs a model on
+          your own machine and keeps every article there, or <strong>Gemini</strong>, which is faster and needs no local
+          model but sends article text to Google under your own API key.
         </p>
-        <h3>Set it up</h3>
+
+        <h3>Local — Ollama</h3>
         <ol>
           <li>Install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> and pull a model: <code>ollama pull llama3.2</code></li>
-          <li>Open <a href="#settings">Settings → AI Summarization</a> and toggle <strong>Enable Ollama Summarization</strong> on.</li>
-          <li>Confirm the <strong>Base URL</strong> (<code>http://localhost:11434</code>) and <strong>Model</strong> (e.g. <code>llama3.2</code>), then press <strong>Test</strong> to verify Feedlight can reach Ollama and the model is installed.</li>
+          <li>Open <a href="#settings">Settings → AI</a>, toggle <strong>Enable AI Features</strong> on, and choose <strong>Local</strong>.</li>
+          <li>Leave the protocol on <strong>Ollama</strong> and confirm the <strong>Local API URL</strong> (<code>http://localhost:11434</code>).</li>
+          <li>Pick a <strong>Model</strong> from the list that fills itself from whatever your instance has installed, then press <strong>Test</strong>.</li>
         </ol>
+        <p class="callout">
+          The Ollama protocol has no API key — Ollama's own API has no notion of one, so Feedlight never sends an
+          <code>Authorization</code> header and the Settings screen shows no key field for it.
+        </p>
+
+        <h3>Local — OpenAI-compatible server</h3>
+        <p>
+          Any server that speaks <code>/v1/models</code> and <code>/v1/chat/completions</code> works: llama.cpp's
+          <code>llama-server</code>, vLLM, LM Studio's local server, OpenRouter, or Ollama's own <code>/v1</code> shim.
+        </p>
+        <ol>
+          <li>Start the server — for example <code>llama-server --model qwen3.8-flash.gguf --port 8080</code>.</li>
+          <li>In <a href="#settings">Settings → AI</a>, choose <strong>Local</strong> and set the protocol to <strong>OpenAI-compatible</strong>.</li>
+          <li>Set the <strong>Local API URL</strong> (<code>http://192.168.1.10:8080</code> — <code>/v1</code> is added for you, so the bare host works).</li>
+          <li>Save the bearer token under <strong>API key</strong>. Most servers require one; it goes to the macOS keychain and is never written to the settings file.</li>
+          <li>Pick a model from the list and press <strong>Test</strong>.</li>
+        </ol>
+
+        <h3>Gemini</h3>
+        <ol>
+          <li>Create a key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>.</li>
+          <li>In <a href="#settings">Settings → AI</a>, choose <strong>Gemini</strong>, paste the key, and press <strong>Save</strong> — Feedlight verifies it against the API right away.</li>
+          <li>Choose a model (the default is <code>gemini-3.6-flash</code>) and press <strong>Test</strong>.</li>
+        </ol>
+        <p class="callout">
+          Gemini is the one provider that leaves your machine: the article text you ask about is sent to Google's API
+          under your own key. Everything else, including the whole Local provider, stays local.
+        </p>
+
         <h3>What you get</h3>
         <p>Once enabled, the reader gains these tools:</p>
         <ul>
@@ -347,15 +380,15 @@ npm run tauri build    # production .dmg + .app</code></pre>
           <li><strong>Explain / Ask from a selection</strong> — select text and choose <strong>Explain</strong> for an instant explanation, or <strong>Ask</strong> to quote it into a question.</li>
         </ul>
         <figure>
-          <img src={`${base}/screenshots/summary.png`} alt="AI summary with key points, generated locally by Ollama" loading="lazy" />
-          <figcaption>AI summary and chat — generated locally by Ollama.</figcaption>
+          <img src={`${base}/screenshots/summary.png`} alt="AI summary with key points" loading="lazy" />
+          <figcaption>AI summary and chat — with a Local provider, generated on your own machine.</figcaption>
         </figure>
 
         <!-- ════════════════════ DIGEST ════════════════════ -->
         <h2 id="digest">Today's Digest</h2>
         <p>
           The <strong>Digest</strong> view turns the last 24 hours of articles into a focused briefing. Press
-          <strong>Generate Digest</strong> and Ollama writes a short bulleted summary of everything new, followed by the
+          <strong>Generate Digest</strong> and your model writes a short bulleted summary of everything new, followed by the
           underlying articles grouped by source so you can dive into anything that catches your eye. Requires
           <a href="#ai">AI features</a> to be enabled.
         </p>
@@ -408,18 +441,25 @@ npm run tauri build    # production .dmg + .app</code></pre>
             <tbody>
               <tr><td>Appearance</td><td>Theme</td><td>App-wide Light, Dark, or System (follows macOS). The reader keeps its own theme setting.</td></tr>
               <tr><td>YouTube</td><td>YouTube Data API Key</td><td>Lets you subscribe to <code>@handle</code> YouTube channels.</td></tr>
-              <tr><td>Read Aloud</td><td>Voice engine</td><td>Choose <strong>System</strong> (free, offline) or <strong>Google</strong> Cloud voices.</td></tr>
+              <tr><td>Read Aloud</td><td>Voice engine</td><td>Choose <strong>System</strong> (free, offline), <strong>Google</strong> Cloud voices, or <strong>ElevenLabs</strong>.</td></tr>
               <tr><td>Read Aloud</td><td>Google API Key</td><td>Paste a Google Cloud API key to use Google's voices.</td></tr>
-              <tr><td>Read Aloud</td><td>Voice</td><td>Pick any available Google voice (default <code>en-US-Neural2-F</code>).</td></tr>
-              <tr><td>AI Summarization</td><td>Enable Ollama</td><td>Turns on local AI summaries, chat, and digest.</td></tr>
-              <tr><td>AI Summarization</td><td>Base URL &amp; Model</td><td>Where Ollama runs and which model to use; <strong>Test</strong> verifies the connection.</td></tr>
+              <tr><td>Read Aloud</td><td>Voice</td><td>Pick any available voice for the engine you chose (Google defaults to <code>en-US-Neural2-F</code>).</td></tr>
+              <tr><td>AI</td><td>Enable AI Features</td><td>Turns on summaries, key takeaways, article chat, and the digest.</td></tr>
+              <tr><td>AI</td><td>Provider</td><td><strong>Local</strong> (your machine, private) or <strong>Gemini</strong> (Google, your API key).</td></tr>
+              <tr><td>AI</td><td>Protocol</td><td>For Local: <strong>Ollama</strong> or <strong>OpenAI-compatible</strong> (llama.cpp, vLLM, LM Studio).</td></tr>
+              <tr><td>AI</td><td>Local API URL</td><td>Where your model server listens. <code>/v1</code> is added for you on the OpenAI-compatible protocol.</td></tr>
+              <tr><td>AI</td><td>API Key</td><td>Bearer token for an OpenAI-compatible server, or for Gemini. Shown only where a key applies; stored in the macOS keychain.</td></tr>
+              <tr><td>AI</td><td>Model</td><td>Which model to use. <strong>Reload list</strong> reads what the server offers, <strong>Test</strong> verifies the connection.</td></tr>
               <tr><td>Export</td><td>Obsidian Vault Folder</td><td>Destination folder for <strong>Send to Obsidian</strong>.</td></tr>
             </tbody>
           </table>
         </div>
         <figure>
-          <img src={`${base}/screenshots/settings.png`} alt="The Feedlight settings screen" loading="lazy" />
-          <figcaption>Settings — appearance, YouTube, TTS, AI, and export, all stored locally.</figcaption>
+          <img src={`${base}/screenshots/settings.png`} alt="The AI section of Settings — protocol, Local API URL, API key, and model picker" loading="lazy" />
+          <figcaption>
+            Settings → AI — protocol, Local API URL, and model. The API key field appears only for the
+            OpenAI-compatible protocol.
+          </figcaption>
         </figure>
 
         <!-- ════════════════════ SHORTCUTS ════════════════════ -->
@@ -446,16 +486,18 @@ npm run tauri build    # production .dmg + .app</code></pre>
         <h2 id="privacy">Privacy &amp; data</h2>
         <p>
           Feedlight is local-first by design. Your subscriptions, articles, read state, highlights, and notes are stored in
-          a SQLite database on your Mac, and your API keys and credentials are kept locally via
-          <code>tauri-plugin-store</code>. There are no accounts and no telemetry.
+          a SQLite database on your Mac, and your API keys live in the macOS keychain — never in the settings file, and
+          never sent to the app's renderer. There are no accounts and no telemetry.
         </p>
         <p>Network requests only happen for things you'd expect:</p>
         <ul>
           <li>Fetching the feeds and article pages you subscribe to (feeds also refresh automatically every 15 minutes in the background).</li>
           <li>Loading site favicons.</li>
           <li>Resolving YouTube handles (only if you add a YouTube API key).</li>
-          <li>Google Cloud TTS (only if you enable read-aloud).</li>
-          <li>Your local Ollama instance (only if you enable AI features — this never leaves your machine).</li>
+          <li>Google Cloud TTS (only if you choose the Google voice engine).</li>
+          <li>ElevenLabs TTS (only if you choose the ElevenLabs voice engine).</li>
+          <li>Your local model server — Ollama, llama.cpp, vLLM, LM Studio (only if you enable AI features on the Local provider; this never leaves your machine).</li>
+          <li>The Gemini API (only if you choose Gemini as your AI provider — this sends the article text you ask about to Google).</li>
         </ul>
 
         <!-- ════════════════════ TROUBLESHOOTING ════════════════════ -->
@@ -466,8 +508,11 @@ npm run tauri build    # production .dmg + .app</code></pre>
         <h3>A feed won't add.</h3>
         <p>Make sure the URL is reachable in a browser. For sites without an obvious feed, try the site's home page and let auto-discovery find it, or search the site for an RSS link. For <code>@handle</code> YouTube URLs, you need a <a href="#youtube">YouTube API key</a>.</p>
 
-        <h3>AI features say Ollama isn't enabled or reachable.</h3>
-        <p>Confirm Ollama is running (<code>ollama serve</code>) and the model is pulled (<code>ollama pull llama3.2</code>). In <a href="#settings">Settings → AI Summarization</a>, check the Base URL and press <strong>Test</strong> — it tells you whether Ollama is reachable and whether the model is installed.</p>
+        <h3>AI features say the model isn't reachable.</h3>
+        <p>On the <strong>Ollama</strong> protocol, confirm Ollama is running (<code>ollama serve</code>) and the model is pulled (<code>ollama pull llama3.2</code>). On <strong>OpenAI-compatible</strong>, confirm the server is up and that the <strong>Local API URL</strong> points at it — a 404 almost always means the protocol and the server disagree. In <a href="#settings">Settings → AI</a>, press <strong>Test</strong>: it tells you whether the server is reachable and whether the model is there.</p>
+
+        <h3>An OpenAI-compatible server returns 401 or 403.</h3>
+        <p>Either the server wants a bearer token and none is saved, or it doesn't want one and an old one is still stored. Save the key under <a href="#settings">Settings → AI</a>, or press <strong>Clear</strong>. Ollama's own protocol never sends a key at all.</p>
 
         <h3>Read-aloud does nothing.</h3>
         <p>System voices need no setup. For Google voices, make sure the Text-to-Speech API is enabled on your project and the engine is set to <strong>Google</strong>. Re-paste the API key in <a href="#settings">Settings → Read Aloud</a>.</p>
