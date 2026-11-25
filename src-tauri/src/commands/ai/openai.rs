@@ -12,9 +12,11 @@ use tauri::ipc::Channel;
 
 use super::provider::{
     http_client, openai_base, status_error, with_auth, AiConfig, ChatMessage, LocalModel,
+    LocalProtocol,
 };
 
 const WHAT: &str = "The server";
+const PROTOCOL: LocalProtocol = LocalProtocol::OpenAi;
 
 #[derive(Deserialize)]
 struct ModelsResponse {
@@ -128,7 +130,7 @@ async fn http_error(resp: reqwest::Response) -> String {
         .and_then(|e| e.message)
         .map(|m| format!(" — {m}"))
         .unwrap_or_default();
-    format!("{}{detail}", status_error(status, WHAT))
+    format!("{}{detail}", status_error(status, WHAT, PROTOCOL))
 }
 
 fn first_choice_text(parsed: &ChatResponse) -> String {

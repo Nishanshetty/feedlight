@@ -4,22 +4,26 @@ use tauri::ipc::Channel;
 use super::{gemini, ollama, openai};
 use crate::commands::credentials::{read_secret_renamed, ERR_NO_KEY};
 
-/// Default Ollama endpoint, used when the frontend sends an empty base URL.
-const OLLAMA_DEFAULT_URL: &str = "http://localhost:11434";
+/// Default Local endpoint, used when the frontend sends an empty base URL.
+const LOCAL_DEFAULT_URL: &str = "http://localhost:11434";
 
-/// Keychain name of the Local provider's bearer token. It covers both local
-/// protocols, so the provider-neutral name is the honest one.
+/// Keychain name of the Local provider's bearer token. Only the OpenAI-compatible
+/// protocol uses it; the Ollama protocol has no key at all.
 pub const LOCAL_KEY: &str = "local_ai_api_key";
 
-/// Name this key had while the Local provider could only be Ollama. Read once
-/// and moved forward, so nobody has to re-paste a working key.
+/// Name this key had while the Local provider could only be Ollama, and while a
+/// key was offered for that protocol too. Read once and moved forward, so nobody
+/// has to re-paste a working key before switching to an OpenAI-compatible server.
 pub const LOCAL_KEY_LEGACY: &str = "ollama_api_key";
 
 /// Which backend answers AI requests. Mirrors `AiProvider` in `lib/settings.ts`.
+/// It was `Ollama` while the Local provider could only mean Ollama; `Local` is
+/// the name that covers both protocols. Which protocol it speaks is a separate
+/// field, so this one never has to mean a specific server again.
 #[derive(Deserialize, Clone, Copy, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum AiProvider {
-    Ollama,
+    Local,
     Gemini,
 }
 
@@ -57,8 +61,8 @@ impl AiConfig {
             .filter(|u| !u.is_empty())
     }
 
-    pub fn ollama_url(&self) -> &str {
-        self.trimmed_base_url().unwrap_or(OLLAMA_DEFAULT_URL)
+    pub fn local_url(&self) -> &str {
+        self.trimmed_base_url().unwrap_or(LOCAL_DEFAULT_URL)
     }
 
     pub fn openai_url(&self) -> String {
@@ -73,7 +77,7 @@ pub fn openai_base(base_url: Option<&str>) -> String {
     let base = base_url
         .map(|u| u.trim().trim_end_matches('/'))
         .filter(|u| !u.is_empty())
-        .unwrap_or(OLLAMA_DEFAULT_URL);
+        .unwrap_or(LOCAL_DEFAULT_URL);
     if base.ends_with("/v1") {
         base.to_string()
     } else {
@@ -90,9 +94,12 @@ pub fn http_client(timeout_secs: u64) -> Result<reqwest::Client, String> {
         .map_err(|e| e.to_string())
 }
 
-/// The Local provider's bearer token, whatever protocol it speaks. Absent means
-/// no header: a plain local Ollama is unaffected, and an instance that ignores
-/// `Authorization` still works.
+/// The bearer token for the OpenAI-compatible protocol. Absent means no header.
+///
+/// Only `openai.rs` calls this: Ollama's own API has no notion of a key, so the
+/// Ollama protocol neither asks for one nor sends one. A token saved while the
+/// OpenAI protocol was selected stays in the keychain, unused, and is there
+/// again when the user switches back.
 pub fn local_api_key() -> Result<Option<String>, String> {
     match read_secret_renamed(LOCAL_KEY_LEGACY, LOCAL_KEY) {
         Ok(key) => Ok(Some(key)),
@@ -109,16 +116,22 @@ pub fn with_auth(req: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder
     })
 }
 
-/// Turns a failed status into something the user can act on. 401/403 nearly
-/// always means a key is stored that the instance does not want, or missing
-/// that it does; 404 means the URL points at something that is not this API.
-pub fn status_error(status: reqwest::StatusCode, what: &str) -> String {
+/// Turns a failed status into something the user can act on, worded for the
+/// protocol that got it. 401/403 means a key problem only on the OpenAI surface:
+/// Ollama sends no key at all, so there the honest advice is the URL and the
+/// protocol switch. 404 means the URL points at something that is not this API.
+pub fn status_error(status: reqwest::StatusCode, what: &str, protocol: LocalProtocol) -> String {
     match status.as_u16() {
-        401 | 403 => format!(
-            "{what} rejected the request ({status}). If it requires a key, save it under AI \u{203a} API key; if it does not, clear the key."
-        ),
+        401 | 403 => match protocol {
+            LocalProtocol::OpenAi => format!(
+                "{what} rejected the request ({status}). If it requires a key, save it under AI \u{203a} API key; if it does not, clear the key."
+            ),
+            LocalProtocol::Ollama => format!(
+                "{what} rejected the request ({status}). Ollama's own API needs no key — check the Local API URL, or switch the protocol to OpenAI-compatible if this server requires a key."
+            ),
+        },
         404 => format!(
-            "{what} returned 404 at {status}. Check the base URL and protocol: an OpenAI-compatible server needs the OpenAI protocol, Ollama needs Ollama."
+            "{what} returned 404 at {status}. Check the Local API URL and protocol: an OpenAI-compatible server needs the OpenAI protocol, Ollama needs Ollama."
         ),
         _ => format!("{what} returned HTTP {status}"),
     }
@@ -148,7 +161,7 @@ pub struct LocalModel {
 /// (takeaways, suggested questions, digest, discover queries).
 pub async fn complete(cfg: &AiConfig, prompt: String, timeout_secs: u64) -> Result<String, String> {
     match cfg.provider {
-        AiProvider::Ollama => match cfg.protocol {
+        AiProvider::Local => match cfg.protocol {
             LocalProtocol::Ollama => ollama::complete(cfg, prompt, timeout_secs).await,
             LocalProtocol::OpenAi => openai::complete(cfg, prompt, timeout_secs).await,
         },
@@ -165,7 +178,7 @@ pub async fn complete_stream(
     on_token: &Channel<String>,
 ) -> Result<String, String> {
     match cfg.provider {
-        AiProvider::Ollama => match cfg.protocol {
+        AiProvider::Local => match cfg.protocol {
             LocalProtocol::Ollama => ollama::complete_stream(cfg, prompt, timeout_secs, on_token).await,
             LocalProtocol::OpenAi => openai::complete_stream(cfg, prompt, timeout_secs, on_token).await,
         },
@@ -184,7 +197,7 @@ pub async fn chat_stream(
     on_token: &Channel<String>,
 ) -> Result<String, String> {
     match cfg.provider {
-        AiProvider::Ollama => match cfg.protocol {
+        AiProvider::Local => match cfg.protocol {
             LocalProtocol::Ollama => {
                 ollama::chat_stream(cfg, system, history, question, timeout_secs, on_token).await
             }

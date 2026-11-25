@@ -140,7 +140,7 @@ function FeedSyncingSection() {
 type AiCheckState = "idle" | "checking" | "ok" | "error";
 
 const AI_PROVIDERS: { value: AiProvider; label: string; description: string }[] = [
-  { value: "ollama", label: "Local", description: "Your machine · private" },
+  { value: "local", label: "Local", description: "Your machine · private" },
   { value: "gemini", label: "Gemini", description: "Google · API key" },
 ];
 
@@ -166,8 +166,8 @@ function modelHint(m: LocalModel): string {
 
 function AiSection() {
   const [settings, setSettings] = useState<AiSettings>({
-    enabled: false, provider: "ollama", localProtocol: "ollama",
-    ollamaUrl: "http://localhost:11434", ollamaModel: "llama3.2", geminiModel: GEMINI_DEFAULT_MODEL,
+    enabled: false, provider: "local", localProtocol: "ollama",
+    localApiUrl: "http://localhost:11434", localModel: "llama3.2", geminiModel: GEMINI_DEFAULT_MODEL,
   });
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [checkState, setCheckState] = useState<AiCheckState>("idle");
@@ -187,7 +187,7 @@ function AiSection() {
         setSettings(loaded);
         // One listing per settings load, keyed to the URL as saved — typing a
         // new URL reloads the list on blur instead of on every keystroke.
-        if (loaded.provider === "ollama") loadLocalModels(loaded.ollamaUrl, loaded.localProtocol);
+        if (loaded.provider === "local") loadLocalModels(loaded.localApiUrl, loaded.localProtocol);
       })
       .catch(console.error);
     // Only whether a key exists — never the key itself, so the secret stays out
@@ -235,7 +235,7 @@ function AiSection() {
     }
   }
 
-  /** Plain local Ollama needs no key, so clearing one is a first-class action. */
+  /** An OpenAI-compatible server that turns out not to need a key after all. */
   async function clearLocalKey() {
     setKeySaveState("saving");
     try {
@@ -253,7 +253,7 @@ function AiSection() {
   }
 
   /** Lists whatever models the Local provider exposes, over its protocol. */
-  async function loadLocalModels(url = settings.ollamaUrl, protocol = settings.localProtocol) {
+  async function loadLocalModels(url = settings.localApiUrl, protocol = settings.localProtocol) {
     setModelsState("loading");
     setModelsMessage("");
     try {
@@ -274,11 +274,11 @@ function AiSection() {
 
   async function checkLocal() {
     const models = await invoke<LocalModel[]>("list_local_models", {
-      baseUrl: settings.ollamaUrl,
+      baseUrl: settings.localApiUrl,
       protocol: settings.localProtocol,
     });
     setLocalModels(models);
-    const wanted = settings.ollamaModel.trim();
+    const wanted = settings.localModel.trim();
     // Ollama tags are prefix-matchable ("llama3.2" finds "llama3.2:latest");
     // an OpenAI-style model id is an exact string.
     const match =
@@ -366,7 +366,7 @@ function AiSection() {
 
       {/* Provider config */}
       <div className="border border-outline-variant p-5 space-y-4">
-        {settings.provider === "ollama" ? (
+        {settings.provider === "local" ? (
           <>
             <div className="space-y-2">
               <p className="text-sm font-headline font-semibold text-on-surface">Protocol</p>
@@ -376,7 +376,7 @@ function AiSection() {
                     key={opt.value}
                     onClick={() => {
                       update({ localProtocol: opt.value });
-                      loadLocalModels(settings.ollamaUrl, opt.value);
+                      loadLocalModels(settings.localApiUrl, opt.value);
                     }}
                     aria-pressed={settings.localProtocol === opt.value}
                     className={[
@@ -396,12 +396,12 @@ function AiSection() {
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-headline font-semibold text-on-surface">Base URL</p>
+              <p className="text-sm font-headline font-semibold text-on-surface">Local API URL</p>
               <div className="flex gap-2">
                 <input
-                  value={settings.ollamaUrl}
-                  onChange={(e) => setSettings((s) => ({ ...s, ollamaUrl: e.target.value }))}
-                  onBlur={() => { save(settings); loadLocalModels(settings.ollamaUrl); }}
+                  value={settings.localApiUrl}
+                  onChange={(e) => setSettings((s) => ({ ...s, localApiUrl: e.target.value }))}
+                  onBlur={() => { save(settings); loadLocalModels(settings.localApiUrl); }}
                   placeholder={settings.localProtocol === "ollama" ? "http://localhost:11434" : "http://192.168.1.10:8080/v1"}
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
@@ -414,41 +414,44 @@ function AiSection() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <p className="text-sm font-headline font-semibold text-on-surface">
-                API Key {settings.localProtocol === "ollama" && "(optional)"}
-              </p>
-              <p className="text-xs font-body text-on-surface-variant">
-                {settings.localProtocol === "ollama"
-                  ? "Only needed when Ollama sits behind a proxy or on another machine. Sent as a bearer token, stored in your macOS keychain, never written to the settings file."
-                  : "Sent as a bearer token, stored in your macOS keychain, never written to the settings file. Most OpenAI-compatible servers require one."}
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={localKey}
-                  onChange={(e) => setLocalKey(e.target.value)}
-                  placeholder={hasLocalKey ? "••••••••  saved — enter a new key to replace" : settings.localProtocol === "ollama" ? "No key needed for a local instance" : "Bearer token"}
-                  className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                <button
-                  onClick={() => saveKey("ollama")}
-                  disabled={keySaveState === "saving" || !localKey.trim()}
-                  className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
-                >
-                  {keySaveState === "saving" ? "Saving…" : keySaveState === "saved" ? "Saved ✓" : keySaveState === "error" ? "Error" : "Save"}
-                </button>
-                {hasLocalKey && (
+            {/* Ollama's own API has no bearer token, so the whole section is
+                absent there rather than greyed out: nothing to enter, nothing
+                to explain. A key saved for the OpenAI protocol stays in the
+                keychain and reappears with that protocol. */}
+            {settings.localProtocol === "openai" && (
+              <div className="space-y-2">
+                <p className="text-sm font-headline font-semibold text-on-surface">API Key</p>
+                <p className="text-xs font-body text-on-surface-variant">
+                  Sent as a bearer token, stored in your macOS keychain, never written to the settings
+                  file. Most OpenAI-compatible servers require one.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={localKey}
+                    onChange={(e) => setLocalKey(e.target.value)}
+                    placeholder={hasLocalKey ? "••••••••  saved — enter a new key to replace" : "Bearer token"}
+                    className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
                   <button
-                    onClick={clearLocalKey}
-                    disabled={keySaveState === "saving"}
-                    className="shrink-0 ghost-border bg-surface-container-low px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant hover:text-on-surface disabled:opacity-40"
+                    onClick={() => saveKey("local")}
+                    disabled={keySaveState === "saving" || !localKey.trim()}
+                    className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
                   >
-                    Clear
+                    {keySaveState === "saving" ? "Saving…" : keySaveState === "saved" ? "Saved ✓" : keySaveState === "error" ? "Error" : "Save"}
                   </button>
-                )}
+                  {hasLocalKey && (
+                    <button
+                      onClick={clearLocalKey}
+                      disabled={keySaveState === "saving"}
+                      className="shrink-0 ghost-border bg-surface-container-low px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant hover:text-on-surface disabled:opacity-40"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <div className="flex items-baseline justify-between gap-2">
@@ -463,14 +466,14 @@ function AiSection() {
               </div>
               <div className="flex gap-2">
                 <input
-                  value={settings.ollamaModel}
-                  onChange={(e) => setSettings((s) => ({ ...s, ollamaModel: e.target.value }))}
+                  value={settings.localModel}
+                  onChange={(e) => setSettings((s) => ({ ...s, localModel: e.target.value }))}
                   onBlur={() => save(settings)}
                   placeholder="llama3.2"
-                  list="ollama-models"
+                  list="local-models"
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
-                <datalist id="ollama-models">
+                <datalist id="local-models">
                   {(localModels ?? []).map((m) => (
                     <option key={m.name} value={m.name}>{modelHint(m)}</option>
                   ))}
@@ -488,11 +491,11 @@ function AiSection() {
                   {localModels.map((m) => (
                     <button
                       key={m.name}
-                      onClick={() => update({ ollamaModel: m.name })}
-                      aria-pressed={settings.ollamaModel === m.name}
+                      onClick={() => update({ localModel: m.name })}
+                      aria-pressed={settings.localModel === m.name}
                       className={[
                         "px-2 py-1 text-ui-small font-body transition-colors",
-                        settings.ollamaModel === m.name
+                        settings.localModel === m.name
                           ? "bg-primary-container text-on-primary-container"
                           : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
                       ].join(" ")}
@@ -567,12 +570,12 @@ function AiSection() {
           </p>
         )}
 
-        {settings.provider === "ollama" ? (
+        {settings.provider === "local" ? (
           <p className="text-ui-small font-body text-on-surface-variant">
             {settings.localProtocol === "ollama" ? (
-              <>To install a model: <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">ollama pull {settings.ollamaModel || "llama3.2"}</code></>
+              <>To install a model: <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">ollama pull {settings.localModel || "llama3.2"}</code></>
             ) : (
-              <>Requests go to <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">{settings.ollamaUrl || "http://localhost:11434"}/chat/completions</code> — nothing leaves your network.</>
+              <>Requests go to <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">{settings.localApiUrl || "http://192.168.1.10:8080/v1"}</code> as <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">/v1/chat/completions</code> — nothing leaves your network.</>
             )}
           </p>
         ) : (

@@ -19,6 +19,7 @@ const storeMap = new Map<string, unknown>();
 const store = {
   get: vi.fn(async (key: string) => storeMap.get(key) ?? null),
   set: vi.fn(async (key: string, value: unknown) => void storeMap.set(key, value)),
+  delete: vi.fn(async (key: string) => void storeMap.delete(key)),
   save: vi.fn(async () => undefined),
   clear: vi.fn(async () => storeMap.clear()),
 };
@@ -36,6 +37,7 @@ beforeEach(() => {
   invoke.mockClear();
   store.get.mockClear();
   store.set.mockClear();
+  store.delete.mockClear();
 });
 
 function credentialWrites() {
@@ -47,16 +49,16 @@ function credentialWrites() {
 describe("aiConfig", () => {
   const base = {
     enabled: true,
-    provider: "ollama" as const,
+    provider: "local" as const,
     localProtocol: "ollama" as const,
-    ollamaUrl: "http://localhost:11434",
-    ollamaModel: "llama3.2",
+    localApiUrl: "http://localhost:11434",
+    localModel: "llama3.2",
     geminiModel: "gemini-3.6-flash",
   };
 
   it("sends the protocol to the local provider so it picks a transport", () => {
     expect(settings.aiConfig({ ...base, localProtocol: "openai" })).toEqual({
-      provider: "ollama",
+      provider: "local",
       model: "llama3.2",
       baseUrl: "http://localhost:11434",
       protocol: "openai",
@@ -106,17 +108,17 @@ describe("setAiSettings", () => {
   it("persists the protocol so a restart keeps the OpenAI transport", async () => {
     await settings.setAiSettings({
       enabled: true,
-      provider: "ollama",
+      provider: "local",
       localProtocol: "openai",
-      ollamaUrl: "http://192.168.0.109:8080/v1",
-      ollamaModel: "qwen3.8-flash",
+      localApiUrl: "http://192.168.0.109:8080/v1",
+      localModel: "qwen3.8-flash",
       geminiModel: "gemini-3.6-flash",
     });
 
     await expect(settings.getAiSettings()).resolves.toMatchObject({
       localProtocol: "openai",
-      ollamaUrl: "http://192.168.0.109:8080/v1",
-      ollamaModel: "qwen3.8-flash",
+      localApiUrl: "http://192.168.0.109:8080/v1",
+      localModel: "qwen3.8-flash",
     });
   });
 
@@ -124,9 +126,41 @@ describe("setAiSettings", () => {
     storeMap.set("ollama_url", "http://localhost:11434");
 
     await expect(settings.getAiSettings()).resolves.toMatchObject({
-      provider: "ollama",
+      provider: "local",
       localProtocol: "ollama",
     });
+  });
+
+  it("reads a provider saved as ollama as the Local provider", async () => {
+    storeMap.set("ai_provider", "ollama");
+
+    await expect(settings.getAiSettings()).resolves.toMatchObject({ provider: "local" });
+
+    await settings.setAiSettings(await settings.getAiSettings());
+    expect(storeMap.get("ai_provider")).toBe("local");
+  });
+
+  it("reads the settings an old file saved under the ollama_ names", async () => {
+    storeMap.set("ollama_enabled", true);
+    storeMap.set("ollama_model", "llama3.2:latest");
+    storeMap.set("ollama_url", "http://192.168.0.109:8080/v1");
+
+    await expect(settings.getAiSettings()).resolves.toMatchObject({
+      enabled: true,
+      localModel: "llama3.2:latest",
+      localApiUrl: "http://192.168.0.109:8080/v1",
+    });
+    // Reading alone must not write: getAiSettings runs on every page load.
+    expect(store.set).not.toHaveBeenCalled();
+
+    await settings.setAiSettings(await settings.getAiSettings());
+
+    expect(storeMap.get("ai_enabled")).toBe(true);
+    expect(storeMap.get("local_model")).toBe("llama3.2:latest");
+    expect(storeMap.get("local_api_url")).toBe("http://192.168.0.109:8080/v1");
+    expect(storeMap.has("ollama_enabled")).toBe(false);
+    expect(storeMap.has("ollama_model")).toBe(false);
+    expect(storeMap.has("ollama_url")).toBe(false);
   });
 });
 

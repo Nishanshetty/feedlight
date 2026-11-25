@@ -1,9 +1,19 @@
+//! Transport for Ollama's own API (`/api/tags`, `/api/chat`, `/api/generate`).
+//! Selected by `protocol: "ollama"` on the Local provider.
+//!
+//! There is no bearer token here: Ollama's API has no notion of one, so this
+//! module never reads the stored key and Settings shows no field for it. A token
+//! left over from the OpenAI-compatible protocol is simply not sent.
+
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 
-use super::provider::{http_client, status_error, with_auth, AiConfig, ChatMessage, LocalModel};
+use super::provider::{
+    http_client, status_error, AiConfig, ChatMessage, LocalModel, LocalProtocol,
+};
 
 const WHAT: &str = "Ollama";
+const PROTOCOL: LocalProtocol = LocalProtocol::Ollama;
 
 #[derive(Deserialize)]
 struct TagsResponse {
@@ -100,14 +110,15 @@ async fn read_ndjson_lines<F: FnMut(&str)>(
 /// Lists the models installed on an Ollama instance, newest name first.
 pub async fn list_models(base_url: &str) -> Result<Vec<LocalModel>, String> {
     let url = format!("{}/api/tags", base_url.trim_end_matches('/'));
-    let resp = with_auth(http_client(5)?.get(&url))?
+    let resp = http_client(5)?
+        .get(&url)
         .send()
         .await
         .map_err(|e| format!("Cannot reach Ollama: {e}"))?;
 
     let status = resp.status();
     if !status.is_success() {
-        return Err(status_error(status, WHAT));
+        return Err(status_error(status, WHAT, PROTOCOL));
     }
 
     let tags: TagsResponse = resp
@@ -146,20 +157,22 @@ fn map_tag_models(models: Vec<TagModel>) -> Vec<LocalModel> {
 }
 
 pub async fn complete(cfg: &AiConfig, prompt: String, timeout_secs: u64) -> Result<String, String> {
-    let url = format!("{}/api/generate", cfg.ollama_url());
+    let url = format!("{}/api/generate", cfg.local_url());
     let body = GenerateRequest {
         model: &cfg.model,
         prompt,
         stream: false,
     };
 
-    let resp = with_auth(http_client(timeout_secs)?.post(&url).json(&body))?
+    let resp = http_client(timeout_secs)?
+        .post(&url)
+        .json(&body)
         .send()
         .await
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(status_error(resp.status(), WHAT));
+        return Err(status_error(resp.status(), WHAT, PROTOCOL));
     }
 
     let result: GenerateResponse = resp
@@ -176,20 +189,22 @@ pub async fn complete_stream(
     timeout_secs: u64,
     on_token: &Channel<String>,
 ) -> Result<String, String> {
-    let url = format!("{}/api/generate", cfg.ollama_url());
+    let url = format!("{}/api/generate", cfg.local_url());
     let body = GenerateRequest {
         model: &cfg.model,
         prompt,
         stream: true,
     };
 
-    let mut resp = with_auth(http_client(timeout_secs)?.post(&url).json(&body))?
+    let mut resp = http_client(timeout_secs)?
+        .post(&url)
+        .json(&body)
         .send()
         .await
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(status_error(resp.status(), WHAT));
+        return Err(status_error(resp.status(), WHAT, PROTOCOL));
     }
 
     let mut full = String::new();
@@ -224,20 +239,22 @@ pub async fn chat_stream(
         content: question,
     });
 
-    let url = format!("{}/api/chat", cfg.ollama_url());
+    let url = format!("{}/api/chat", cfg.local_url());
     let body = ChatRequest {
         model: &cfg.model,
         messages,
         stream: true,
     };
 
-    let mut resp = with_auth(http_client(timeout_secs)?.post(&url).json(&body))?
+    let mut resp = http_client(timeout_secs)?
+        .post(&url)
+        .json(&body)
         .send()
         .await
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(status_error(resp.status(), WHAT));
+        return Err(status_error(resp.status(), WHAT, PROTOCOL));
     }
 
     let mut full = String::new();
@@ -309,18 +326,20 @@ mod tests {
     }
 
     #[test]
-    fn auth_failures_point_at_the_settings_field_instead_of_a_bare_status() {
+    fn auth_failures_do_not_point_at_a_key_that_ollama_never_sends() {
         for code in [401u16, 403] {
-            let msg = status_error(reqwest::StatusCode::from_u16(code).unwrap(), WHAT);
-            assert!(msg.contains("API key"), "{msg}");
+            let msg = status_error(reqwest::StatusCode::from_u16(code).unwrap(), WHAT, PROTOCOL);
+            assert!(msg.contains("needs no key"), "{msg}");
+            assert!(!msg.contains("clear the key"), "{msg}");
         }
-        let other = status_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR, WHAT);
+        let other = status_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR, WHAT, PROTOCOL);
         assert_eq!(other, "Ollama returned HTTP 500 Internal Server Error");
     }
 
     #[test]
     fn a_404_names_the_protocol_switch_because_that_is_the_usual_cause() {
-        let msg = status_error(reqwest::StatusCode::NOT_FOUND, WHAT);
+        let msg = status_error(reqwest::StatusCode::NOT_FOUND, WHAT, PROTOCOL);
         assert!(msg.contains("protocol"), "{msg}");
+        assert!(msg.contains("Local API URL"), "{msg}");
     }
 }
