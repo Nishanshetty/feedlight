@@ -47,6 +47,10 @@ npm run test:watch    # watch mode
 cd src-tauri && cargo test --lib   # Rust unit tests
 ```
 
+Needs **Node 22.10 or newer** (`package.json` declares it): Vitest pulls in undici 8,
+which binds `zlib.createZstdDecompress` at import time and that function does not
+exist on Node 20 — the run dies before reading a single test file.
+
 Tests sit next to the code they cover: `src/lib/*.test.ts` for the frontend,
 `#[cfg(test)] mod tests` at the bottom of each Rust module. Both suites run in CI
 ([`.github/workflows/test.yml`](.github/workflows/test.yml)) on every push and PR.

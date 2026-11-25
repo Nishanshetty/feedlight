@@ -21,7 +21,11 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22, not 20: vitest pulls in undici 8, whose decompression interceptor
+          # binds zlib.createZstdDecompress at import time. That function only
+          # exists from Node 22.10, so on 20 every worker dies before a single
+          # test file is read.
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
