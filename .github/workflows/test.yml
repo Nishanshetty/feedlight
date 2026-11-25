@@ -7,6 +7,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Neither job needs more than the checkout. CodeQL flagged the missing block:
+# the default GITHUB_TOKEN is far broader than a test run requires.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
