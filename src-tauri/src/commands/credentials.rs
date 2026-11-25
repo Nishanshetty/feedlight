@@ -62,7 +62,8 @@ pub fn delete_secret(key: &str) -> Result<(), String> {
 /// the key silently: the user would have to paste it again, with no hint why.
 ///
 /// One-shot — after the first read the current name exists and this never runs
-/// again. A failed copy leaves the old entry alone.
+/// again. A failed copy leaves the old entry alone; a failed delete is only
+/// logged, because the copy has already succeeded.
 pub fn read_secret_renamed(legacy: &str, current: &str) -> Result<String, String> {
     match read_secret(current) {
         Err(e) if e == ERR_NO_KEY => {}
@@ -70,7 +71,13 @@ pub fn read_secret_renamed(legacy: &str, current: &str) -> Result<String, String
     }
     let value = read_secret(legacy)?;
     write_secret(current, &value)?;
-    delete_secret(legacy)?;
+    // The copy is what matters. A delete that fails (locked keychain, dismissed
+    // prompt) leaves a stale entry the next read never looks at, because the
+    // current name exists now — failing here would make the request fail for a
+    // reason that is already fixed.
+    if let Err(e) = delete_secret(legacy) {
+        eprintln!("feedlight: could not remove the old keychain entry: {e}");
+    }
     Ok(value)
 }
 
