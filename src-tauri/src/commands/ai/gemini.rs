@@ -1,36 +1,15 @@
-use security_framework::passwords::get_generic_password;
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 
 use super::provider::{AiConfig, ChatMessage};
+use crate::commands::credentials::read_secret;
 
-const SERVICE: &str = "app.feedlight";
-const ERR_NOT_FOUND: i32 = -25300; // errSecItemNotFound
 const API_BASE: &str = "https://generativelanguage.googleapis.com/v1beta";
-
-/// Sentinel the frontend matches on to point the user at Settings. Keep stable —
-/// mirrors the same constant in `tts.rs`.
-const ERR_NO_KEY: &str = "no_api_key";
 
 /// Reads the user's Gemini API key from the system keychain. Stored there by
 /// `set_credential`, so it never travels over IPC with a request.
 fn api_key() -> Result<String, String> {
-    match get_generic_password(SERVICE, "gemini_api_key") {
-        Ok(bytes) => {
-            let key = String::from_utf8(bytes).map_err(|e| format!("Key encoding error: {e}"))?;
-            // Trim before returning, not just before the check: a pasted key with
-            // a trailing newline would otherwise reach the query string verbatim
-            // and come back as an opaque auth failure.
-            let key = key.trim().to_string();
-            if key.is_empty() {
-                Err(ERR_NO_KEY.to_string())
-            } else {
-                Ok(key)
-            }
-        }
-        Err(e) if e.code() == ERR_NOT_FOUND => Err(ERR_NO_KEY.to_string()),
-        Err(e) => Err(format!("Keychain error: {e}")),
-    }
+    read_secret("gemini_api_key")
 }
 
 fn client(timeout_secs: u64) -> Result<reqwest::Client, String> {

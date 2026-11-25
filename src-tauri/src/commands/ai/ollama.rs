@@ -1,16 +1,43 @@
+//! Transport for Ollama's own API (`/api/tags`, `/api/chat`, `/api/generate`).
+//! Selected by `protocol: "ollama"` on the Local provider.
+//!
+//! There is no bearer token here: Ollama's API has no notion of one, so this
+//! module never reads the stored key and Settings shows no field for it. A token
+//! left over from the OpenAI-compatible protocol is simply not sent.
+
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 
-use super::provider::{AiConfig, ChatMessage};
+use super::provider::{
+    http_client, status_error, AiConfig, ChatMessage, LocalModel, LocalProtocol,
+};
+
+const WHAT: &str = "Ollama";
+const PROTOCOL: LocalProtocol = LocalProtocol::Ollama;
 
 #[derive(Deserialize)]
 struct TagsResponse {
+    #[serde(default)]
     models: Vec<TagModel>,
 }
 
 #[derive(Deserialize)]
 struct TagModel {
     name: String,
+    #[serde(default)]
+    size: Option<u64>,
+    #[serde(default)]
+    details: Option<ModelDetails>,
+    #[serde(default)]
+    modified_at: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ModelDetails {
+    #[serde(default)]
+    parameter_size: Option<String>,
+    #[serde(default)]
+    quantization_level: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -48,13 +75,6 @@ struct ChatStreamChunk {
     message: Option<ChatResponseMessage>,
 }
 
-fn client(timeout_secs: u64) -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(timeout_secs))
-        .build()
-        .map_err(|e| e.to_string())
-}
-
 /// Reads an NDJSON streaming response line by line, buffering across chunk
 /// boundaries (a JSON line or UTF-8 sequence may be split between chunks).
 async fn read_ndjson_lines<F: FnMut(&str)>(
@@ -87,17 +107,18 @@ async fn read_ndjson_lines<F: FnMut(&str)>(
     Ok(())
 }
 
-/// Lists the models installed on the user's Ollama instance.
-pub async fn list_models(base_url: &str) -> Result<Vec<String>, String> {
+/// Lists the models installed on an Ollama instance, newest name first.
+pub async fn list_models(base_url: &str) -> Result<Vec<LocalModel>, String> {
     let url = format!("{}/api/tags", base_url.trim_end_matches('/'));
-    let resp = client(5)?
+    let resp = http_client(5)?
         .get(&url)
         .send()
         .await
         .map_err(|e| format!("Cannot reach Ollama: {e}"))?;
 
-    if !resp.status().is_success() {
-        return Err(format!("Ollama returned HTTP {}", resp.status()));
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(status_error(status, WHAT, &url, PROTOCOL));
     }
 
     let tags: TagsResponse = resp
@@ -105,18 +126,45 @@ pub async fn list_models(base_url: &str) -> Result<Vec<String>, String> {
         .await
         .map_err(|e| format!("Invalid response: {e}"))?;
 
-    Ok(tags.models.into_iter().map(|m| m.name).collect())
+    Ok(map_tag_models(tags.models))
+}
+
+/// Turns Ollama's `/api/tags` entries into picker rows. Bytes become MB rounded
+/// up, and the optional `details` block is flattened — older Ollama versions
+/// omit it, which must not fail the whole listing.
+fn map_tag_models(models: Vec<TagModel>) -> Vec<LocalModel> {
+    let mut mapped: Vec<LocalModel> = models
+        .into_iter()
+        .map(|m| LocalModel {
+            size_mb: m.size.map(|bytes| bytes.div_ceil(1_000_000)),
+            parameter_size: m
+                .details
+                .as_ref()
+                .and_then(|d| d.parameter_size.clone()),
+            quantization: m
+                .details
+                .as_ref()
+                .and_then(|d| d.quantization_level.clone()),
+            modified_at: m.modified_at,
+            // `/api/tags` does not report a context window; that needs
+            // `/api/show` per model, which the picker does not pay for.
+            context_length: None,
+            name: m.name,
+        })
+        .collect();
+    mapped.sort_by(|a, b| a.name.cmp(&b.name));
+    mapped
 }
 
 pub async fn complete(cfg: &AiConfig, prompt: String, timeout_secs: u64) -> Result<String, String> {
-    let url = format!("{}/api/generate", cfg.ollama_url());
+    let url = format!("{}/api/generate", cfg.local_url());
     let body = GenerateRequest {
         model: &cfg.model,
         prompt,
         stream: false,
     };
 
-    let resp = client(timeout_secs)?
+    let resp = http_client(timeout_secs)?
         .post(&url)
         .json(&body)
         .send()
@@ -124,7 +172,7 @@ pub async fn complete(cfg: &AiConfig, prompt: String, timeout_secs: u64) -> Resu
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(format!("Ollama returned HTTP {}", resp.status()));
+        return Err(status_error(resp.status(), WHAT, &url, PROTOCOL));
     }
 
     let result: GenerateResponse = resp
@@ -141,14 +189,14 @@ pub async fn complete_stream(
     timeout_secs: u64,
     on_token: &Channel<String>,
 ) -> Result<String, String> {
-    let url = format!("{}/api/generate", cfg.ollama_url());
+    let url = format!("{}/api/generate", cfg.local_url());
     let body = GenerateRequest {
         model: &cfg.model,
         prompt,
         stream: true,
     };
 
-    let mut resp = client(timeout_secs)?
+    let mut resp = http_client(timeout_secs)?
         .post(&url)
         .json(&body)
         .send()
@@ -156,7 +204,7 @@ pub async fn complete_stream(
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(format!("Ollama returned HTTP {}", resp.status()));
+        return Err(status_error(resp.status(), WHAT, &url, PROTOCOL));
     }
 
     let mut full = String::new();
@@ -191,14 +239,14 @@ pub async fn chat_stream(
         content: question,
     });
 
-    let url = format!("{}/api/chat", cfg.ollama_url());
+    let url = format!("{}/api/chat", cfg.local_url());
     let body = ChatRequest {
         model: &cfg.model,
         messages,
         stream: true,
     };
 
-    let mut resp = client(timeout_secs)?
+    let mut resp = http_client(timeout_secs)?
         .post(&url)
         .json(&body)
         .send()
@@ -206,7 +254,7 @@ pub async fn chat_stream(
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(format!("Ollama returned HTTP {}", resp.status()));
+        return Err(status_error(resp.status(), WHAT, &url, PROTOCOL));
     }
 
     let mut full = String::new();
@@ -223,4 +271,95 @@ pub async fn chat_stream(
     .await?;
 
     Ok(full.trim().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_tags(json: &str) -> Vec<LocalModel> {
+        map_tag_models(serde_json::from_str::<TagsResponse>(json).unwrap().models)
+    }
+
+    #[test]
+    fn maps_a_real_tags_payload_including_details() {
+        let models = parse_tags(
+            r#"{"models":[{"name":"llama3.2:latest","model":"llama3.2:latest","size":2004158528,
+            "details":{"parameter_size":"3B","quantization_level":"Q4_0"},
+            "modified_at":"2026-01-02T10:00:00.000000000Z"}]}"#,
+        );
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0].name, "llama3.2:latest");
+        assert_eq!(models[0].size_mb, Some(2005));
+        assert_eq!(models[0].parameter_size.as_deref(), Some("3B"));
+        assert_eq!(models[0].quantization.as_deref(), Some("Q4_0"));
+        assert!(models[0].modified_at.is_some());
+    }
+
+    #[test]
+    fn tolerates_older_ollama_without_a_details_block() {
+        let models = parse_tags(r#"{"models":[{"name":"mistral","size":4000000000}]}"#);
+        assert_eq!(models[0].parameter_size, None);
+        assert_eq!(models[0].quantization, None);
+        assert_eq!(models[0].modified_at, None);
+    }
+
+    #[test]
+    fn tolerates_a_missing_or_empty_model_list() {
+        assert!(parse_tags(r#"{"models":[]}"#).is_empty());
+        assert!(parse_tags("{}").is_empty());
+    }
+
+    #[test]
+    fn rounds_bytes_up_to_megabytes_so_a_model_is_never_shown_as_zero() {
+        let models = parse_tags(r#"{"models":[{"name":"tiny","size":1}]}"#);
+        assert_eq!(models[0].size_mb, Some(1));
+    }
+
+    #[test]
+    fn sorts_by_name_so_the_picker_is_stable_across_refreshes() {
+        let models = parse_tags(
+            r#"{"models":[{"name":"phi3:mini"},{"name":"llama3.2:latest"},{"name":"mistral"}]}"#,
+        );
+        let names: Vec<&str> = models.iter().map(|m| m.name.as_str()).collect();
+        assert_eq!(names, ["llama3.2:latest", "mistral", "phi3:mini"]);
+    }
+
+    #[test]
+    fn auth_failures_do_not_point_at_a_key_that_ollama_never_sends() {
+        let url = "http://localhost:11434/api/chat";
+        for code in [401u16, 403] {
+            let msg = status_error(
+                reqwest::StatusCode::from_u16(code).unwrap(),
+                WHAT,
+                url,
+                PROTOCOL,
+            );
+            assert!(msg.contains("needs no key"), "{msg}");
+            assert!(!msg.contains("clear the key"), "{msg}");
+        }
+        let other = status_error(
+            reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            WHAT,
+            url,
+            PROTOCOL,
+        );
+        assert_eq!(other, "Ollama returned HTTP 500 Internal Server Error");
+    }
+
+    #[test]
+    fn a_404_names_the_url_that_was_called_and_the_protocol_switch() {
+        let msg = status_error(
+            reqwest::StatusCode::NOT_FOUND,
+            WHAT,
+            "http://localhost:11434/api/chat",
+            PROTOCOL,
+        );
+        assert!(msg.contains("http://localhost:11434/api/chat"), "{msg}");
+        assert!(msg.contains("protocol"), "{msg}");
+        assert!(msg.contains("Local API URL"), "{msg}");
+        // StatusCode's Display already says "404 Not Found"; saying it twice
+        // reads like a bug.
+        assert!(!msg.contains("404 at 404"), "{msg}");
+    }
 }

@@ -160,7 +160,7 @@ Grouped by module under [src-tauri/src/commands/](../src-tauri/src/commands/):
 | `feed` | `fetch_feed`, `resolve_youtube_handle` | RSS/Atom fetch + autodiscovery; YouTube `@handle` → channel |
 | `extract` | `fetch_article_html`, `fetch_image_base64` | Fetch raw HTML for Readability; inline images past CSP |
 | `tts` | `synthesize_speech`, `list_tts_voices` | Google Cloud TTS (REST, user API key) |
-| `ai` | `check_ollama`, `check_gemini`, `summarize_article`, `chat_article`, `suggest_questions`, `key_takeaways`, `generate_digest`, `generate_discover_queries` | Prompts in `ai/mod.rs`; transport per provider (`ai/ollama.rs`, `ai/gemini.rs`) behind `ai/provider.rs` |
+| `ai` | `list_local_models`, `check_gemini`, `summarize_article`, `chat_article`, `suggest_questions`, `key_takeaways`, `generate_digest`, `generate_discover_queries` | Prompts in `ai/mod.rs`; transport per backend (`ai/ollama.rs`, `ai/openai.rs`, `ai/gemini.rs`) behind `ai/provider.rs` |
 | `video` | `open_video_window` | Open a YouTube watch page top-level in its own window |
 | `export` | `export_markdown` | Write highlights markdown (e.g. to an Obsidian vault) |
 
@@ -240,15 +240,28 @@ Two stores, by sensitivity:
 
 - **Preferences** → `tauri-plugin-store` (`settings.json` in the app data dir), via
   [src/lib/settings.ts](../src/lib/settings.ts): `tts_engine` (`system` | `google`),
-  `tts_voice`, `tts_voice_lang`, `app_theme`, `obsidian_vault_path`, `ollama_enabled`,
-  `ai_provider`, `ollama_url`, `ollama_model`, `gemini_model`. (The `ollama_*` keys
-  predate multi-provider support and are kept so existing installs upgrade cleanly.)
+  `tts_voice`, `tts_voice_lang`, `app_theme`, `obsidian_vault_path`, `ai_enabled`,
+  `ai_provider`, `ai_local_protocol`, `local_api_url`, `local_model`, `gemini_model`. (Four
+  of these were `ollama_*` while the Local provider could only mean Ollama: `ollama_enabled`,
+  `ollama_url`, `ollama_model`, and the `ai_provider` value `ollama`. Each is read from its
+  old name as a fallback and written under the new one on the next save, so existing installs
+  upgrade cleanly.)
 - **Secrets** → OS keychain (service `app.feedlight`) via the `credentials` commands:
-  `youtube_api_key`, `gcp_tts_api_key`, `gemini_api_key`. These never touch the
-  plaintext store, and provider commands read them in Rust rather than accepting
-  them over IPC.
+  `youtube_api_key`, `gcp_tts_api_key`, `gemini_api_key`, `local_ai_api_key`. These never
+  touch the plaintext store, and provider commands read them in Rust rather than
+  accepting them over IPC (`credentials::read_secret`). `local_ai_api_key` was
+  `ollama_api_key` while Local could only mean Ollama and a key was offered for it too;
+  `read_secret_renamed` moves an existing key forward on the first read, on both sides.
 
 AI is **off by default** and enabled from Settings, which also picks the provider.
-With the default **Ollama** provider everything runs locally and nothing leaves the
-machine. Choosing **Gemini** sends article text to Google's API under the user's own
+The **Local** provider stays on your machine and speaks one of two protocols
+(`ai_local_protocol`): **Ollama** (`/api/tags`, `/api/chat`, `/api/generate`) or
+**OpenAI-compatible** (`/v1/models`, `/v1/chat/completions` — llama.cpp's server,
+vLLM, LM Studio, OpenRouter, Ollama's own `/v1` shim). `local_api_url` is the base URL
+for either. Only the OpenAI protocol has a bearer token: `local_ai_api_key` is read by
+`openai.rs` alone, absent means no `Authorization` header, and Settings shows the API key
+field only when that protocol is selected. Ollama's own API has no notion of a key, so
+`ollama.rs` never reads the stored one — a token left over from the other protocol sits in
+the keychain unused until it is selected again.
+Choosing **Gemini** sends article text to Google's API under the user's own
 key — the trade-off is stated in the Settings panel.
