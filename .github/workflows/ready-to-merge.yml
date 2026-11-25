@@ -1,0 +1,117 @@
+name: Ready to merge
+
+# Stage 2 of the PR flow (see CONTRIBUTING.md). Each time a check workflow or
+# a review finishes, ask GitHub whether the PR can now be merged. GitHub's own
+# merge state already accounts for the branch rules (approval, required
+# checks, CodeQL, resolved threads), so we don't keep a second checklist here.
+# When it can be merged: add `ready to merge`, drop `ready to review`, and
+# @-mention the maintainer once per commit.
+#
+# Resolving a comment thread fires no Actions event. If that was the last
+# thing missing, run this workflow by hand (Actions -> Ready to merge ->
+# Run workflow) with the PR number.
+#
+# Security: no PR code is checked out or run; only GitHub API calls.
+
+on:
+  workflow_run:
+    workflows: [Tests, Release, CodeQL Advanced, Review submitted]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number to re-check
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: ready-to-merge-${{ github.event.workflow_run.head_sha || inputs.pr }}
+  cancel-in-progress: false
+
+env:
+  GH_REPO: ${{ github.repository }}
+  MAINTAINER: Nishanshetty
+  REVIEW_LABEL: ready to review
+  MERGE_LABEL: ready to merge
+
+jobs:
+  check:
+    name: Check merge readiness
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Find the PR(s)
+        id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_PR: ${{ inputs.pr }}
+        run: |
+          if [ -n "$INPUT_PR" ]; then
+            case "$INPUT_PR" in
+              ''|*[!0-9]*) echo "::error::'$INPUT_PR' is not a PR number"; exit 1 ;;
+            esac
+            prs="$INPUT_PR"
+          else
+            # workflow_run leaves `pull_requests` empty for PRs from forks,
+            # so match open PRs on their head commit instead.
+            prs=$(gh pr list --state open --limit 100 --json number,headRefOid \
+              --jq ".[] | select(.headRefOid == \"$HEAD_SHA\") | .number" | tr '\n' ' ')
+          fi
+          echo "Open PRs to check: ${prs:-none}"
+          echo "prs=$prs" >> "$GITHUB_OUTPUT"
+
+      - name: Label mergeable PRs
+        if: steps.find.outputs.prs != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRS: ${{ steps.find.outputs.prs }}
+        run: |
+          for pr in $PRS; do
+            # GitHub computes the merge state lazily; retry while it's UNKNOWN.
+            for attempt in 1 2 3 4 5 6; do
+              info=$(gh pr view "$pr" --json state,isDraft,mergeStateStatus,reviewDecision,headRefOid,labels)
+              status=$(jq -r .mergeStateStatus <<<"$info")
+              [ "$status" != "UNKNOWN" ] && break
+              sleep 10
+            done
+
+            state=$(jq -r .state <<<"$info")
+            draft=$(jq -r .isDraft <<<"$info")
+            review=$(jq -r .reviewDecision <<<"$info")
+            sha=$(jq -r .headRefOid <<<"$info")
+            echo "PR #$pr: state=$state draft=$draft merge=$status review=$review"
+
+            # CLEAN / HAS_HOOKS = every branch rule is met. UNSTABLE means a
+            # non-required check failed (e.g. tests), so it doesn't count.
+            if [ "$state" != "OPEN" ] || [ "$draft" = "true" ] || [ "$review" != "APPROVED" ]; then
+              continue
+            fi
+            case "$status" in CLEAN|HAS_HOOKS) ;; *) continue ;; esac
+
+            if ! jq -e --arg l "$MERGE_LABEL" '.labels | any(.name == $l)' <<<"$info" > /dev/null; then
+              gh api -X POST "repos/$GH_REPO/issues/$pr/labels" -f "labels[]=$MERGE_LABEL" > /dev/null
+              echo "Added '$MERGE_LABEL'."
+            fi
+            if jq -e --arg l "$REVIEW_LABEL" '.labels | any(.name == $l)' <<<"$info" > /dev/null; then
+              encoded=$(jq -rn --arg l "$REVIEW_LABEL" '$l | @uri')
+              gh api -X DELETE "repos/$GH_REPO/issues/$pr/labels/$encoded" > /dev/null
+              echo "Removed '$REVIEW_LABEL'."
+            fi
+
+            # One notification per commit: a hidden marker records it.
+            marker="<!-- ready-to-merge:$sha -->"
+            # Read all comments first: `grep -q` on a pipe can exit early and,
+            # under pipefail, make an existing marker look missing.
+            bodies=$(gh api --paginate "repos/$GH_REPO/issues/$pr/comments" --jq '.[].body')
+            if grep -qF "$marker" <<<"$bodies"; then
+              echo "Already notified for $sha."
+              continue
+            fi
+            gh api -X POST "repos/$GH_REPO/issues/$pr/comments" -f body="$marker
+          @$MAINTAINER: approved, all required checks green and every thread resolved. Ready to merge." > /dev/null
+            echo "Notified $MAINTAINER."
+          done

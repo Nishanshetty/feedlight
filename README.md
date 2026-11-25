@@ -131,6 +131,15 @@ a feature → code map — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for dev
+setup and checks. When your pull request is ready, comment **`/ready`** on it:
+it gets the `ready to review` label and a review request. Once it's approved
+and every check passes, it's labelled `ready to merge` automatically.
+
+---
+
 ## License
 
 [MIT](LICENSE) © 2026 Nishan Shetty

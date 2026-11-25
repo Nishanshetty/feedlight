@@ -71,6 +71,30 @@ cd src-tauri && cargo test --lib   # Rust — must pass
 cd src-tauri && cargo check        # Rust — must pass
 ```
 
+## Getting your PR reviewed and merged
+
+Two labels track where a PR is. You don't add them yourself; a comment and
+the checks do it for you.
+
+1. **Open your PR** and push until you're happy with it.
+2. **Comment `/ready`** on the PR. A 👍 on your comment means it was picked up:
+   the PR gets the **`ready to review`** label and the maintainer is asked to
+   review it.
+3. **Review.** Address any comments. Pushing new commits removes the labels,
+   because the code changed, so comment `/ready` again when you're done.
+4. **Ready to merge.** Once the PR is approved, every required check is green
+   (including the CodeQL scan) and all comment threads are resolved, the label
+   switches to **`ready to merge`** and the maintainer is notified to merge it.
+
+| Label | Means | Added by |
+|-------|-------|----------|
+| `ready to review` | The author says the PR is ready | Commenting `/ready`, or a maintainer by hand |
+| `ready to merge` | Approved, checks green, threads resolved | Automatically |
+
+> **Maintainers:** resolving a comment thread doesn't trigger any automation.
+> If that was the last thing missing, re-check by hand: **Actions → Ready to
+> merge → Run workflow**, with the PR number.
+
 ## Guidelines
 
 - Keep PRs focused — one feature or fix per PR
