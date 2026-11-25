@@ -318,7 +318,7 @@ mod tests {
     <link>https://example.com/first</link>
     <guid>https://example.com/first</guid>
     <description>Hello &lt;b&gt;world&lt;/b&gt;</description>
-    <pubDate>Mon, 02 Jan 2026 10:00:00 GMT</pubDate>
+    <pubDate>Fri, 02 Jan 2026 10:00:00 GMT</pubDate>
   </item>
 </channel></rss>"#;
         let parsed = parse_feed_bytes(xml.as_bytes()).expect("feed should parse");
@@ -326,7 +326,12 @@ mod tests {
         assert_eq!(parsed.items.len(), 1);
         assert_eq!(parsed.items[0].title.as_deref(), Some("First post"));
         assert_eq!(parsed.items[0].link.as_deref(), Some("https://example.com/first"));
-        assert!(parsed.items[0].published_at.is_some());
+        // 2 Jan 2026 is a Friday. feed-rs ignores the weekday, so a wrong one
+        // here would go unnoticed — pin the parsed instant instead.
+        assert_eq!(
+            parsed.items[0].published_at.as_deref(),
+            Some("2026-01-02T10:00:00+00:00")
+        );
     }
 
     #[test]

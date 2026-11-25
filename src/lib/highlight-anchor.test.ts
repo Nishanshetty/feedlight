@@ -25,16 +25,19 @@ function textOf(el: HTMLElement): string {
   return el.textContent ?? "";
 }
 
-/** Selects the first occurrence of `needle` in the container's text. */
-function rangeFor(el: HTMLElement, needle: string): Range {
+/** Selects the nth occurrence of `needle` in the container's text (0-based). */
+function rangeFor(el: HTMLElement, needle: string, nth = 0): Range {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   const nodes: Text[] = [];
   let n: Node | null;
   while ((n = walker.nextNode())) nodes.push(n as Text);
 
   const full = nodes.map((node) => node.data).join("");
-  const start = full.indexOf(needle);
-  if (start < 0) throw new Error(`needle not found: ${needle}`);
+  let start = -1;
+  for (let i = 0; i <= nth; i++) {
+    start = full.indexOf(needle, start + 1);
+    if (start < 0) throw new Error(`needle not found: ${needle}`);
+  }
   const end = start + needle.length;
 
   const range = document.createRange();
@@ -103,15 +106,22 @@ describe("findRange", () => {
     const el = container(
       "<p>first: the recurring phrase appears here. second: the recurring phrase appears again.</p>"
     );
-    const anchor = anchorFromRange(el, rangeFor(el, "the recurring phrase appears again"))!;
+    // The quote itself repeats, so only the stored context says which one it is.
+    const anchor = anchorFromRange(el, rangeFor(el, "the recurring phrase", 1))!;
+    expect(el.textContent!.split("the recurring phrase").length - 1).toBe(2);
+
     const range = findRange(el, anchor)!;
-    expect(range.toString()).toBe("the recurring phrase appears again");
+    expect(range.toString()).toBe("the recurring phrase");
+    // The anchor was taken from the second occurrence: scoring must land there.
+    const text = el.textContent!;
+    expect(range.startOffset).toBe(text.lastIndexOf("the recurring phrase"));
   });
 
   it("falls back to the first occurrence when no context matches", () => {
-    const el = container("<p>dup dup</p>");
+    const el = container("<p>dup dup dup</p>");
     const range = findRange(el, { quote: "dup", prefix: null, suffix: null })!;
     expect(range.toString()).toBe("dup");
+    expect(range.startOffset).toBe(0);
   });
 
   it("returns null when the quote is gone", () => {

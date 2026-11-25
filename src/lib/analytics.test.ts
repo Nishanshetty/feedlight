@@ -128,6 +128,21 @@ describe("classifyFeeds — classification buckets", () => {
     expect(result.deadFeeds.map((f) => f.feedId)).toEqual(["broken"]);
   });
 
+  it("scales the dead threshold to a long fetch interval", () => {
+    // 12h interval: the threshold is 3 x 12h = 36h, not the 24h floor.
+    // 30h old is still alive; 40h old is dead. A dropped `* 1000` or a wrong
+    // multiplier would flip one of these two.
+    const alive = classifyFeeds([
+      feed({ feed_id: "slow", last_fetched_at: isoDaysAgo(30 / 24), fetch_interval: 43_200 }),
+    ]);
+    expect(alive.deadFeeds.map((f) => f.feedId)).toEqual([]);
+
+    const dead = classifyFeeds([
+      feed({ feed_id: "slow", last_fetched_at: isoDaysAgo(40 / 24), fetch_interval: 43_200 }),
+    ]);
+    expect(dead.deadFeeds.map((f) => f.feedId)).toEqual(["slow"]);
+  });
+
   it("does not flag a recently fetched feed as dead", () => {
     const result = classifyFeeds([
       feed({
