@@ -9,7 +9,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const features = [
   {
     title: 'AI Daily Digest',
-    desc: 'Ollama summarises your feeds into a focused daily briefing. Runs entirely on your machine — no API keys, no data leaving your device.',
+    desc: 'Feedlight turns your feeds into a focused daily briefing. AI runs on your own machine — Ollama, llama.cpp, vLLM, LM Studio — with no data leaving your device.',
     icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1 1 .03 2.798-1.304 2.546l-2.19-.437m-9.416 0l-2.19.437c-1.333.252-2.303-1.547-1.302-2.547L5 14.5" /></svg>`,
   },
   {
@@ -243,10 +243,10 @@ const compareRows = [
             </div>
           </div>
           <div class="overflow-hidden rounded-xl border border-border shadow-lg shadow-black/40">
-            <img src={`${base}/screenshots/settings.png`} alt="Settings — Ollama, TTS, and YouTube configuration" width="1280" height="800" class="w-full" />
+            <img src={`${base}/screenshots/settings.png`} alt="Settings — AI protocol, Local API URL, API key, and model picker" width="732" height="436" class="w-full" />
             <div class="border-t border-border bg-surface px-4 py-3">
               <p class="text-xs font-semibold text-cream">Simple Setup</p>
-              <p class="text-xs text-muted mt-0.5">Connect Ollama, configure TTS, and add your YouTube API key</p>
+              <p class="text-xs text-muted mt-0.5">Pick Ollama or any OpenAI-compatible server, then choose a model</p>
             </div>
           </div>
         </div>

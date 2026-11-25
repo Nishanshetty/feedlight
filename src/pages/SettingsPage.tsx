@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Link } from "@tanstack/react-router";
@@ -6,6 +6,7 @@ import {
   getYouTubeApiKey, setYouTubeApiKey,
   getAiSettings, setAiSettings, aiConfig,
   getGeminiApiKey, setGeminiApiKey, GEMINI_DEFAULT_MODEL,
+  getLocalAiApiKey, setLocalAiApiKey,
   getRefreshIntervalSecs, setRefreshIntervalSecs,
   getObsidianVaultPath, setObsidianVaultPath,
   getGoogleTtsApiKey, setGoogleTtsApiKey,
@@ -15,7 +16,7 @@ import {
   getElevenLabsVoice, setElevenLabsVoice,
   getElevenLabsModel, setElevenLabsModel, ELEVENLABS_DEFAULT_MODEL,
   resetSettings,
-  type AiSettings, type AiProvider, type TtsEngine,
+  type AiSettings, type AiProvider, type LocalProtocol, type TtsEngine, type LocalModel,
 } from "../lib/settings";
 import { eraseAllData } from "../lib/db";
 import { exportFeedsToOpml } from "../lib/opml";
@@ -139,8 +140,13 @@ function FeedSyncingSection() {
 type AiCheckState = "idle" | "checking" | "ok" | "error";
 
 const AI_PROVIDERS: { value: AiProvider; label: string; description: string }[] = [
-  { value: "ollama", label: "Local", description: "Ollama · private" },
+  { value: "local", label: "Local", description: "Your machine · private" },
   { value: "gemini", label: "Gemini", description: "Google · API key" },
+];
+
+const LOCAL_PROTOCOLS: { value: LocalProtocol; label: string; description: string }[] = [
+  { value: "ollama", label: "Ollama", description: "/api/chat · port 11434" },
+  { value: "openai", label: "OpenAI-compatible", description: "/v1/chat/completions · llama.cpp, vLLM, LM Studio" },
 ];
 
 /** Suggested Gemini models. The field stays free-text so new ones work day one. */
@@ -150,23 +156,47 @@ const GEMINI_MODELS: { value: string; hint: string }[] = [
   { value: "gemini-2.5-pro", hint: "Most capable, slower" },
 ];
 
+/** Decoration for the Local model picker: "3B Q4_0 · 2.0 GB". Most servers
+ *  report only a name, in which case this is empty. */
+function modelHint(m: LocalModel): string {
+  const spec = [m.parameterSize, m.quantization].filter(Boolean).join(" ");
+  const size = m.sizeMb ? `${(m.sizeMb / 1024).toFixed(1)} GB` : "";
+  return [spec, size].filter(Boolean).join(" · ");
+}
+
 function AiSection() {
   const [settings, setSettings] = useState<AiSettings>({
-    enabled: false, provider: "ollama", ollamaUrl: "http://localhost:11434",
-    ollamaModel: "llama3.2", geminiModel: GEMINI_DEFAULT_MODEL,
+    enabled: false, provider: "local", localProtocol: "ollama",
+    localApiUrl: "http://localhost:11434", localModel: "llama3.2", geminiModel: GEMINI_DEFAULT_MODEL,
   });
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [checkState, setCheckState] = useState<AiCheckState>("idle");
   const [checkMessage, setCheckMessage] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
+  const [localKey, setLocalKey] = useState("");
+  const [hasLocalKey, setHasLocalKey] = useState(false);
   const [keySaveState, setKeySaveState] = useState<SaveState>("idle");
+  const [localModels, setLocalModels] = useState<LocalModel[] | null>(null);
+  const [modelsState, setModelsState] = useState<"idle" | "loading" | "error">("idle");
+  const [modelsMessage, setModelsMessage] = useState("");
+  // Id of the latest model-list request; anything older that lands late is
+  // dropped instead of overwriting the list for the protocol now selected.
+  const modelsRequestRef = useRef(0);
 
   useEffect(() => {
-    getAiSettings().then(setSettings).catch(console.error);
+    getAiSettings()
+      .then((loaded) => {
+        setSettings(loaded);
+        // One listing per settings load, keyed to the URL as saved — typing a
+        // new URL reloads the list on blur instead of on every keystroke.
+        if (loaded.provider === "local") loadLocalModels(loaded.localApiUrl, loaded.localProtocol);
+      })
+      .catch(console.error);
     // Only whether a key exists — never the key itself, so the secret stays out
     // of component state and the DOM.
     getGeminiApiKey().then((k) => setHasGeminiKey(!!k.trim())).catch(console.error);
+    getLocalAiApiKey().then((k) => setHasLocalKey(!!k.trim())).catch(console.error);
   }, []);
 
   async function save(updated: AiSettings) {
@@ -180,34 +210,101 @@ function AiSection() {
     }
   }
 
-  async function saveGeminiKey() {
-    const trimmed = geminiKey.trim();
+  async function saveKey(provider: AiProvider) {
+    const trimmed = (provider === "gemini" ? geminiKey : localKey).trim();
     if (!trimmed) return;
     setKeySaveState("saving");
     try {
-      await setGeminiApiKey(trimmed);
-      setHasGeminiKey(true);
-      setGeminiKey("");
+      if (provider === "gemini") {
+        await setGeminiApiKey(trimmed);
+        setHasGeminiKey(true);
+        setGeminiKey("");
+      } else {
+        await setLocalAiApiKey(trimmed);
+        setHasLocalKey(true);
+        setLocalKey("");
+      }
       setKeySaveState("saved");
       setCheckState("idle");
       setCheckMessage("");
       setTimeout(() => setKeySaveState("idle"), 2000);
+      // Saving a key is only half the action. Verify it against the provider
+      // right away, so the verdict lands in the ✓/✗ line instead of waiting
+      // for a Test click — and so a wrong key is visible before an article is
+      // opened and the summary silently fails.
+      await checkConnection();
     } catch {
       setKeySaveState("error");
     }
   }
 
-  async function checkOllama() {
-    const models = await invoke<string[]>("check_ollama", { baseUrl: settings.ollamaUrl });
-    const match = models.find((m) => m.startsWith(settings.ollamaModel));
+  /** An OpenAI-compatible server that turns out not to need a key after all. */
+  async function clearLocalKey() {
+    setKeySaveState("saving");
+    try {
+      await setLocalAiApiKey("");
+      setHasLocalKey(false);
+      setLocalKey("");
+      setKeySaveState("saved");
+      setTimeout(() => setKeySaveState("idle"), 2000);
+      // Same reasoning as saving: an instance that does need a key now fails
+      // visibly, rather than at the next summary request.
+      await checkConnection();
+    } catch {
+      setKeySaveState("error");
+    }
+  }
+
+  /** Lists whatever models the Local provider exposes, over its protocol. */
+  async function loadLocalModels(url = settings.localApiUrl, protocol = settings.localProtocol) {
+    // Mount, protocol clicks, URL blur and Reload all call this, and the slowest
+    // answer would otherwise win: click OpenAI-compatible, then quickly Ollama,
+    // and the picker could show the OpenAI list under the Ollama protocol.
+    const requestId = ++modelsRequestRef.current;
+    setModelsState("loading");
+    setModelsMessage("");
+    try {
+      const list = await invoke<LocalModel[]>("list_local_models", { baseUrl: url, protocol });
+      if (requestId !== modelsRequestRef.current) return;
+      setLocalModels(list);
+      setModelsState("idle");
+      setModelsMessage(
+        list.length === 0
+          ? "Server reachable, but it reports no models."
+          : `${list.length} model${list.length === 1 ? "" : "s"} available`
+      );
+    } catch (err) {
+      if (requestId !== modelsRequestRef.current) return;
+      setLocalModels(null);
+      setModelsState("error");
+      setModelsMessage(String(err));
+    }
+  }
+
+  async function checkLocal() {
+    const models = await invoke<LocalModel[]>("list_local_models", {
+      baseUrl: settings.localApiUrl,
+      protocol: settings.localProtocol,
+    });
+    setLocalModels(models);
+    const wanted = settings.localModel.trim();
+    // Ollama tags are prefix-matchable ("llama3.2" finds "llama3.2:latest");
+    // an OpenAI-style model id is an exact string.
+    const match =
+      models.find((m) => m.name === wanted) ??
+      (settings.localProtocol === "ollama"
+        ? models.find((m) => m.name.startsWith(wanted))
+        : undefined);
     if (match) {
-      setCheckMessage(`Model "${match}" found`);
+      setCheckMessage(`Model "${match.name}" responded to the listing`);
       setCheckState("ok");
     } else if (models.length > 0) {
-      setCheckMessage(`Ollama reachable. Model "${settings.ollamaModel}" not found. Available: ${models.slice(0, 3).join(", ")}`);
+      setCheckMessage(
+        `Server reachable. Model "${wanted}" not found. Available: ${models.slice(0, 3).map((m) => m.name).join(", ")}`
+      );
       setCheckState("error");
     } else {
-      setCheckMessage("Ollama reachable but no models installed. Run: ollama pull " + settings.ollamaModel);
+      setCheckMessage("Server reachable but it reports no models. Load one, then reload the list.");
       setCheckState("error");
     }
   }
@@ -223,7 +320,7 @@ function AiSection() {
     setCheckMessage("");
     try {
       if (settings.provider === "gemini") await checkGemini();
-      else await checkOllama();
+      else await checkLocal();
     } catch (err) {
       const msg = String(err);
       setCheckMessage(msg.includes("no_api_key") ? "No Gemini API key saved yet." : msg);
@@ -278,31 +375,119 @@ function AiSection() {
 
       {/* Provider config */}
       <div className="border border-outline-variant p-5 space-y-4">
-        {settings.provider === "ollama" ? (
+        {settings.provider === "local" ? (
           <>
             <div className="space-y-2">
-              <p className="text-sm font-headline font-semibold text-on-surface">Ollama Base URL</p>
+              <p className="text-sm font-headline font-semibold text-on-surface">Protocol</p>
               <div className="flex gap-2">
-                <input
-                  value={settings.ollamaUrl}
-                  onChange={(e) => setSettings((s) => ({ ...s, ollamaUrl: e.target.value }))}
-                  onBlur={() => save(settings)}
-                  placeholder="http://localhost:11434"
-                  className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+                {LOCAL_PROTOCOLS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      update({ localProtocol: opt.value });
+                      loadLocalModels(settings.localApiUrl, opt.value);
+                    }}
+                    aria-pressed={settings.localProtocol === opt.value}
+                    className={[
+                      "flex-1 px-3 py-2 text-left text-ui-small font-label font-bold uppercase tracking-[0.14em] transition-colors",
+                      settings.localProtocol === opt.value
+                        ? "bg-primary-container text-on-primary-container"
+                        : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
+                    ].join(" ")}
+                  >
+                    {opt.label}
+                    <span className="mt-0.5 block text-ui-small font-normal normal-case tracking-normal opacity-70">
+                      {opt.description}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-headline font-semibold text-on-surface">Model</p>
+              <p className="text-sm font-headline font-semibold text-on-surface">Local API URL</p>
               <div className="flex gap-2">
                 <input
-                  value={settings.ollamaModel}
-                  onChange={(e) => setSettings((s) => ({ ...s, ollamaModel: e.target.value }))}
-                  onBlur={() => save(settings)}
-                  placeholder="llama3.2"
+                  value={settings.localApiUrl}
+                  onChange={(e) => setSettings((s) => ({ ...s, localApiUrl: e.target.value }))}
+                  onBlur={() => { save(settings); loadLocalModels(settings.localApiUrl); }}
+                  placeholder={settings.localProtocol === "ollama" ? "http://localhost:11434" : "http://192.168.1.10:8080/v1"}
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
+              </div>
+              {settings.localProtocol === "openai" && (
+                <p className="text-ui-small font-body text-on-surface-variant">
+                  <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">/v1</code> is
+                  added only when the URL has no path, so the bare host works and a server mounted
+                  somewhere else keeps its own path.
+                </p>
+              )}
+            </div>
+
+            {/* Ollama's own API has no bearer token, so the whole section is
+                absent there rather than greyed out: nothing to enter, nothing
+                to explain. A key saved for the OpenAI protocol stays in the
+                keychain and reappears with that protocol. */}
+            {settings.localProtocol === "openai" && (
+              <div className="space-y-2">
+                <p className="text-sm font-headline font-semibold text-on-surface">API Key</p>
+                <p className="text-xs font-body text-on-surface-variant">
+                  Sent as a bearer token, stored in your macOS keychain, never written to the settings
+                  file. Most OpenAI-compatible servers require one.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={localKey}
+                    onChange={(e) => setLocalKey(e.target.value)}
+                    placeholder={hasLocalKey ? "••••••••  saved — enter a new key to replace" : "Bearer token"}
+                    className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <button
+                    onClick={() => saveKey("local")}
+                    disabled={keySaveState === "saving" || !localKey.trim()}
+                    className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+                  >
+                    {keySaveState === "saving" ? "Saving…" : keySaveState === "saved" ? "Saved ✓" : keySaveState === "error" ? "Error" : "Save"}
+                  </button>
+                  {hasLocalKey && (
+                    <button
+                      onClick={clearLocalKey}
+                      disabled={keySaveState === "saving"}
+                      className="shrink-0 ghost-border bg-surface-container-low px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant hover:text-on-surface disabled:opacity-40"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-sm font-headline font-semibold text-on-surface">Model</p>
+                <button
+                  onClick={() => loadLocalModels()}
+                  disabled={modelsState === "loading"}
+                  className="text-ui-small font-label uppercase tracking-[0.14em] text-on-surface-variant hover:text-on-surface disabled:opacity-40"
+                >
+                  {modelsState === "loading" ? "Loading…" : "Reload list"}
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={settings.localModel}
+                  onChange={(e) => setSettings((s) => ({ ...s, localModel: e.target.value }))}
+                  onBlur={() => save(settings)}
+                  placeholder="llama3.2"
+                  list="local-models"
+                  className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <datalist id="local-models">
+                  {(localModels ?? []).map((m) => (
+                    <option key={m.name} value={m.name}>{modelHint(m)}</option>
+                  ))}
+                </datalist>
                 <button
                   onClick={checkConnection}
                   disabled={checkState === "checking"}
@@ -311,6 +496,31 @@ function AiSection() {
                   {checkState === "checking" ? "Checking…" : "Test"}
                 </button>
               </div>
+              {localModels && localModels.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {localModels.map((m) => (
+                    <button
+                      key={m.name}
+                      onClick={() => update({ localModel: m.name })}
+                      aria-pressed={settings.localModel === m.name}
+                      className={[
+                        "px-2 py-1 text-ui-small font-body transition-colors",
+                        settings.localModel === m.name
+                          ? "bg-primary-container text-on-primary-container"
+                          : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
+                      ].join(" ")}
+                    >
+                      {m.name}
+                      <span className="ml-1 opacity-60">{modelHint(m)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {modelsMessage && (
+                <p className={`text-ui-small font-body ${modelsState === "error" ? "text-error" : "text-on-surface-variant"}`}>
+                  {modelsMessage}
+                </p>
+              )}
             </div>
           </>
         ) : (
@@ -329,8 +539,8 @@ function AiSection() {
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <button
-                  onClick={saveGeminiKey}
-                  disabled={keySaveState === "saving"}
+                  onClick={() => saveKey("gemini")}
+                  disabled={keySaveState === "saving" || !geminiKey.trim()}
                   className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
                 >
                   {keySaveState === "saving" ? "Saving…" : keySaveState === "saved" ? "Saved ✓" : keySaveState === "error" ? "Error" : "Save"}
@@ -370,9 +580,13 @@ function AiSection() {
           </p>
         )}
 
-        {settings.provider === "ollama" ? (
+        {settings.provider === "local" ? (
           <p className="text-ui-small font-body text-on-surface-variant">
-            To install a model: <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">ollama pull {settings.ollamaModel || "llama3.2"}</code>
+            {settings.localProtocol === "ollama" ? (
+              <>To install a model: <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">ollama pull {settings.localModel || "llama3.2"}</code></>
+            ) : (
+              <>Requests go to <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">{settings.localApiUrl || "http://192.168.1.10:8080/v1"}</code> as <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">/v1/chat/completions</code> — nothing leaves your network.</>
+            )}
           </p>
         ) : (
           <p className="text-ui-small font-body text-on-surface-variant">

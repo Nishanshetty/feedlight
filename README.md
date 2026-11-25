@@ -18,7 +18,7 @@ A local-first RSS reader for macOS. No accounts, no servers, no subscriptions �
 - **Resume reading** — scroll position is remembered per article; cards show a progress line and reopening picks up where you left off
 - **Article reader** — distraction-free reading pane powered by Mozilla Readability (same engine as Firefox Reader View), with reading progress bar, read-time estimate, link hover previews, and a per-article accent color drawn from the lead image
 - **Text to Speech** — paragraph-by-paragraph read-aloud via Google Cloud TTS (Neural2 voice), with playback speed control and click-a-paragraph to jump
-- **AI features** — streamed article summaries, automatic key takeaways, chat about any article with suggested questions, and select-text Explain/Ask — powered by a locally running [Ollama](https://ollama.com) model (fully private, no cloud required) or by [Gemini](https://aistudio.google.com/apikey) with your own API key
+- **AI features** — streamed article summaries, automatic key takeaways, chat about any article with suggested questions, and select-text Explain/Ask — powered by a model running on your own machine — [Ollama](https://ollama.com) or any OpenAI-compatible server such as llama.cpp or LM Studio (fully private, no cloud required) — or by [Gemini](https://aistudio.google.com/apikey) with your own API key
 - **Discover** — AI-generated search queries based on your subscriptions surface fresh articles from outside your feeds (requires AI to be enabled)
 - **Background refresh** — feeds refresh automatically every 15 minutes in Rust; no browser tab needed
 - **OPML import/export** — migrate from Feedly, Inoreader, or any other reader instantly
@@ -66,10 +66,10 @@ Open **Settings** (gear icon in the top bar) to configure optional integrations:
 |---------|----------------|---------|
 | **YouTube Data API key** | [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → YouTube Data API v3 | Subscribing to `@handle` YouTube channels |
 | **Google Cloud TTS credentials** | GCP Console → IAM → Service Accounts → create key (JSON) | Article read-aloud feature |
-| **Ollama URL + model** | [ollama.com](https://ollama.com) — install locally, then `ollama pull llama3.2` | AI features, run locally |
+| **Local API URL** | [ollama.com](https://ollama.com) (`ollama pull llama3.2`), or any OpenAI-compatible server: llama.cpp, vLLM, LM Studio | AI features, run locally. Ollama needs no key; an OpenAI-compatible server usually wants a bearer key |
 | **Gemini API key** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | AI features, run in the cloud |
 
-Preferences live in the app data directory via `tauri-plugin-store`; API keys live in the macOS keychain, never in the plaintext store. Each key is sent only to the service it belongs to, over HTTPS. Selecting Gemini also sends **article text** to Google — every other feature, including local Ollama, keeps article content on your machine.
+Preferences live in the app data directory via `tauri-plugin-store`; API keys live in the macOS keychain, never in the plaintext store. Each key is sent only to the service it belongs to, over HTTPS. Selecting Gemini also sends **article text** to Google — every other feature, including the Local provider, keeps article content on your machine.
 
 ### AI setup
 
@@ -77,11 +77,25 @@ Pick one provider in Settings → **AI**. Local is the default and keeps article
 on your machine; Gemini is faster and needs no local model, but sends article text to
 Google under your own key.
 
-**Local (Ollama)**
+**Local — Ollama**
 
 1. Install [Ollama](https://ollama.com) and pull a model: `ollama pull llama3.2`
 2. Open Feedlight → Settings → **AI**, toggle it on, choose **Local**
-3. Confirm the URL (`http://localhost:11434`), hit **Test**
+3. Confirm the Local API URL (`http://localhost:11434`) — the model field fills itself from
+   whatever your instance has installed; pick one or type a name
+4. Hit **Test**
+
+**Local — OpenAI-compatible server**
+
+1. Run any server that speaks `/v1/models` and `/v1/chat/completions` — llama.cpp's
+   `llama-server` on port 8080, vLLM, LM Studio's local server
+2. Settings → **AI** → **Local**, set the protocol to **OpenAI-compatible**
+3. Set the Local API URL (`http://192.168.1.10:8080` — `/v1` is added when the URL has no path), save the
+   bearer key under **API key**, then pick a model from the list
+
+The **API key** field only appears for the OpenAI-compatible protocol. Ollama's own API has
+no notion of one, so the Ollama protocol never sends an `Authorization` header — a key you
+saved for the other protocol stays in the keychain, unused, until you switch back.
 
 **Gemini**
 
@@ -105,7 +119,7 @@ Either way, open any article — a sparkle button (✦) appears in the reader he
 | Article extraction | [`@mozilla/readability`](https://github.com/mozilla/readability) |
 | HTTP | `reqwest` (Rust) |
 | TTS auth | `jsonwebtoken` (RS256 JWT for Google OAuth2) |
-| AI | [Ollama](https://ollama.com) local HTTP API, or the Gemini REST API |
+| AI | [Ollama](https://ollama.com) or any OpenAI-compatible local server, or the Gemini REST API |
 | Settings | `tauri-plugin-store` |
 
 ---

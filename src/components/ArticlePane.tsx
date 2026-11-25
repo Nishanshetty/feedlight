@@ -324,7 +324,7 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
           onClick={summarize.state === "idle" || summarize.state === "error" ? summarize.onSummarize : undefined}
           disabled={summarize.state === "loading"}
           aria-label="Summarize article"
-          title="Summarize with Ollama"
+          title="Summarize with the local model"
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text disabled:opacity-40"
         >
           {summarize.state === "loading" ? (
@@ -774,7 +774,7 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   const titleRef = useRef<HTMLHeadingElement>(null);
   const articleContentRef = useRef<HTMLDivElement>(null);
 
-  // Ollama summarize state
+  // Local AI summarize state
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
   const [summarizeState, setSummarizeState] = useState<SummarizeState>("idle");
   const [summary, setSummary] = useState<string | null>(null);
