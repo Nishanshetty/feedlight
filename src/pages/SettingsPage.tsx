@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Link } from "@tanstack/react-router";
@@ -180,6 +180,9 @@ function AiSection() {
   const [localModels, setLocalModels] = useState<LocalModel[] | null>(null);
   const [modelsState, setModelsState] = useState<"idle" | "loading" | "error">("idle");
   const [modelsMessage, setModelsMessage] = useState("");
+  // Id of the latest model-list request; anything older that lands late is
+  // dropped instead of overwriting the list for the protocol now selected.
+  const modelsRequestRef = useRef(0);
 
   useEffect(() => {
     getAiSettings()
@@ -254,10 +257,15 @@ function AiSection() {
 
   /** Lists whatever models the Local provider exposes, over its protocol. */
   async function loadLocalModels(url = settings.localApiUrl, protocol = settings.localProtocol) {
+    // Mount, protocol clicks, URL blur and Reload all call this, and the slowest
+    // answer would otherwise win: click OpenAI-compatible, then quickly Ollama,
+    // and the picker could show the OpenAI list under the Ollama protocol.
+    const requestId = ++modelsRequestRef.current;
     setModelsState("loading");
     setModelsMessage("");
     try {
       const list = await invoke<LocalModel[]>("list_local_models", { baseUrl: url, protocol });
+      if (requestId !== modelsRequestRef.current) return;
       setLocalModels(list);
       setModelsState("idle");
       setModelsMessage(
@@ -266,6 +274,7 @@ function AiSection() {
           : `${list.length} model${list.length === 1 ? "" : "s"} available`
       );
     } catch (err) {
+      if (requestId !== modelsRequestRef.current) return;
       setLocalModels(null);
       setModelsState("error");
       setModelsMessage(String(err));
@@ -409,7 +418,8 @@ function AiSection() {
               {settings.localProtocol === "openai" && (
                 <p className="text-ui-small font-body text-on-surface-variant">
                   <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">/v1</code> is
-                  added for you, so the bare host works too.
+                  added only when the URL has no path, so the bare host works and a server mounted
+                  somewhere else keeps its own path.
                 </p>
               )}
             </div>
