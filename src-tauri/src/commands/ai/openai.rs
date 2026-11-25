@@ -59,11 +59,6 @@ struct ChatResponse {
     choices: Vec<ChatChoice>,
 }
 
-#[derive(Deserialize)]
-struct ErrorBody {
-    message: Option<String>,
-}
-
 /// One line taken out of an SSE stream. `Skip` covers blank separators,
 /// `event:`/`id:` fields and `: keep-alive` comments — all of which some
 /// servers send and none of which carry a token.
@@ -74,29 +69,50 @@ enum SseLine {
     Skip,
 }
 
+/// Parses one SSE line. Blank separators, `event:`/`id:` fields and
+/// `: keep-alive` comments all become `Skip`: some servers send them and none
+/// carry a token.
+fn parse_sse_line(bytes: &[u8]) -> SseLine {
+    let line = String::from_utf8_lossy(bytes);
+    let Some(payload) = line.trim().strip_prefix("data:") else {
+        return SseLine::Skip;
+    };
+    let payload = payload.trim();
+    if payload == "[DONE]" {
+        return SseLine::Done;
+    }
+    if payload.is_empty() {
+        return SseLine::Skip;
+    }
+    SseLine::Data(payload.to_string())
+}
+
 /// Pulls the next complete line out of the buffer, leaving a partial tail in
 /// place until the next chunk arrives. This is the whole reason the buffer
 /// exists: reqwest chunks on network boundaries, not on newlines.
 fn take_sse_line(buf: &mut Vec<u8>) -> Option<SseLine> {
     let pos = buf.iter().position(|&b| b == b'\n')?;
     let bytes: Vec<u8> = buf.drain(..=pos).collect();
-    let line = String::from_utf8_lossy(&bytes);
-    let Some(payload) = line.trim().strip_prefix("data:") else {
-        return Some(SseLine::Skip);
-    };
-    let payload = payload.trim();
-    if payload == "[DONE]" {
-        return Some(SseLine::Done);
+    Some(parse_sse_line(&bytes))
+}
+
+/// Whatever is left when the body ends without a final newline. Some proxies
+/// and minimal servers close the stream mid-line, and that last payload carries
+/// a real token, so it is parsed like any other line.
+fn take_sse_tail(buf: &mut Vec<u8>) -> Option<SseLine> {
+    if buf.is_empty() {
+        return None;
     }
-    if payload.is_empty() {
-        return Some(SseLine::Skip);
-    }
-    Some(SseLine::Data(payload.to_string()))
+    let bytes = std::mem::take(buf);
+    Some(parse_sse_line(&bytes))
 }
 
 /// Reads an SSE body and hands every `data:` payload to `on_event`, buffering
 /// across chunk boundaries. `[DONE]` is the terminator, not an event.
-async fn read_sse_data<F: FnMut(&str)>(resp: &mut reqwest::Response, mut on_event: F) -> Result<(), String> {
+async fn read_sse_data<F: FnMut(&str) -> Result<(), String>>(
+    resp: &mut reqwest::Response,
+    mut on_event: F,
+) -> Result<(), String> {
     let mut buf: Vec<u8> = Vec::new();
     let mut done = false;
     while !done {
@@ -108,7 +124,7 @@ async fn read_sse_data<F: FnMut(&str)>(resp: &mut reqwest::Response, mut on_even
         buf.extend_from_slice(&chunk);
         while let Some(line) = take_sse_line(&mut buf) {
             match line {
-                SseLine::Data(payload) => on_event(&payload),
+                SseLine::Data(payload) => on_event(&payload)?,
                 SseLine::Done => {
                     done = true;
                     break;
@@ -117,20 +133,59 @@ async fn read_sse_data<F: FnMut(&str)>(resp: &mut reqwest::Response, mut on_even
             }
         }
     }
+    if !done {
+        if let Some(SseLine::Data(payload)) = take_sse_tail(&mut buf) {
+            on_event(&payload)?;
+        }
+    }
     Ok(())
+}
+
+/// The sentence out of an `{"error": …}` value, in the shapes servers use:
+/// `{"error":{"message":"…"}}` (OpenAI, llama.cpp, vLLM, OpenRouter) and
+/// `{"error":"…"}` (a few minimal servers).
+fn error_text(error: &serde_json::Value) -> Option<String> {
+    error
+        .get("message")
+        .and_then(|m| m.as_str())
+        .or_else(|| error.as_str())
+        .map(str::to_string)
+}
+
+/// Pulls the human sentence out of a failed response body, falling back to the
+/// plain `{"message":"…"}` shape some servers send.
+fn error_message(body: &str) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(body).ok()?;
+    if let Some(error) = value.get("error") {
+        return error_text(error);
+    }
+    value
+        .get("message")
+        .and_then(|m| m.as_str())
+        .map(str::to_string)
+}
+
+/// An error sent inside the stream, after the 200: llama.cpp, vLLM and
+/// OpenRouter all do this on a context overflow. Returns None for a normal
+/// chunk.
+fn stream_error(payload: &str) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(payload).ok()?;
+    let error = value.get("error")?;
+    Some(
+        error_text(error)
+            .unwrap_or_else(|| "The server reported an error mid-stream.".to_string()),
+    )
 }
 
 /// Turns an OpenAI-shaped error body into the message the server actually
 /// meant, instead of a bare status.
-async fn http_error(resp: reqwest::Response) -> String {
+async fn http_error(resp: reqwest::Response, url: &str) -> String {
     let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
-    let detail = serde_json::from_str::<ErrorBody>(&body)
-        .ok()
-        .and_then(|e| e.message)
+    let detail = error_message(&body)
         .map(|m| format!(" — {m}"))
         .unwrap_or_default();
-    format!("{}{detail}", status_error(status, WHAT, PROTOCOL))
+    format!("{}{detail}", status_error(status, WHAT, url, PROTOCOL))
 }
 
 fn first_choice_text(parsed: &ChatResponse) -> String {
@@ -146,14 +201,14 @@ fn first_choice_text(parsed: &ChatResponse) -> String {
 /// detail this surface reliably has; most servers report just an id.
 pub async fn list_models(base_url: &str) -> Result<Vec<LocalModel>, String> {
     let url = format!("{}/models", openai_base(Some(base_url)));
-    let resp = with_auth(http_client(10)?.get(&url))?
+    let resp = with_auth(http_client(10)?.get(&url))
         .send()
         .await
         .map_err(|e| format!("Cannot reach the server: {e}"))?;
 
     let status = resp.status();
     if !status.is_success() {
-        return Err(http_error(resp).await);
+        return Err(http_error(resp, &url).await);
     }
 
     let parsed: ModelsResponse = resp
@@ -187,14 +242,14 @@ async fn post(
     timeout_secs: u64,
 ) -> Result<reqwest::Response, String> {
     let url = format!("{}/chat/completions", cfg.openai_url());
-    let resp = with_auth(http_client(timeout_secs)?.post(&url).json(&body))?
+    let resp = with_auth(http_client(timeout_secs)?.post(&url).json(&body))
         .send()
         .await
         .map_err(|e| format!("Failed to reach the server: {e}"))?;
 
     let status = resp.status();
     if !status.is_success() {
-        return Err(http_error(resp).await);
+        return Err(http_error(resp, &url).await);
     }
     Ok(resp)
 }
@@ -272,8 +327,14 @@ async fn stream_into(
 ) -> Result<String, String> {
     let mut full = String::new();
     read_sse_data(resp, |payload| {
+        // A server that fails mid-stream (context overflow, a crashed model)
+        // sends `data: {"error": …}` after the 200. Skipping it would hand the
+        // user an empty answer with no explanation.
+        if let Some(message) = stream_error(payload) {
+            return Err(message);
+        }
         let Ok(chunk) = serde_json::from_str::<ChatResponse>(payload) else {
-            return;
+            return Ok(());
         };
         let text = chunk
             .choices
@@ -285,9 +346,17 @@ async fn stream_into(
             full.push_str(&text);
             let _ = on_token.send(text);
         }
+        Ok(())
     })
     .await?;
-    Ok(full.trim().to_string())
+    let answer = full.trim();
+    if answer.is_empty() {
+        return Err(
+            "The server finished without sending any text. Check the model's context length and the server log."
+                .to_string(),
+        );
+    }
+    Ok(answer.to_string())
 }
 
 #[cfg(test)]
@@ -341,6 +410,56 @@ mod tests {
         buf.extend_from_slice(b"data: [DONE]\n\ndata: {\"late\":true}\n");
         assert_eq!(drain(&mut buf), vec![SseLine::Done]);
         assert!(String::from_utf8_lossy(&buf).contains("late"));
+    }
+
+    #[test]
+    fn keeps_the_last_payload_when_the_stream_ends_without_a_newline() {
+        // Some proxies close the body right after the final token, so the last
+        // `data:` line never gets its newline.
+        let mut buf = Vec::new();
+        buf.extend_from_slice(b"data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}");
+        assert_eq!(take_sse_line(&mut buf), None);
+        assert_eq!(
+            take_sse_tail(&mut buf),
+            Some(SseLine::Data("{\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}".into()))
+        );
+        assert_eq!(take_sse_tail(&mut buf), None);
+    }
+
+    #[test]
+    fn a_tail_that_is_not_an_event_is_skipped() {
+        let mut buf = b"\n".to_vec();
+        assert_eq!(take_sse_tail(&mut buf), Some(SseLine::Skip));
+    }
+
+    #[test]
+    fn reads_the_error_sentence_out_of_every_shape_servers_use() {
+        assert_eq!(
+            error_message(r#"{"error":{"message":"context length exceeded","type":"invalid"}}"#),
+            Some("context length exceeded".to_string())
+        );
+        assert_eq!(
+            error_message(r#"{"error":"model not found"}"#),
+            Some("model not found".to_string())
+        );
+        assert_eq!(
+            error_message(r#"{"message":"bad request"}"#),
+            Some("bad request".to_string())
+        );
+        assert_eq!(error_message("not json"), None);
+    }
+
+    #[test]
+    fn an_error_event_inside_the_stream_is_not_a_chunk() {
+        assert_eq!(
+            stream_error(r#"{"error":{"message":"context length exceeded"}}"#),
+            Some("context length exceeded".to_string())
+        );
+        assert_eq!(
+            stream_error(r#"{"choices":[{"delta":{"content":"Hi"}}]}"#),
+            None
+        );
+        assert_eq!(stream_error("garbage"), None);
     }
 
     #[test]

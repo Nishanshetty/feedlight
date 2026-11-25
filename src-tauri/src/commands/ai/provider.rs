@@ -70,18 +70,29 @@ impl AiConfig {
     }
 }
 
-/// Base URL for the OpenAI surface, with `/v1` appended when it is missing.
-/// llama.cpp, vLLM and LM Studio all mount the API under `/v1`, and people
-/// habitually paste the bare host — so both spellings have to work.
+/// Base URL for the OpenAI surface. A bare `host:port` gets `/v1` appended,
+/// because llama.cpp, vLLM and LM Studio all mount the API there and people
+/// habitually paste the bare host. A URL that carries a path of its own is used
+/// as given: Gemini's `…/v1beta/openai`, a proxy that mounts the API under
+/// `/api`, and every other non-standard layout would 404 on an appended `/v1`.
 pub fn openai_base(base_url: Option<&str>) -> String {
     let base = base_url
         .map(|u| u.trim().trim_end_matches('/'))
         .filter(|u| !u.is_empty())
         .unwrap_or(LOCAL_DEFAULT_URL);
-    if base.ends_with("/v1") {
+    if has_path(base) {
         base.to_string()
     } else {
         format!("{base}/v1")
+    }
+}
+
+/// Whether the URL already names a path. An unparseable string counts as a bare
+/// host, which keeps the old spelling working for hand-typed values.
+fn has_path(url: &str) -> bool {
+    match reqwest::Url::parse(url) {
+        Ok(parsed) => !matches!(parsed.path(), "" | "/"),
+        Err(_) => false,
     }
 }
 
@@ -109,18 +120,32 @@ pub fn local_api_key() -> Result<Option<String>, String> {
 }
 
 /// Applies the bearer header to a request builder when a token is stored.
-pub fn with_auth(req: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder, String> {
-    Ok(match local_api_key()? {
-        Some(token) => req.bearer_auth(token),
-        None => req,
-    })
+///
+/// A keychain that cannot be read must not fail the request: a server on this
+/// protocol may want no key at all, and a 401 names the actual problem better
+/// than a keychain error does. The read failure is logged instead.
+pub fn with_auth(req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    match local_api_key() {
+        Ok(Some(token)) => req.bearer_auth(token),
+        Ok(None) => req,
+        Err(e) => {
+            eprintln!("feedlight: could not read the saved API key: {e}");
+            req
+        }
+    }
 }
 
 /// Turns a failed status into something the user can act on, worded for the
 /// protocol that got it. 401/403 means a key problem only on the OpenAI surface:
 /// Ollama sends no key at all, so there the honest advice is the URL and the
-/// protocol switch. 404 means the URL points at something that is not this API.
-pub fn status_error(status: reqwest::StatusCode, what: &str, protocol: LocalProtocol) -> String {
+/// protocol switch. 404 means the URL points at something that is not this API,
+/// so it names the URL that was actually called.
+pub fn status_error(
+    status: reqwest::StatusCode,
+    what: &str,
+    url: &str,
+    protocol: LocalProtocol,
+) -> String {
     match status.as_u16() {
         401 | 403 => match protocol {
             LocalProtocol::OpenAi => format!(
@@ -131,7 +156,7 @@ pub fn status_error(status: reqwest::StatusCode, what: &str, protocol: LocalProt
             ),
         },
         404 => format!(
-            "{what} returned 404 at {status}. Check the Local API URL and protocol: an OpenAI-compatible server needs the OpenAI protocol, Ollama needs Ollama."
+            "{what} returned 404 at {url}. Check the Local API URL and protocol: an OpenAI-compatible server needs the OpenAI protocol, Ollama needs Ollama."
         ),
         _ => format!("{what} returned HTTP {status}"),
     }
@@ -278,6 +303,20 @@ mod url_tests {
     #[test]
     fn keeps_v1_when_it_is_already_there() {
         assert_eq!(openai_base(Some("http://192.168.0.109:8080/v1")), "http://192.168.0.109:8080/v1");
+    }
+
+    #[test]
+    fn keeps_a_path_of_its_own_because_not_every_server_mounts_v1() {
+        assert_eq!(
+            openai_base(Some("https://generativelanguage.googleapis.com/v1beta/openai")),
+            "https://generativelanguage.googleapis.com/v1beta/openai"
+        );
+        assert_eq!(openai_base(Some("http://192.168.0.109:8080/api")), "http://192.168.0.109:8080/api");
+    }
+
+    #[test]
+    fn a_trailing_slash_still_counts_as_a_bare_host() {
+        assert_eq!(openai_base(Some("http://192.168.0.109:8080/")), "http://192.168.0.109:8080/v1");
     }
 
     #[test]

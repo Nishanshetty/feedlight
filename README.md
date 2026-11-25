@@ -90,7 +90,7 @@ Google under your own key.
 1. Run any server that speaks `/v1/models` and `/v1/chat/completions` — llama.cpp's
    `llama-server` on port 8080, vLLM, LM Studio's local server
 2. Settings → **AI** → **Local**, set the protocol to **OpenAI-compatible**
-3. Set the Local API URL (`http://192.168.1.10:8080` — `/v1` is added for you), save the
+3. Set the Local API URL (`http://192.168.1.10:8080` — `/v1` is added when the URL has no path), save the
    bearer key under **API key**, then pick a model from the list
 
 The **API key** field only appears for the OpenAI-compatible protocol. Ollama's own API has

@@ -118,7 +118,7 @@ pub async fn list_models(base_url: &str) -> Result<Vec<LocalModel>, String> {
 
     let status = resp.status();
     if !status.is_success() {
-        return Err(status_error(status, WHAT, PROTOCOL));
+        return Err(status_error(status, WHAT, &url, PROTOCOL));
     }
 
     let tags: TagsResponse = resp
@@ -136,7 +136,7 @@ fn map_tag_models(models: Vec<TagModel>) -> Vec<LocalModel> {
     let mut mapped: Vec<LocalModel> = models
         .into_iter()
         .map(|m| LocalModel {
-            size_mb: m.size.map(|bytes| (bytes + 999_999) / 1_000_000),
+            size_mb: m.size.map(|bytes| bytes.div_ceil(1_000_000)),
             parameter_size: m
                 .details
                 .as_ref()
@@ -172,7 +172,7 @@ pub async fn complete(cfg: &AiConfig, prompt: String, timeout_secs: u64) -> Resu
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(status_error(resp.status(), WHAT, PROTOCOL));
+        return Err(status_error(resp.status(), WHAT, &url, PROTOCOL));
     }
 
     let result: GenerateResponse = resp
@@ -204,7 +204,7 @@ pub async fn complete_stream(
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(status_error(resp.status(), WHAT, PROTOCOL));
+        return Err(status_error(resp.status(), WHAT, &url, PROTOCOL));
     }
 
     let mut full = String::new();
@@ -254,7 +254,7 @@ pub async fn chat_stream(
         .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
 
     if !resp.status().is_success() {
-        return Err(status_error(resp.status(), WHAT, PROTOCOL));
+        return Err(status_error(resp.status(), WHAT, &url, PROTOCOL));
     }
 
     let mut full = String::new();
@@ -327,19 +327,39 @@ mod tests {
 
     #[test]
     fn auth_failures_do_not_point_at_a_key_that_ollama_never_sends() {
+        let url = "http://localhost:11434/api/chat";
         for code in [401u16, 403] {
-            let msg = status_error(reqwest::StatusCode::from_u16(code).unwrap(), WHAT, PROTOCOL);
+            let msg = status_error(
+                reqwest::StatusCode::from_u16(code).unwrap(),
+                WHAT,
+                url,
+                PROTOCOL,
+            );
             assert!(msg.contains("needs no key"), "{msg}");
             assert!(!msg.contains("clear the key"), "{msg}");
         }
-        let other = status_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR, WHAT, PROTOCOL);
+        let other = status_error(
+            reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            WHAT,
+            url,
+            PROTOCOL,
+        );
         assert_eq!(other, "Ollama returned HTTP 500 Internal Server Error");
     }
 
     #[test]
-    fn a_404_names_the_protocol_switch_because_that_is_the_usual_cause() {
-        let msg = status_error(reqwest::StatusCode::NOT_FOUND, WHAT, PROTOCOL);
+    fn a_404_names_the_url_that_was_called_and_the_protocol_switch() {
+        let msg = status_error(
+            reqwest::StatusCode::NOT_FOUND,
+            WHAT,
+            "http://localhost:11434/api/chat",
+            PROTOCOL,
+        );
+        assert!(msg.contains("http://localhost:11434/api/chat"), "{msg}");
         assert!(msg.contains("protocol"), "{msg}");
         assert!(msg.contains("Local API URL"), "{msg}");
+        // StatusCode's Display already says "404 Not Found"; saying it twice
+        // reads like a bug.
+        assert!(!msg.contains("404 at 404"), "{msg}");
     }
 }

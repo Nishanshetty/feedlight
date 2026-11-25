@@ -356,7 +356,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
         <ol>
           <li>Start the server — for example <code>llama-server --model qwen3.8-flash.gguf --port 8080</code>.</li>
           <li>In <a href="#settings">Settings → AI</a>, choose <strong>Local</strong> and set the protocol to <strong>OpenAI-compatible</strong>.</li>
-          <li>Set the <strong>Local API URL</strong> (<code>http://192.168.1.10:8080</code> — <code>/v1</code> is added for you, so the bare host works).</li>
+          <li>Set the <strong>Local API URL</strong> (<code>http://192.168.1.10:8080</code> — <code>/v1</code> is added when the URL has no path, so the bare host works).</li>
           <li>Save the bearer token under <strong>API key</strong>. Most servers require one; it goes to the macOS keychain and is never written to the settings file.</li>
           <li>Pick a model from the list and press <strong>Test</strong>.</li>
         </ol>
@@ -447,7 +447,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
               <tr><td>AI</td><td>Enable AI Features</td><td>Turns on summaries, key takeaways, article chat, and the digest.</td></tr>
               <tr><td>AI</td><td>Provider</td><td><strong>Local</strong> (your machine, private) or <strong>Gemini</strong> (Google, your API key).</td></tr>
               <tr><td>AI</td><td>Protocol</td><td>For Local: <strong>Ollama</strong> or <strong>OpenAI-compatible</strong> (llama.cpp, vLLM, LM Studio).</td></tr>
-              <tr><td>AI</td><td>Local API URL</td><td>Where your model server listens. <code>/v1</code> is added for you on the OpenAI-compatible protocol.</td></tr>
+              <tr><td>AI</td><td>Local API URL</td><td>Where your model server listens. On the OpenAI-compatible protocol <code>/v1</code> is added when the URL has no path of its own.</td></tr>
               <tr><td>AI</td><td>API Key</td><td>Bearer token for an OpenAI-compatible server, or for Gemini. Shown only where a key applies; stored in the macOS keychain.</td></tr>
               <tr><td>AI</td><td>Model</td><td>Which model to use. <strong>Reload list</strong> reads what the server offers, <strong>Test</strong> verifies the connection.</td></tr>
               <tr><td>Export</td><td>Obsidian Vault Folder</td><td>Destination folder for <strong>Send to Obsidian</strong>.</td></tr>
