@@ -1,0 +1,22 @@
+name: Review submitted
+
+# Does nothing by itself. On PRs from forks, `pull_request_review` only gets a
+# read-only token, so it cannot add labels. Finishing this run triggers
+# `ready-to-merge.yml` through `workflow_run`, which does have a write token.
+
+on:
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions: {}
+
+jobs:
+  record:
+    name: Record review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Note the PR
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          echo "Review event on PR #$PR; ready-to-merge.yml re-checks it next."
