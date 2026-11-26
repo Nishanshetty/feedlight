@@ -7,7 +7,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Neither job needs more than the checkout. CodeQL flagged the missing block:
+# No job needs more than the checkout. CodeQL flagged the missing block:
 # the default GITHUB_TOKEN is far broader than a test run requires.
 permissions:
   contents: read
@@ -17,6 +17,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  migration-guard:
+    name: Migration guard
+    # Migrations are append-only: users' databases record a checksum of each
+    # applied file, so editing, renaming or deleting a shipped one breaks
+    # startup for them. New files are fine. See src-tauri/src/migrations.rs.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fail if a shipped migration changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed=$(git diff --name-status --diff-filter=MDR "$BASE_SHA"...HEAD -- src-tauri/migrations/)
+          if [ -n "$changed" ]; then
+            echo "::error::These shipped migrations were modified, deleted or renamed:"
+            echo "$changed"
+            echo "::error::Add a new numbered migration (next free version) instead. Editing a shipped one breaks startup for existing users."
+            exit 1
+          fi
+          echo "No shipped migration changed."
+
   frontend:
     name: Unit tests (Vitest)
     runs-on: ubuntu-latest

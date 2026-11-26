@@ -2,55 +2,20 @@ mod commands;
 mod crawler;
 #[cfg(target_os = "macos")]
 mod macos;
+mod migrations;
 
 #[cfg(target_os = "macos")]
 use tauri::Manager;
-use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Version 2 intentionally skipped: it was a one-off cleanup applied
-    // manually, never a registered migration.
-    let migrations = vec![
-        Migration {
-            version: 1,
-            description: "initial_schema",
-            sql: include_str!("../migrations/001_initial.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 3,
-            description: "read_progress",
-            sql: include_str!("../migrations/003_read_progress.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 4,
-            description: "highlights",
-            sql: include_str!("../migrations/004_highlights.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 5,
-            description: "takeaways",
-            sql: include_str!("../migrations/005_takeaways.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 6,
-            description: "tags",
-            sql: include_str!("../migrations/006_tags.sql"),
-            kind: MigrationKind::Up,
-        },
-    ];
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(
             tauri_plugin_sql::Builder::default()
-                .add_migrations("sqlite:feedlight.db", migrations)
+                .add_migrations("sqlite:feedlight.db", migrations::all())
                 .build(),
         )
         .setup(|app| {

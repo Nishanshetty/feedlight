@@ -127,11 +127,18 @@ model change invalidates the cache (the client regenerates).
 | 3 | `003_read_progress.sql` | `item_states.read_progress` column |
 | 4 | `004_highlights.sql` | `highlights`, `item_content` |
 | 5 | `005_takeaways.sql` | `item_takeaways` |
+| 6 | `006_tags.sql` | `tags`, `item_tags`, `feed_default_tags` |
+
+Migrations are registered in `src-tauri/src/migrations.rs`. Its tests check that
+versions are unique and increasing, that every `.sql` file is registered, and that
+the full set applies to an empty database. On PRs, CI's **Migration guard** job
+fails if a shipped migration file is modified, renamed or deleted: add a new one
+instead.
 
 > **Gotcha:** running the app applies registered migrations to the dev DB
 > immediately. Reverting a migration file does **not** un-apply it, and the next
 > migration that reuses a version number is silently skipped. When reverting, check
-> `_sqlx_migrations` or burn the version number. Next free version is **6**.
+> `_sqlx_migrations` or burn the version number. Next free version is **7**.
 
 ### Conventions
 
@@ -147,8 +154,8 @@ model change invalidates the cache (the client regenerates).
 
 ## Rust backend
 
-Entry point [src-tauri/src/lib.rs](../src-tauri/src/lib.rs): registers SQL migrations,
-spawns the crawler, installs macOS hardening, and wires the command handler.
+Entry point [src-tauri/src/lib.rs](../src-tauri/src/lib.rs): registers SQL migrations
+(listed in [migrations.rs](../src-tauri/src/migrations.rs)), spawns the crawler, installs macOS hardening, and wires the command handler.
 
 ### Commands (`invoke` targets)
 
