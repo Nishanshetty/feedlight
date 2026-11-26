@@ -85,6 +85,39 @@ jobs:
         if: steps.changes.outputs.build == 'true'
         run: npm ci
 
+      # Tag builds only: sign with the Developer ID certificate and notarize
+      # with the App Store Connect API key, so the DMG opens without a
+      # Gatekeeper warning. tauri-action reads these variables; without them
+      # (PR and main builds) the app is built unsigned. See docs/RELEASING.md
+      # for what each secret holds.
+      - name: Load signing credentials
+        if: steps.changes.outputs.build == 'true' && startsWith(github.ref, 'refs/tags/')
+        env:
+          CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          API_KEY: ${{ secrets.APPLE_API_KEY }}
+          API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          for name in CERTIFICATE CERTIFICATE_PASSWORD SIGNING_IDENTITY API_KEY API_ISSUER API_KEY_P8; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Secret APPLE_$name is missing or empty."
+              exit 1
+            fi
+          done
+          key_path="$RUNNER_TEMP/AuthKey_$API_KEY.p8"
+          printf '%s\n' "$API_KEY_P8" > "$key_path"
+          {
+            # Base64 may arrive wrapped over several lines; Tauri wants one.
+            echo "APPLE_CERTIFICATE=$(printf '%s' "$CERTIFICATE" | tr -d '\r\n ')"
+            echo "APPLE_CERTIFICATE_PASSWORD=$CERTIFICATE_PASSWORD"
+            echo "APPLE_SIGNING_IDENTITY=$SIGNING_IDENTITY"
+            echo "APPLE_API_KEY=$API_KEY"
+            echo "APPLE_API_ISSUER=$API_ISSUER"
+            echo "APPLE_API_KEY_PATH=$key_path"
+          } >> "$GITHUB_ENV"
+
       - name: Build Tauri app (universal binary)
         if: steps.changes.outputs.build == 'true'
         uses: tauri-apps/tauri-action@v0
@@ -104,7 +137,10 @@ jobs:
           releaseName: Feedlight ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
           releaseBody: |
             See the [CHANGELOG](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) for what changed in this release.
-          releaseDraft: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          # Pre-release tags (v0.2.2-rc.1) stay drafts: visible only to
+          # maintainers, so they never become "Latest", which the website's
+          # download button links to.
+          releaseDraft: ${{ !startsWith(github.ref, 'refs/tags/') || contains(github.ref_name, '-') }}
           prerelease: false
 
       - name: Upload .app artifact (non-tag builds)
