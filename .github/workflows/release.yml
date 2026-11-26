@@ -30,8 +30,38 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # This job is a required check, so it must always report a result:
+      # skipping the whole workflow with `paths-ignore` would leave docs-only
+      # PRs waiting forever. Instead, PRs that touch nothing but the paths
+      # below skip the build steps and pass in seconds. Anything not listed
+      # builds, as do pushes to main, tags and manual runs.
+      - name: Detect app changes
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          build=true
+          if [ "$EVENT" = "pull_request" ]; then
+            changed=$(git diff --name-only "$BASE_SHA"...HEAD)
+            if [ -n "$changed" ]; then
+              build=false
+              while IFS= read -r f; do
+                case "$f" in
+                  docs/*|website/*|brand/*|.claude/*|.github/ISSUE_TEMPLATE/*|*.md) ;;
+                  *) build=true; echo "App change: $f"; break ;;
+                esac
+              done <<<"$changed"
+            fi
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          [ "$build" = true ] || echo "Only docs, website or config changed; skipping the build."
 
       - name: Install Node.js
+        if: steps.changes.outputs.build == 'true'
         uses: actions/setup-node@v4
         with:
           # Same floor as the test workflow: Vite 8 needs Node 20.19+/22.x, and
@@ -40,19 +70,23 @@ jobs:
           cache: npm
 
       - name: Install Rust stable
+        if: steps.changes.outputs.build == 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Rust cache
+        if: steps.changes.outputs.build == 'true'
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
 
       - name: Install frontend dependencies
+        if: steps.changes.outputs.build == 'true'
         run: npm ci
 
       - name: Build Tauri app (universal binary)
+        if: steps.changes.outputs.build == 'true'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -74,7 +108,7 @@ jobs:
           prerelease: false
 
       - name: Upload .app artifact (non-tag builds)
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ steps.changes.outputs.build == 'true' && !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
           name: Feedlight-macOS-universal
