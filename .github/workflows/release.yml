@@ -87,9 +87,9 @@ jobs:
 
       # Tag builds only: sign with the Developer ID certificate and notarize
       # with the App Store Connect API key, so the DMG opens without a
-      # Gatekeeper warning. tauri-action reads these variables; without them
-      # (PR and main builds) the app is built unsigned. See docs/RELEASING.md
-      # for what each secret holds.
+      # Gatekeeper warning, and sign the in-app update with the updater key.
+      # tauri-action reads these variables; without them (PR and main builds)
+      # the app is built unsigned. See docs/RELEASING.md for each secret.
       - name: Load signing credentials
         if: steps.changes.outputs.build == 'true' && startsWith(github.ref, 'refs/tags/')
         env:
@@ -99,6 +99,8 @@ jobs:
           API_KEY: ${{ secrets.APPLE_API_KEY }}
           API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           for name in CERTIFICATE CERTIFICATE_PASSWORD SIGNING_IDENTITY API_KEY API_ISSUER API_KEY_P8; do
             if [ -z "${!name}" ]; then
@@ -106,16 +108,29 @@ jobs:
               exit 1
             fi
           done
+          if [ -z "$UPDATER_KEY" ] || [ -z "$UPDATER_KEY_PASSWORD" ]; then
+            echo "::error::Secret TAURI_SIGNING_PRIVATE_KEY or TAURI_SIGNING_PRIVATE_KEY_PASSWORD is missing or empty."
+            exit 1
+          fi
+          # GitHub masks a secret only where its exact value appears. The
+          # certificate is rewritten onto one line below, so mask that form too.
+          certificate=$(printf '%s' "$CERTIFICATE" | tr -d '\r\n ')
+          echo "::add-mask::$certificate"
           key_path="$RUNNER_TEMP/AuthKey_$API_KEY.p8"
           printf '%s\n' "$API_KEY_P8" > "$key_path"
           {
             # Base64 may arrive wrapped over several lines; Tauri wants one.
-            echo "APPLE_CERTIFICATE=$(printf '%s' "$CERTIFICATE" | tr -d '\r\n ')"
+            echo "APPLE_CERTIFICATE=$certificate"
             echo "APPLE_CERTIFICATE_PASSWORD=$CERTIFICATE_PASSWORD"
             echo "APPLE_SIGNING_IDENTITY=$SIGNING_IDENTITY"
             echo "APPLE_API_KEY=$API_KEY"
             echo "APPLE_API_ISSUER=$API_ISSUER"
             echo "APPLE_API_KEY_PATH=$key_path"
+            # Multi-line safe: the key is written as-is between delimiters.
+            echo "TAURI_SIGNING_PRIVATE_KEY<<__UPDATER_KEY__"
+            printf '%s\n' "$UPDATER_KEY"
+            echo "__UPDATER_KEY__"
+            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$UPDATER_KEY_PASSWORD"
           } >> "$GITHUB_ENV"
 
       - name: Build Tauri app (universal binary)
@@ -125,12 +140,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
         with:
-          # Release tags build the full DMG for distribution; routine main/PR
-          # builds only produce the .app — this skips the flaky bundle_dmg.sh
-          # step (AppleScript/hdiutil races on headless runners) so CI stays green.
+          # Release tags build the full DMG for distribution, plus the signed
+          # update (tauri.release.conf.json turns on updater artifacts, which
+          # need the private key, so only tag builds can make them). Routine
+          # main/PR builds only produce the .app — this skips the flaky
+          # bundle_dmg.sh step (AppleScript/hdiutil races on headless runners).
           args: >-
             ${{ startsWith(github.ref, 'refs/tags/')
-                && '--target universal-apple-darwin'
+                && '--target universal-apple-darwin --config src-tauri/tauri.release.conf.json'
                 || '--target universal-apple-darwin --bundles app' }}
           # On version tags, publish a GitHub Release with the .dmg attached.
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.event.inputs.release_tag }}
