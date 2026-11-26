@@ -69,7 +69,14 @@ npm test                  # Vitest — must pass
 npx tsc --noEmit          # TypeScript — must pass
 cd src-tauri && cargo test --lib   # Rust — must pass
 cd src-tauri && cargo check        # Rust — must pass
+npm run format            # Prettier — formats src/ (CI fails on unformatted code)
+npm run lint              # oxlint — errors must be fixed; warnings are advisory
+npm run lint:rust         # rustfmt + clippy — must pass (`cargo fmt` fixes formatting)
 ```
+
+The repo-wide reformat is listed in `.git-blame-ignore-revs`. Run
+`git config blame.ignoreRevsFile .git-blame-ignore-revs` once so `git blame`
+skips it.
 
 Fill in the PR template when you open the PR, and attach screenshots or a short
 screen recording for anything that changes the UI.

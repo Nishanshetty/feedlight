@@ -39,6 +39,12 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: Lint (oxlint)
+        run: npm run lint
+
+      - name: Check formatting (Prettier)
+        run: npm run format:check
+
       - name: Run tests
         run: npm test
 
@@ -50,6 +56,12 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check formatting (rustfmt)
+        working-directory: src-tauri
+        run: cargo fmt --check
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -59,6 +71,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-test-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Lint (clippy)
+        working-directory: src-tauri
+        run: cargo clippy --lib --all-targets -- -D warnings
 
       - name: Run tests
         working-directory: src-tauri
