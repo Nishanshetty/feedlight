@@ -71,6 +71,9 @@ cd src-tauri && cargo test --lib   # Rust — must pass
 cd src-tauri && cargo check        # Rust — must pass
 ```
 
+Fill in the PR template when you open the PR, and attach screenshots or a short
+screen recording for anything that changes the UI.
+
 ## Getting your PR reviewed and merged
 
 Two labels track where a PR is. You don't add them yourself; a comment and
