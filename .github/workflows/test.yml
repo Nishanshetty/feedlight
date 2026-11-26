@@ -73,6 +73,35 @@ jobs:
       - name: Run tests
         run: npm test
 
+  website:
+    name: Website (Astro)
+    # The site is a separate npm project on Tailwind 3, but Vite searches
+    # upward for a PostCSS config and reaches this repo's root. A change to
+    # the root config therefore breaks the site, and the Pages deploy only
+    # runs on pushes to main — nothing here would have caught it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: website
+
+      - name: Run tests
+        run: npm test
+        working-directory: website
+
+      - name: Build
+        run: npm run build
+        working-directory: website
+
   backend:
     name: Unit tests (cargo)
     runs-on: macos-latest
