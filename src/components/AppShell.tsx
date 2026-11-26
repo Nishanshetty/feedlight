@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import ShortcutsModal from "./ShortcutsModal";
 import ReadUrlModal from "./ReadUrlModal";
 import ArticlePane from "./ArticlePane";
+import UpdateBanner from "./UpdateBanner";
 import { useKeyboardShortcuts } from "../lib/hooks/use-keyboard-shortcuts";
 import { useFeedRefresh } from "../lib/hooks/use-feed-refresh";
 import { getLastSyncedAt } from "../lib/db";
@@ -186,6 +187,7 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
 
   return (
     <div className="flex h-full flex-col">
+      <UpdateBanner />
       {/* Ghost chrome: no border, no fill. The brand and Settings live in the
           rail now, so this strip carries only transient actions and fades into
           the page margin. */}

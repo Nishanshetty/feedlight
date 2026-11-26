@@ -133,6 +133,36 @@ export async function setRefreshIntervalSecs(secs: number): Promise<void> {
   await store.save();
 }
 
+/**
+ * Whether the app checks GitHub for a new version on launch (at most once a
+ * day). On by default; the only request the app makes on its own besides
+ * fetching feeds. See src/lib/updater.ts.
+ */
+export async function getAutoUpdateCheck(): Promise<boolean> {
+  const store = await getStore();
+  const v = await store.get<boolean>("auto_update_check");
+  return typeof v === "boolean" ? v : true;
+}
+
+export async function setAutoUpdateCheck(enabled: boolean): Promise<void> {
+  const store = await getStore();
+  await store.set("auto_update_check", enabled);
+  await store.save();
+}
+
+/** When the last automatic update check ran, in ms since the epoch; 0 if never. */
+export async function getLastUpdateCheck(): Promise<number> {
+  const store = await getStore();
+  const v = await store.get<number>("update_last_checked");
+  return typeof v === "number" && v > 0 ? v : 0;
+}
+
+export async function setLastUpdateCheck(ms: number): Promise<void> {
+  const store = await getStore();
+  await store.set("update_last_checked", ms);
+  await store.save();
+}
+
 export async function getObsidianVaultPath(): Promise<string> {
   const store = await getStore();
   return (await store.get<string>("obsidian_vault_path")) ?? "";

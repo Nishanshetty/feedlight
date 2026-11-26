@@ -14,7 +14,10 @@
   Tauri event to the frontend.
 - Secrets (`youtube_api_key`, `gcp_tts_api_key`) live in the OS keychain via the
   `credentials` commands. Non-secret preferences live in `tauri-plugin-store`
-  (`settings.json`). Nothing leaves the machine.
+  (`settings.json`). No telemetry. Apart from fetching feeds and calling the
+  services the user configures (AI, TTS, YouTube), the only request the app
+  makes on its own is a once-a-day update check to GitHub (`src/lib/updater.ts`),
+  which can be turned off in Settings → Updates.
 - TTS engines: `system` (WebView `speechSynthesis`) and `google` (Google Cloud TTS
   REST, called from Rust with the user's API key).
 - Ollama calls go through Rust (`reqwest`) to avoid WebView CORS/CSP issues — same

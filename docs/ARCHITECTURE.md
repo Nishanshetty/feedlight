@@ -44,6 +44,7 @@ and the background crawler pushes a Tauri **event** back to the frontend.
 | Routing | TanStack Router ([src/routeTree.ts](../src/routeTree.ts)) |
 | DB | SQLite via `tauri-plugin-sql` |
 | Prefs | `tauri-plugin-store` (`settings.json`) |
+| Updates | `tauri-plugin-updater` + `tauri-plugin-process` (see `src/lib/updater.ts`, `docs/RELEASING.md`) |
 | Secrets | OS keychain via `security-framework` |
 | Feed parsing | `feed-rs` (Rust) |
 | Article extraction | `@mozilla/readability` + `dompurify` (JS) |

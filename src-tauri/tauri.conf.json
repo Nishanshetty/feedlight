@@ -23,6 +23,14 @@
       "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src ipc: http://ipc.localhost"
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDA5NDVFQTEyNEJBQTRDMEUKUldRT1RLcExFdXBGQ2NVako0YThJVDZYY1FnYjB4WWxCSWhXSjNqaUJJUTJyTlk4YmNIQjEvYVMK",
+      "endpoints": [
+        "https://github.com/Nishanshetty/feedlight/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": ["dmg", "app"],
