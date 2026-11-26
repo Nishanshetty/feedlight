@@ -5,8 +5,10 @@
     "correctness": "error"
   },
   "rules": {
-    "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "warn"
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react/set-state-in-effect": "warn",
+    "react/refs": "warn"
   },
   "ignorePatterns": ["dist/**", "src-tauri/**", "website/**"]
 }
