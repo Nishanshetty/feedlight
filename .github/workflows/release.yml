@@ -88,8 +88,8 @@ jobs:
       # Tag builds only: sign with the Developer ID certificate and notarize
       # with the App Store Connect API key, so the DMG opens without a
       # Gatekeeper warning. tauri-action reads these variables; without them
-      # (PR and main builds) the app is built unsigned. See CONTRIBUTING.md,
-      # "Releasing", for what each secret holds.
+      # (PR and main builds) the app is built unsigned. See docs/RELEASING.md
+      # for what each secret holds.
       - name: Load signing credentials
         if: steps.changes.outputs.build == 'true' && startsWith(github.ref, 'refs/tags/')
         env:
