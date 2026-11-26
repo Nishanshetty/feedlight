@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { getVersion } from "@tauri-apps/api/app";
 import { Link } from "@tanstack/react-router";
 import {
   getYouTubeApiKey,
@@ -31,6 +32,8 @@ import {
   setElevenLabsModel,
   ELEVENLABS_DEFAULT_MODEL,
   resetSettings,
+  getAutoUpdateCheck,
+  setAutoUpdateCheck,
   type AiSettings,
   type AiProvider,
   type LocalProtocol,
@@ -39,6 +42,12 @@ import {
 } from "../lib/settings";
 import { eraseAllData } from "../lib/db";
 import { exportFeedsToOpml } from "../lib/opml";
+import {
+  checkForUpdateNow,
+  installUpdate,
+  updatesDisabled,
+  type Update,
+} from "../lib/updater";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -1239,6 +1248,133 @@ function TtsSection() {
 
 type ResetState = "idle" | "backing-up" | "erasing" | "error";
 
+type CheckState =
+  | { kind: "idle" }
+  | { kind: "checking" }
+  | { kind: "current" }
+  | { kind: "available"; update: Update }
+  | { kind: "installing"; update: Update }
+  | { kind: "error"; message: string };
+
+function UpdatesSection() {
+  const [version, setVersion] = useState("");
+  const [autoCheck, setAutoCheck] = useState(true);
+  const [check, setCheck] = useState<CheckState>({ kind: "idle" });
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(console.error);
+    getAutoUpdateCheck().then(setAutoCheck).catch(console.error);
+  }, []);
+
+  async function toggleAutoCheck() {
+    const next = !autoCheck;
+    setAutoCheck(next);
+    try {
+      await setAutoUpdateCheck(next);
+    } catch (e) {
+      console.error(e);
+      setAutoCheck(!next);
+    }
+  }
+
+  async function checkNow() {
+    setCheck({ kind: "checking" });
+    try {
+      const update = await checkForUpdateNow();
+      setCheck(update ? { kind: "available", update } : { kind: "current" });
+    } catch (e) {
+      setCheck({ kind: "error", message: String(e) });
+    }
+  }
+
+  async function install(update: Update) {
+    setCheck({ kind: "installing", update });
+    try {
+      await installUpdate(update);
+    } catch (e) {
+      setCheck({ kind: "error", message: String(e) });
+    }
+  }
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">
+        Updates
+      </h2>
+
+      <div className="border border-outline-variant p-5 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-headline font-semibold text-on-surface">
+            Check for Updates Automatically
+          </p>
+          <p className="text-xs font-body text-on-surface-variant mt-0.5">
+            Once a day, Feedlight asks GitHub whether a newer version exists. No
+            personal data is sent. This is the only request the app makes on its
+            own besides fetching your feeds.
+          </p>
+        </div>
+        <button
+          role="switch"
+          aria-checked={autoCheck}
+          aria-label="Check for updates automatically"
+          onClick={toggleAutoCheck}
+          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${autoCheck ? "bg-primary" : "bg-outline/30"}`}
+        >
+          <span
+            className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${autoCheck ? "translate-x-5" : "translate-x-0"}`}
+          />
+        </button>
+      </div>
+
+      <div className="border border-outline-variant p-5 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-headline font-semibold text-on-surface">
+            Feedlight {version}
+          </p>
+          <p
+            className="text-xs font-body text-on-surface-variant mt-0.5 break-words"
+            role="status"
+          >
+            {updatesDisabled
+              ? "Updates are disabled in development builds."
+              : check.kind === "checking"
+                ? "Checking…"
+                : check.kind === "current"
+                  ? "You're on the latest version."
+                  : check.kind === "available"
+                    ? `Feedlight ${check.update.version} is available.`
+                    : check.kind === "installing"
+                      ? `Installing Feedlight ${check.update.version}… the app will restart.`
+                      : check.kind === "error"
+                        ? `Couldn't check for updates: ${check.message}`
+                        : "Check whether a newer version is available."}
+          </p>
+        </div>
+        {check.kind === "available" ? (
+          <button
+            onClick={() => install(check.update)}
+            className="shrink-0 bg-primary px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary transition-opacity hover:opacity-90"
+          >
+            Update &amp; Restart
+          </button>
+        ) : (
+          <button
+            onClick={checkNow}
+            disabled={
+              updatesDisabled ||
+              check.kind === "checking" ||
+              check.kind === "installing"
+            }
+            className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            Check Now
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function DangerZoneSection() {
   const [confirmText, setConfirmText] = useState("");
   const [state, setState] = useState<ResetState>("idle");
@@ -1483,6 +1619,8 @@ export default function SettingsPage() {
               </div>
             </div>
           </section>
+
+          <UpdatesSection />
 
           <DangerZoneSection />
         </div>
