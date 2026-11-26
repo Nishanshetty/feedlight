@@ -71,11 +71,23 @@ jobs:
           PRS: ${{ steps.find.outputs.prs }}
         run: |
           for pr in $PRS; do
-            # GitHub computes the merge state lazily; retry while it's UNKNOWN.
-            for attempt in 1 2 3 4 5 6; do
+            # GitHub settles the merge state lazily. Right after an approval it
+            # can still report BLOCKED with an empty review decision, and right
+            # after CodeQL finishes the scan results may still be processing.
+            # So keep asking for about a minute while the answer could still
+            # change; stop early once it is ready or definitely not.
+            for attempt in 1 2 3 4 5 6 7; do
               info=$(gh pr view "$pr" --json state,isDraft,mergeStateStatus,reviewDecision,headRefOid,labels)
               status=$(jq -r .mergeStateStatus <<<"$info")
-              [ "$status" != "UNKNOWN" ] && break
+              review=$(jq -r '.reviewDecision // ""' <<<"$info")
+              # Closed or draft PRs never qualify; no point waiting on them.
+              jq -e '.state != "OPEN" or .isDraft' <<<"$info" > /dev/null && break
+              case "$status" in
+                UNKNOWN|BLOCKED) ;;                          # may still settle
+                *) [ -n "$review" ] && break ;;              # settled either way
+              esac
+              [ "$attempt" = 7 ] && break
+              echo "PR #$pr: merge=$status review=${review:-pending}; checking again in 10s"
               sleep 10
             done
 
