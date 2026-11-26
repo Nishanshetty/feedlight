@@ -1,4 +1,6 @@
-use security_framework::passwords::{delete_generic_password, get_generic_password, set_generic_password};
+use security_framework::passwords::{
+    delete_generic_password, get_generic_password, set_generic_password,
+};
 
 const SERVICE: &str = "app.feedlight";
 const ERR_NOT_FOUND: i32 = -25300; // errSecItemNotFound
@@ -16,8 +18,7 @@ pub const ERR_NO_KEY: &str = "no_api_key";
 pub fn read_secret(key: &str) -> Result<String, String> {
     match get_generic_password(SERVICE, key) {
         Ok(bytes) => {
-            let value =
-                String::from_utf8(bytes).map_err(|e| format!("Key encoding error: {e}"))?;
+            let value = String::from_utf8(bytes).map_err(|e| format!("Key encoding error: {e}"))?;
             // Trim before the emptiness check, not just before the use: a pasted
             // key with a trailing newline would otherwise reach the request
             // verbatim and come back as an opaque auth failure.
@@ -84,7 +85,9 @@ pub fn read_secret_renamed(legacy: &str, current: &str) -> Result<String, String
 #[tauri::command]
 pub fn get_credential(key: String) -> Result<Option<String>, String> {
     match get_generic_password(SERVICE, &key) {
-        Ok(bytes) => String::from_utf8(bytes).map(Some).map_err(|e| e.to_string()),
+        Ok(bytes) => String::from_utf8(bytes)
+            .map(Some)
+            .map_err(|e| e.to_string()),
         Err(e) if e.code() == ERR_NOT_FOUND => Ok(None),
         Err(e) => Err(e.to_string()),
     }

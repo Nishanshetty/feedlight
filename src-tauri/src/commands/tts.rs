@@ -277,7 +277,9 @@ pub async fn synthesize_speech_elevenlabs(text: String, app: AppHandle) -> Resul
 
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"))
+        .post(format!(
+            "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+        ))
         .header("xi-api-key", key)
         .query(&[("output_format", "mp3_44100_128")])
         .json(&body)

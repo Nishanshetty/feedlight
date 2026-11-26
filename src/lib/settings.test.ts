@@ -5,20 +5,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // watch what is read and written instead of hitting a real keychain.
 const keychain = new Map<string, string>();
 
-const invoke = vi.fn(async (cmd: string, args: { key: string; value?: string }) => {
-  if (cmd === "get_credential") return keychain.get(args.key) ?? null;
-  if (cmd === "set_credential") {
-    if (!args.value) keychain.delete(args.key);
-    else keychain.set(args.key, args.value);
-    return undefined;
-  }
-  throw new Error(`unexpected command: ${cmd}`);
-});
+const invoke = vi.fn(
+  async (cmd: string, args: { key: string; value?: string }) => {
+    if (cmd === "get_credential") return keychain.get(args.key) ?? null;
+    if (cmd === "set_credential") {
+      if (!args.value) keychain.delete(args.key);
+      else keychain.set(args.key, args.value);
+      return undefined;
+    }
+    throw new Error(`unexpected command: ${cmd}`);
+  },
+);
 
 const storeMap = new Map<string, unknown>();
 const store = {
   get: vi.fn(async (key: string) => storeMap.get(key) ?? null),
-  set: vi.fn(async (key: string, value: unknown) => void storeMap.set(key, value)),
+  set: vi.fn(
+    async (key: string, value: unknown) => void storeMap.set(key, value),
+  ),
   delete: vi.fn(async (key: string) => void storeMap.delete(key)),
   save: vi.fn(async () => undefined),
   clear: vi.fn(async () => storeMap.clear()),
@@ -134,7 +138,9 @@ describe("setAiSettings", () => {
   it("reads a provider saved as ollama as the Local provider", async () => {
     storeMap.set("ai_provider", "ollama");
 
-    await expect(settings.getAiSettings()).resolves.toMatchObject({ provider: "local" });
+    await expect(settings.getAiSettings()).resolves.toMatchObject({
+      provider: "local",
+    });
 
     await settings.setAiSettings(await settings.getAiSettings());
     expect(storeMap.get("ai_provider")).toBe("local");

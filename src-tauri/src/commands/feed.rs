@@ -48,11 +48,15 @@ fn youtube_to_feed_url(raw: &str) -> Option<String> {
     }
     if let Some(rest) = path.strip_prefix("/channel/") {
         let id = rest.split('/').next()?;
-        return Some(format!("https://www.youtube.com/feeds/videos.xml?channel_id={id}"));
+        return Some(format!(
+            "https://www.youtube.com/feeds/videos.xml?channel_id={id}"
+        ));
     }
     if let Some(rest) = path.strip_prefix("/user/") {
         let user = rest.split('/').next()?;
-        return Some(format!("https://www.youtube.com/feeds/videos.xml?user={user}"));
+        return Some(format!(
+            "https://www.youtube.com/feeds/videos.xml?user={user}"
+        ));
     }
     None
 }
@@ -121,7 +125,11 @@ fn parse_feed_bytes(body: &[u8]) -> Result<ParsedFeed, String> {
         })
         .collect();
 
-    Ok(ParsedFeed { title, site_url, items })
+    Ok(ParsedFeed {
+        title,
+        site_url,
+        items,
+    })
 }
 
 #[tauri::command]
@@ -187,9 +195,13 @@ pub async fn fetch_feed(url: String) -> Result<ParsedFeed, String> {
 #[tauri::command]
 pub async fn resolve_youtube_handle(handle: String, api_key: String) -> Result<String, String> {
     #[derive(Deserialize)]
-    struct Item { id: String }
+    struct Item {
+        id: String,
+    }
     #[derive(Deserialize)]
-    struct Response { items: Option<Vec<Item>> }
+    struct Response {
+        items: Option<Vec<Item>>,
+    }
 
     let client = reqwest::Client::new();
     let url = format!(
@@ -210,12 +222,15 @@ pub async fn resolve_youtube_handle(handle: String, api_key: String) -> Result<S
     }
 
     let data: Response = resp.json().await.map_err(|e| e.to_string())?;
-    let channel_id = data.items
+    let channel_id = data
+        .items
         .and_then(|items| items.into_iter().next())
         .map(|item| item.id)
         .ok_or_else(|| format!("No YouTube channel found for @{handle}"))?;
 
-    Ok(format!("https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"))
+    Ok(format!(
+        "https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+    ))
 }
 
 #[cfg(test)]
@@ -224,7 +239,10 @@ mod tests {
 
     #[test]
     fn strip_html_removes_tags_and_collapses_whitespace() {
-        assert_eq!(strip_html("<p>one  <b>two</b>   three</p>"), "one two three");
+        assert_eq!(
+            strip_html("<p>one  <b>two</b>   three</p>"),
+            "one two three"
+        );
         assert_eq!(strip_html("no markup"), "no markup");
         assert_eq!(strip_html(""), "");
     }
@@ -266,8 +284,14 @@ mod tests {
 
     #[test]
     fn non_youtube_hosts_are_not_mapped() {
-        assert_eq!(youtube_to_feed_url("https://notyoutube.com/channel/UC1"), None);
-        assert_eq!(youtube_to_feed_url("https://youtube.com.evil.test/channel/UC1"), None);
+        assert_eq!(
+            youtube_to_feed_url("https://notyoutube.com/channel/UC1"),
+            None
+        );
+        assert_eq!(
+            youtube_to_feed_url("https://youtube.com.evil.test/channel/UC1"),
+            None
+        );
     }
 
     #[test]
@@ -325,7 +349,10 @@ mod tests {
         assert_eq!(parsed.title.as_deref(), Some("Test Feed"));
         assert_eq!(parsed.items.len(), 1);
         assert_eq!(parsed.items[0].title.as_deref(), Some("First post"));
-        assert_eq!(parsed.items[0].link.as_deref(), Some("https://example.com/first"));
+        assert_eq!(
+            parsed.items[0].link.as_deref(),
+            Some("https://example.com/first")
+        );
         // 2 Jan 2026 is a Friday. feed-rs ignores the weekday, so a wrong one
         // here would go unnoticed — pin the parsed instant instead.
         assert_eq!(

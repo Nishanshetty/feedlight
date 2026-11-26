@@ -51,8 +51,12 @@
 }
 
 @keyframes slide {
-  0%   { margin-left: -33%; }
-  100% { margin-left: 133%; }
+  0% {
+    margin-left: -33%;
+  }
+  100% {
+    margin-left: 133%;
+  }
 }
 
 /* ── TTS active paragraph highlight ────────────────────────────────────── */
@@ -80,11 +84,16 @@
   --reader-code-bg: #eeeef0;
 }
 
-
 /* ── Typography choices (reader font picker) ─────────────────────────────── */
-.font-reader-sans  { font-family: Inter, sans-serif; }
-.font-reader-serif { font-family: "EB Garamond", Georgia, serif; }
-.font-reader-mono  { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.font-reader-sans {
+  font-family: Inter, sans-serif;
+}
+.font-reader-serif {
+  font-family: "EB Garamond", Georgia, serif;
+}
+.font-reader-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
 
 /* ── Reader highlights ───────────────────────────────────────────────────── */
 .reader-highlight {
@@ -142,16 +151,42 @@
   margin-bottom: 0.5em;
   color: var(--reader-text);
 }
-.article-content h1 { font-size: 1.4rem; }
-.article-content h2 { font-size: 1.2rem; }
-.article-content h3 { font-size: 1rem; }
-.article-content p  { margin-bottom: 1.1em; color: var(--reader-text); }
-.article-content a  { color: var(--reader-primary); text-decoration: underline; text-underline-offset: 3px; }
-.article-content a:hover { opacity: 0.7; }
-.article-content img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 2em 0; }
+.article-content h1 {
+  font-size: 1.4rem;
+}
+.article-content h2 {
+  font-size: 1.2rem;
+}
+.article-content h3 {
+  font-size: 1rem;
+}
+.article-content p {
+  margin-bottom: 1.1em;
+  color: var(--reader-text);
+}
+.article-content a {
+  color: var(--reader-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.article-content a:hover {
+  opacity: 0.7;
+}
+.article-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 2em 0;
+}
 .article-content ul,
-.article-content ol { padding-left: 1.5em; margin-bottom: 1em; color: var(--reader-text); }
-.article-content li { margin-bottom: 0.35em; }
+.article-content ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+  color: var(--reader-text);
+}
+.article-content li {
+  margin-bottom: 0.35em;
+}
 .article-content blockquote {
   border-left: 2px solid rgb(209 177 129);
   margin: 1.5em 0;
@@ -166,30 +201,78 @@
   background: var(--reader-code-bg);
   color: var(--reader-text);
 }
-.article-content pre  { padding: 1em; overflow-x: auto; margin-bottom: 1em; }
-.article-content code { padding: 0.15em 0.35em; }
-.article-content pre code { padding: 0; background: transparent; color: inherit; }
-.article-content figure { margin: 1.5em 0; }
-.article-content figcaption { font-size: 0.8em; font-style: italic; color: var(--reader-text-muted); margin-top: 0.6em; text-align: center; }
-.article-content hr { border: none; border-top: 1px solid var(--reader-border); margin: 2em 0; }
-.article-content table { width: 100%; border-collapse: collapse; margin-bottom: 1em; font-size: 0.9em; color: var(--reader-text); }
+.article-content pre {
+  padding: 1em;
+  overflow-x: auto;
+  margin-bottom: 1em;
+}
+.article-content code {
+  padding: 0.15em 0.35em;
+}
+.article-content pre code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+.article-content figure {
+  margin: 1.5em 0;
+}
+.article-content figcaption {
+  font-size: 0.8em;
+  font-style: italic;
+  color: var(--reader-text-muted);
+  margin-top: 0.6em;
+  text-align: center;
+}
+.article-content hr {
+  border: none;
+  border-top: 1px solid var(--reader-border);
+  margin: 2em 0;
+}
+.article-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+  font-size: 0.9em;
+  color: var(--reader-text);
+}
 .article-content th,
-.article-content td { padding: 0.5em 0.75em; border: 1px solid var(--reader-border); }
-.article-content th { background: var(--reader-code-bg); font-weight: 600; }
+.article-content td {
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--reader-border);
+}
+.article-content th {
+  background: var(--reader-code-bg);
+  font-weight: 600;
+}
 
 @layer utilities {
-  .scrollbar-hide::-webkit-scrollbar { display: none; }
-  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 
   /* Ghost outline: a border only a few percent darker than its background, per
      the brief's rule that cards and inputs are defined by tone, not by line. */
-  .ghost-border { border: 1px solid rgb(var(--c-outline-variant) / 0.7); }
+  .ghost-border {
+    border: 1px solid rgb(var(--c-outline-variant) / 0.7);
+  }
 
   /* The one permitted shadow: highly diffused and faint, to suggest a sheet
      lifting off the page rather than a digital drop shadow. */
-  .ambient-shadow { box-shadow: 0 4px 24px rgb(26 26 28 / 0.10); }
+  .ambient-shadow {
+    box-shadow: 0 4px 24px rgb(26 26 28 / 0.1);
+  }
 
   /* Reading controls hover just above the paper. */
   .paper-glass {

@@ -6,11 +6,18 @@ type RefreshPayload = {
   feeds_checked: number;
 };
 
-export function useFeedRefresh(onRefresh: (payload: RefreshPayload) => void): void {
+export function useFeedRefresh(
+  onRefresh: (payload: RefreshPayload) => void,
+): void {
   useEffect(() => {
-    const unlisten = listen<RefreshPayload>("feedlight://feeds-refreshed", (event) => {
-      onRefresh(event.payload);
-    });
-    return () => { unlisten.then((fn) => fn()); };
+    const unlisten = listen<RefreshPayload>(
+      "feedlight://feeds-refreshed",
+      (event) => {
+        onRefresh(event.payload);
+      },
+    );
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, [onRefresh]);
 }

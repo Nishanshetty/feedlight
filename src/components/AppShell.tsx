@@ -34,8 +34,17 @@ function escapeHtml(s: string): string {
 
 /** Turn extracted PDF text into simple paragraph HTML for the reader. */
 function pdfTextToHtml(text: string): string {
-  const byBlank = text.split(/\n\s*\n/).map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean);
-  const paras = byBlank.length > 1 ? byBlank : text.split(/\n/).map((s) => s.trim()).filter(Boolean);
+  const byBlank = text
+    .split(/\n\s*\n/)
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const paras =
+    byBlank.length > 1
+      ? byBlank
+      : text
+          .split(/\n/)
+          .map((s) => s.trim())
+          .filter(Boolean);
   return paras.map((p) => `<p>${escapeHtml(p)}</p>`).join("");
 }
 
@@ -80,8 +89,11 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
   // Auto-collapse is a default, not a lock: toggling the rail by hand clears it
   // for as long as the article stays open.
   const [railOverride, setRailOverride] = useState(false);
-  const autoCollapsed = docked && viewportWidth < THREE_COLUMN_MIN && !railOverride;
-  useEffect(() => { if (!reader.isOpen) setRailOverride(false); }, [reader.isOpen]);
+  const autoCollapsed =
+    docked && viewportWidth < THREE_COLUMN_MIN && !railOverride;
+  useEffect(() => {
+    if (!reader.isOpen) setRailOverride(false);
+  }, [reader.isOpen]);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -90,21 +102,27 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
 
   useKeyboardShortcuts({ "?": () => setShowShortcuts((v) => !v) });
 
   // "Synced X ago" indicator: seed from the DB, refresh the relative label every
   // 30s, and update on any sync (manual or background — both emit the event).
   useEffect(() => {
-    getLastSyncedAt().then(setLastSyncedAt).catch(() => {});
+    getLastSyncedAt()
+      .then(setLastSyncedAt)
+      .catch(() => {});
     const id = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
-  useFeedRefresh(useCallback(() => {
-    setLastSyncedAt(new Date().toISOString());
-    setNow(Date.now());
-  }, []));
+  useFeedRefresh(
+    useCallback(() => {
+      setLastSyncedAt(new Date().toISOString());
+      setNow(Date.now());
+    }, []),
+  );
   const syncedLabel = formatSynced(lastSyncedAt, now);
 
   useEffect(() => {
@@ -129,9 +147,16 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
     try {
       const text = await invoke<string>("extract_pdf_text", { path });
       const content = pdfTextToHtml(text);
-      if (!content) { showToast("Couldn't extract any text from that PDF"); return; }
+      if (!content) {
+        showToast("Couldn't extract any text from that PDF");
+        return;
+      }
       const title = pdfTitleFromPath(path);
-      reader.open({ url: path, title, content: { title, byline: null, siteName: "PDF", content } });
+      reader.open({
+        url: path,
+        title,
+        content: { title, byline: null, siteName: "PDF", content },
+      });
       setToast(null);
     } catch (err) {
       console.error("PDF read failed:", err);
@@ -143,11 +168,13 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const result = await invoke<{ new_items: number; feeds_checked: number }>("refresh_feeds_now");
+      const result = await invoke<{ new_items: number; feeds_checked: number }>(
+        "refresh_feeds_now",
+      );
       showToast(
         result.new_items > 0
           ? `${result.new_items} item${result.new_items !== 1 ? "s" : ""} fetched across ${result.feeds_checked} feeds`
-          : `${result.feeds_checked} feeds checked — already up to date`
+          : `${result.feeds_checked} feeds checked — already up to date`,
       );
       onRefreshComplete();
     } catch {
@@ -165,13 +192,30 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
       <header className="flex h-14 shrink-0 items-center gap-1 bg-background px-6 z-50">
         <button
           onClick={() => {
-            if (autoCollapsed) { setRailOverride(true); setSidebarOpen(true); return; }
+            if (autoCollapsed) {
+              setRailOverride(true);
+              setSidebarOpen(true);
+              return;
+            }
             setSidebarOpen((v) => !v);
           }}
-          aria-label={sidebarOpen && !autoCollapsed ? "Close sidebar" : "Open sidebar"}
-          className="rounded p-1.5 text-outline transition-colors hover:text-primary">
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 6h18M3 12h18M3 18h18" />
+          aria-label={
+            sidebarOpen && !autoCollapsed ? "Close sidebar" : "Open sidebar"
+          }
+          className="rounded p-1.5 text-outline transition-colors hover:text-primary"
+        >
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.75}
+              d="M3 6h18M3 12h18M3 18h18"
+            />
           </svg>
         </button>
 
@@ -179,33 +223,83 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
 
         {syncedLabel && (
           <span
-            title={lastSyncedAt ? `Last synced ${new Date(lastSyncedAt).toLocaleString()}` : undefined}
-            className="mr-2 hidden sm:inline font-label text-ui-small uppercase tracking-[0.1em] text-outline">
+            title={
+              lastSyncedAt
+                ? `Last synced ${new Date(lastSyncedAt).toLocaleString()}`
+                : undefined
+            }
+            className="mr-2 hidden sm:inline font-label text-ui-small uppercase tracking-[0.1em] text-outline"
+          >
             Synced {syncedLabel}
           </span>
         )}
 
-        <button onClick={handleRefresh} disabled={isRefreshing} aria-label="Refresh feeds"
-          className="rounded p-1.5 text-outline transition-colors hover:text-primary disabled:opacity-30">
-          <svg className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          aria-label="Refresh feeds"
+          className="rounded p-1.5 text-outline transition-colors hover:text-primary disabled:opacity-30"
+        >
+          <svg
+            className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.75}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
         </button>
 
-        <button onClick={() => setReadUrlOpen(true)} aria-label="Read article URL (⌘L)"
-          className="rounded p-1.5 text-outline transition-colors hover:text-primary">
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        <button
+          onClick={() => setReadUrlOpen(true)}
+          aria-label="Read article URL (⌘L)"
+          className="rounded p-1.5 text-outline transition-colors hover:text-primary"
+        >
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.75}
+              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+            />
           </svg>
         </button>
 
-        <button onClick={() => setShowShortcuts(true)} aria-label="Keyboard shortcuts (?)">
-          <svg className="h-5 w-5 rounded p-0 text-outline transition-colors hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <rect x="2" y="6" width="20" height="13" rx="2" strokeWidth={1.75} />
-            <path strokeLinecap="round" strokeWidth={1.75} d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
+        <button
+          onClick={() => setShowShortcuts(true)}
+          aria-label="Keyboard shortcuts (?)"
+        >
+          <svg
+            className="h-5 w-5 rounded p-0 text-outline transition-colors hover:text-primary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <rect
+              x="2"
+              y="6"
+              width="20"
+              height="13"
+              rx="2"
+              strokeWidth={1.75}
+            />
+            <path
+              strokeLinecap="round"
+              strokeWidth={1.75}
+              d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"
+            />
           </svg>
         </button>
-
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -246,11 +340,17 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
         </main>
 
         {chatInColumn && (
-          <div ref={reader.setChatSlot} className="w-[400px] shrink-0 overflow-hidden bg-reader-bg" />
+          <div
+            ref={reader.setChatSlot}
+            className="w-[400px] shrink-0 overflow-hidden bg-reader-bg"
+          />
         )}
       </div>
 
-      <ShortcutsModal open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <ShortcutsModal
+        open={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
 
       {readUrlOpen && (
         <ReadUrlModal
@@ -272,15 +372,40 @@ function AppShellInner({ sidebar, main, onRefreshComplete }: Props) {
       )}
 
       {toast && (
-        <div role="status" aria-live="polite"
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 ghost-border bg-surface-container-lowest px-4 py-3 text-sm text-on-surface ambient-shadow">
-          <svg className="h-4 w-4 shrink-0 text-primary" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" clipRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 ghost-border bg-surface-container-lowest px-4 py-3 text-sm text-on-surface ambient-shadow"
+        >
+          <svg
+            className="h-4 w-4 shrink-0 text-primary"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+            />
           </svg>
-          <span className="font-label text-ui-small uppercase tracking-[0.1em]">{toast}</span>
-          <button onClick={() => setToast(null)} aria-label="Dismiss" className="ml-1 text-outline hover:text-on-surface">
-            <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" clipRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+          <span className="font-label text-ui-small uppercase tracking-[0.1em]">
+            {toast}
+          </span>
+          <button
+            onClick={() => setToast(null)}
+            aria-label="Dismiss"
+            className="ml-1 text-outline hover:text-on-surface"
+          >
+            <svg
+              className="h-3.5 w-3.5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                clipRule="evenodd"
+                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+              />
             </svg>
           </button>
         </div>

@@ -33,7 +33,12 @@ describe("rangeToSince", () => {
     expect(since).not.toBeNull();
 
     const d = new Date(since!);
-    expect([d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds()]).toEqual([0, 0, 0, 0]);
+    expect([
+      d.getHours(),
+      d.getMinutes(),
+      d.getSeconds(),
+      d.getMilliseconds(),
+    ]).toEqual([0, 0, 0, 0]);
 
     // The exact offset depends on when the test runs relative to local
     // midnight, so assert the window instead of a fixed 7 days: flooring to

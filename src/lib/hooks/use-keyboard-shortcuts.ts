@@ -16,7 +16,8 @@ export function useKeyboardShortcuts(handlers: KeyHandlers): void {
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
         target.isContentEditable
-      ) return;
+      )
+        return;
 
       const isShiftedAlpha =
         e.shiftKey && e.key.length === 1 && /[A-Za-z]/.test(e.key);

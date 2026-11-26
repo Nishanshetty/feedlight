@@ -21,10 +21,17 @@ export default function DigestView() {
   async function generate() {
     setState({ kind: "loading" });
     try {
-      const [settings, raw] = await Promise.all([getAiSettings(), get24hItems()]);
+      const [settings, raw] = await Promise.all([
+        getAiSettings(),
+        get24hItems(),
+      ]);
 
       if (!settings.enabled) {
-        setState({ kind: "error", message: "AI is not enabled. Enable it in Settings to use AI features." });
+        setState({
+          kind: "error",
+          message:
+            "AI is not enabled. Enable it in Settings to use AI features.",
+        });
         return;
       }
 
@@ -41,7 +48,7 @@ export default function DigestView() {
         sectionMap.get(key)!.push(item);
       }
       const sections: DigestSection[] = Array.from(sectionMap.entries()).map(
-        ([feedTitle, items]) => ({ feedTitle, items })
+        ([feedTitle, items]) => ({ feedTitle, items }),
       );
 
       // Send to the model (content stripped to plain text, 300 chars each)
@@ -51,12 +58,17 @@ export default function DigestView() {
         feed_title: item.feed_title ?? "Unknown",
       }));
 
-      const result = await invoke<{ overall_summary: string; article_count: number }>(
-        "generate_digest",
-        { config: aiConfig(settings), articles }
-      );
+      const result = await invoke<{
+        overall_summary: string;
+        article_count: number;
+      }>("generate_digest", { config: aiConfig(settings), articles });
 
-      setState({ kind: "done", summary: result.overall_summary, sections, total: raw.length });
+      setState({
+        kind: "done",
+        summary: result.overall_summary,
+        sections,
+        total: raw.length,
+      });
     } catch (err) {
       setState({ kind: "error", message: String(err) });
     }
@@ -66,7 +78,9 @@ export default function DigestView() {
     <div className="p-6 text-on-surface">
       <div className="flex items-start justify-between gap-4 mb-8 border-b border-outline-variant pb-4">
         <div className="flex flex-col gap-1">
-          <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">Today&rsquo;s Digest</h1>
+          <h1 className="font-headline text-headline-md text-primary @2xl:text-headline-lg-mobile @3xl:text-headline-lg">
+            Today&rsquo;s Digest
+          </h1>
           <p className="text-xs font-label text-outline uppercase tracking-wider">
             AI summary of articles published in the last 24 hours
           </p>
@@ -82,17 +96,31 @@ export default function DigestView() {
 
       {state.kind === "idle" && (
         <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
-          <svg className="h-10 w-10 text-outline/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.25}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <svg
+            className="h-10 w-10 text-outline/50"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.25}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
           </svg>
-          <p className="text-sm text-on-surface-variant">Click "Generate Digest" to summarise what's happened in the last 24 hours.</p>
+          <p className="text-sm text-on-surface-variant">
+            Click "Generate Digest" to summarise what's happened in the last 24
+            hours.
+          </p>
         </div>
       )}
 
       {state.kind === "loading" && (
         <div className="flex flex-col items-center justify-center py-24 gap-3">
-          <p className="text-ui-small font-label text-outline uppercase tracking-[0.14em] animate-pulse">Synthesising…</p>
+          <p className="text-ui-small font-label text-outline uppercase tracking-[0.14em] animate-pulse">
+            Synthesising…
+          </p>
         </div>
       )}
 
@@ -104,7 +132,9 @@ export default function DigestView() {
 
       {state.kind === "done" && state.total === 0 && (
         <div className="flex flex-col items-center justify-center py-24 gap-2 text-center">
-          <p className="text-sm text-on-surface-variant">No articles published in the last 24 hours.</p>
+          <p className="text-sm text-on-surface-variant">
+            No articles published in the last 24 hours.
+          </p>
         </div>
       )}
 
@@ -113,17 +143,27 @@ export default function DigestView() {
           {/* AI narrative */}
           <div className="border-l-4 border-primary bg-surface-container-lowest pl-5 pr-5 py-5">
             <div className="flex items-center gap-2 mb-4">
-              <svg className="h-3.5 w-3.5 text-primary shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <svg
+                className="h-3.5 w-3.5 text-primary shrink-0"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
-              <span className="text-ui-small font-label font-bold text-primary uppercase tracking-[0.14em]">Today's Highlights</span>
-              <span className="text-ui-small font-label text-outline ml-1">· {state.total} article{state.total !== 1 ? "s" : ""}</span>
+              <span className="text-ui-small font-label font-bold text-primary uppercase tracking-[0.14em]">
+                Today's Highlights
+              </span>
+              <span className="text-ui-small font-label text-outline ml-1">
+                · {state.total} article{state.total !== 1 ? "s" : ""}
+              </span>
             </div>
             <ul className="flex flex-col gap-3">
               {parseBullets(state.summary).map((line, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
-                  <span className="text-[14px] text-on-surface leading-relaxed">{line}</span>
+                  <span className="text-[14px] text-on-surface leading-relaxed">
+                    {line}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -151,12 +191,21 @@ function FeedSection({ section }: { section: DigestSection }) {
         <span className="text-ui-small font-label font-bold uppercase tracking-[0.1em] text-outline group-hover:text-on-surface-variant transition-colors">
           {section.feedTitle}
         </span>
-        <span className="text-ui-small font-label text-outline/60">({section.items.length})</span>
+        <span className="text-ui-small font-label text-outline/60">
+          ({section.items.length})
+        </span>
         <svg
           className={`h-3 w-3 text-outline transition-transform duration-150 ${collapsed ? "-rotate-90" : ""}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </button>
 
@@ -178,13 +227,18 @@ function ArticleRow({ item }: { item: DigestItem }) {
   }
 
   const time = item.published_at
-    ? new Date(item.published_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    ? new Date(item.published_at).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
     : null;
 
   return (
     <div className="flex items-start gap-3 bg-surface-container-lowest border border-outline-variant px-4 py-3 hover:border-outline-variant transition-colors">
       {time && (
-        <span className="shrink-0 text-ui-small font-label text-outline pt-0.5 w-12 text-right">{time}</span>
+        <span className="shrink-0 text-ui-small font-label text-outline pt-0.5 w-12 text-right">
+          {time}
+        </span>
       )}
       <div className="flex flex-col gap-0.5 min-w-0">
         {item.link ? (
@@ -195,7 +249,9 @@ function ArticleRow({ item }: { item: DigestItem }) {
             {item.title ?? "Untitled"}
           </button>
         ) : (
-          <span className="text-ui-label font-body text-on-surface truncate">{item.title ?? "Untitled"}</span>
+          <span className="text-ui-label font-body text-on-surface truncate">
+            {item.title ?? "Untitled"}
+          </span>
         )}
       </div>
     </div>
@@ -203,7 +259,10 @@ function ArticleRow({ item }: { item: DigestItem }) {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function parseBullets(text: string): string[] {

@@ -5,17 +5,44 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Readability } from "@mozilla/readability";
 import DOMPurify from "dompurify";
 import ReactMarkdown from "react-markdown";
-import { getAiSettings, aiConfig, getObsidianVaultPath, getTtsEngine, getGoogleTtsApiKey, getElevenLabsApiKey, type AiSettings, type TtsEngine } from "../lib/settings";
 import {
-  upsertItemState, getItemProgress,
-  getHighlightsForItem, addHighlight, updateHighlightNote, deleteHighlight,
-  getItemContent, setItemContent, type ArchivedContent,
-  getItemTakeaways, setItemTakeaways,
-  getSavedArticleId, saveExternalArticle, removeSavedArticleByUrl,
-  getTagsForItem, addTagToItem, removeTagFromItem, listTags,
+  getAiSettings,
+  aiConfig,
+  getObsidianVaultPath,
+  getTtsEngine,
+  getGoogleTtsApiKey,
+  getElevenLabsApiKey,
+  type AiSettings,
+  type TtsEngine,
+} from "../lib/settings";
+import {
+  upsertItemState,
+  getItemProgress,
+  getHighlightsForItem,
+  addHighlight,
+  updateHighlightNote,
+  deleteHighlight,
+  getItemContent,
+  setItemContent,
+  type ArchivedContent,
+  getItemTakeaways,
+  setItemTakeaways,
+  getSavedArticleId,
+  saveExternalArticle,
+  removeSavedArticleByUrl,
+  getTagsForItem,
+  addTagToItem,
+  removeTagFromItem,
+  listTags,
 } from "../lib/db";
 import { useReader } from "../lib/reader-context";
-import { anchorFromRange, findRange, wrapRangeWithMarks, unwrapHighlights, type TextAnchor } from "../lib/highlight-anchor";
+import {
+  anchorFromRange,
+  findRange,
+  wrapRangeWithMarks,
+  unwrapHighlights,
+  type TextAnchor,
+} from "../lib/highlight-anchor";
 import type { Highlight, Tag } from "../types/database";
 
 type Props = {
@@ -31,7 +58,13 @@ type Props = {
 type ExtractResult =
   | { state: "loading" }
   | { state: "error"; message: string }
-  | { state: "ok"; title: string; byline: string | null; siteName: string | null; content: string };
+  | {
+      state: "ok";
+      title: string;
+      byline: string | null;
+      siteName: string | null;
+      content: string;
+    };
 
 type SpeechState = "idle" | "playing" | "paused";
 
@@ -108,13 +141,17 @@ function isYouTubeWatch(url: string): boolean {
     if (host === "youtu.be") return p.pathname.length > 1;
     // youtube.com and subdomains (m., music., …): the common video URL forms
     if (host === "youtube.com" || host.endsWith(".youtube.com")) {
-      return (p.pathname === "/watch" && !!p.searchParams.get("v")) ||
+      return (
+        (p.pathname === "/watch" && !!p.searchParams.get("v")) ||
         p.pathname.startsWith("/shorts/") ||
         p.pathname.startsWith("/live/") ||
-        p.pathname.startsWith("/embed/");
+        p.pathname.startsWith("/embed/")
+      );
     }
     return false;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 function getParagraphs(html: string): string[] {
@@ -153,13 +190,18 @@ function dominantHue(img: HTMLImageElement): number | null {
   canvas.height = N;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-  let x = 0, y = 0, count = 0;
+  let x = 0,
+    y = 0,
+    count = 0;
   try {
     ctx.drawImage(img, 0, 0, N, N);
     const { data } = ctx.getImageData(0, 0, N, N);
     for (let i = 0; i < data.length; i += 4) {
-      const r = data[i] / 255, g = data[i + 1] / 255, b = data[i + 2] / 255;
-      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const r = data[i] / 255,
+        g = data[i + 1] / 255,
+        b = data[i + 2] / 255;
+      const max = Math.max(r, g, b),
+        min = Math.min(r, g, b);
       const l = (max + min) / 2;
       const d = max - min;
       if (d < 0.12 || l < 0.15 || l > 0.85) continue;
@@ -185,16 +227,29 @@ function dominantHue(img: HTMLImageElement): number | null {
 function parseLinkPreview(html: string, href: string): LinkPreviewData | null {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const og = (p: string) =>
-    doc.querySelector(`meta[property="${p}"]`)?.getAttribute("content")?.trim() || null;
+    doc
+      .querySelector(`meta[property="${p}"]`)
+      ?.getAttribute("content")
+      ?.trim() || null;
   const meta = (n: string) =>
-    doc.querySelector(`meta[name="${n}"]`)?.getAttribute("content")?.trim() || null;
-  const title = og("og:title") || doc.querySelector("title")?.textContent?.trim() || null;
+    doc.querySelector(`meta[name="${n}"]`)?.getAttribute("content")?.trim() ||
+    null;
+  const title =
+    og("og:title") || doc.querySelector("title")?.textContent?.trim() || null;
   if (!title) return null;
   let image = og("og:image");
   if (image) {
-    try { image = new URL(image, href).href; } catch { image = null; }
+    try {
+      image = new URL(image, href).href;
+    } catch {
+      image = null;
+    }
   }
-  return { title, description: og("og:description") || meta("description"), image };
+  return {
+    title,
+    description: og("og:description") || meta("description"),
+    image,
+  };
 }
 
 function b64ToAudioUrl(b64: string): string {
@@ -213,10 +268,20 @@ function TagBar({ itemId }: { itemId: string }) {
 
   useEffect(() => {
     let stale = false;
-    getTagsForItem(itemId).then((t) => { if (!stale) setTags(t); }).catch(() => {});
-    return () => { stale = true; };
+    getTagsForItem(itemId)
+      .then((t) => {
+        if (!stale) setTags(t);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
   }, [itemId]);
-  useEffect(() => { listTags().then((ts) => setAllNames(ts.map((t) => t.name))).catch(() => {}); }, []);
+  useEffect(() => {
+    listTags()
+      .then((ts) => setAllNames(ts.map((t) => t.name)))
+      .catch(() => {});
+  }, []);
 
   async function add() {
     const name = input.trim();
@@ -224,38 +289,70 @@ function TagBar({ itemId }: { itemId: string }) {
     setInput("");
     if (tags.some((t) => t.name.toLowerCase() === name.toLowerCase())) return;
     const tag = await addTagToItem(itemId, name);
-    if (tag) setTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag]));
+    if (tag)
+      setTags((prev) =>
+        prev.some((t) => t.id === tag.id) ? prev : [...prev, tag],
+      );
   }
 
   async function remove(tag: Tag) {
     const prev = tags;
     setTags((p) => p.filter((t) => t.id !== tag.id));
-    try { await removeTagFromItem(itemId, tag.id); } catch { setTags(prev); } // revert on failure
+    try {
+      await removeTagFromItem(itemId, tag.id);
+    } catch {
+      setTags(prev);
+    } // revert on failure
   }
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 border-b border-reader-border bg-reader-header-bg px-4 py-2 shrink-0 text-reader-text">
-      <svg className="h-3.5 w-3.5 shrink-0 text-reader-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M7 7h.01M7 3h5a2 2 0 011.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A2 2 0 014 9V4a1 1 0 011-1z" />
+      <svg
+        className="h-3.5 w-3.5 shrink-0 text-reader-text-muted"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.75}
+          d="M7 7h.01M7 3h5a2 2 0 011.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A2 2 0 014 9V4a1 1 0 011-1z"
+        />
       </svg>
       {tags.map((t) => (
-        <span key={t.id} className="inline-flex items-center gap-1 rounded-sm bg-reader-hover px-1.5 py-0.5 text-ui-small font-label">
+        <span
+          key={t.id}
+          className="inline-flex items-center gap-1 rounded-sm bg-reader-hover px-1.5 py-0.5 text-ui-small font-label"
+        >
           #{t.name}
-          <button onClick={() => remove(t)} aria-label={`Remove tag ${t.name}`}
-            className="text-reader-text-muted transition-colors hover:text-reader-text">×</button>
+          <button
+            onClick={() => remove(t)}
+            aria-label={`Remove tag ${t.name}`}
+            className="text-reader-text-muted transition-colors hover:text-reader-text"
+          >
+            ×
+          </button>
         </span>
       ))}
       <input
         list="feedlight-tag-suggestions"
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); } }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === ",") {
+            e.preventDefault();
+            add();
+          }
+        }}
         onBlur={add}
         placeholder="Add tag…"
         className="min-w-[6rem] flex-1 bg-transparent text-ui-small placeholder:text-reader-text-muted focus:outline-none"
       />
       <datalist id="feedlight-tag-suggestions">
-        {allNames.map((n) => <option key={n} value={n} />)}
+        {allNames.map((n) => (
+          <option key={n} value={n} />
+        ))}
       </datalist>
     </div>
   );
@@ -263,45 +360,107 @@ function TagBar({ itemId }: { itemId: string }) {
 
 // ─── PaneHeader ───────────────────────────────────────────────────────────────
 
-function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, settings, highlights, save }: {
-  title: string | null; url: string; onClose: () => void; onMinimize?: () => void;
-  speech?: SpeechControls; summarize?: SummarizeControls; chat?: ChatControls; settings?: ReaderSettings;
-  highlights?: HighlightControls; save?: SaveControls;
+function PaneHeader({
+  title,
+  url,
+  onClose,
+  onMinimize,
+  speech,
+  summarize,
+  chat,
+  settings,
+  highlights,
+  save,
+}: {
+  title: string | null;
+  url: string;
+  onClose: () => void;
+  onMinimize?: () => void;
+  speech?: SpeechControls;
+  summarize?: SummarizeControls;
+  chat?: ChatControls;
+  settings?: ReaderSettings;
+  highlights?: HighlightControls;
+  save?: SaveControls;
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setIsDropdownOpen(false);
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      )
+        setIsDropdownOpen(false);
     }
-    if (isDropdownOpen) document.addEventListener("mousedown", handleClickOutside);
+    if (isDropdownOpen)
+      document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isDropdownOpen]);
 
-  const domain = (() => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } })();
+  const domain = (() => {
+    try {
+      return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+      return "";
+    }
+  })();
 
   return (
     <div className="flex items-center gap-3 border-b border-reader-border bg-reader-header-bg px-4 py-3 shrink-0 text-reader-text transition-colors duration-200">
-      <button onClick={onClose} aria-label="Close article pane"
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
-        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      <button
+        onClick={onClose}
+        aria-label="Close article pane"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+      >
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M6 18L18 6M6 6l12 12"
+          />
         </svg>
       </button>
 
       {onMinimize && (
-        <button onClick={onMinimize} aria-label="Minimize to mini player" title="Minimize"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        <button
+          onClick={onMinimize}
+          aria-label="Minimize to mini player"
+          title="Minimize"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
         </button>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {title && <span className="truncate text-ui-label font-headline font-semibold leading-tight">{title}</span>}
-        <span className="truncate text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted">{domain}</span>
+        {title && (
+          <span className="truncate text-ui-label font-headline font-semibold leading-tight">
+            {title}
+          </span>
+        )}
+        <span className="truncate text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted">
+          {domain}
+        </span>
       </div>
 
       {/* Save (bookmark) button */}
@@ -312,8 +471,18 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
           title={save.saved ? "Remove from Saved" : "Save article"}
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded transition-colors hover:bg-reader-hover ${save.saved ? "text-reader-text" : "text-reader-text-muted hover:text-reader-text"}`}
         >
-          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill={save.saved ? "currentColor" : "none"} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          <svg
+            className="h-3.5 w-3.5"
+            viewBox="0 0 24 24"
+            fill={save.saved ? "currentColor" : "none"}
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.75}
+              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+            />
           </svg>
         </button>
       )}
@@ -321,21 +490,49 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
       {/* Summarize button */}
       {summarize && (
         <button
-          onClick={summarize.state === "idle" || summarize.state === "error" ? summarize.onSummarize : undefined}
+          onClick={
+            summarize.state === "idle" || summarize.state === "error"
+              ? summarize.onSummarize
+              : undefined
+          }
           disabled={summarize.state === "loading"}
           aria-label="Summarize article"
           title="Summarize with the local model"
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text disabled:opacity-40"
         >
           {summarize.state === "loading" ? (
-            <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            <svg
+              className="h-3.5 w-3.5 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8H4z"
+              />
             </svg>
           ) : (
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-                d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+            <svg
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.75}
+                d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
+              />
             </svg>
           )}
         </button>
@@ -349,9 +546,18 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
           title="Ask about this article"
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text ${chat.open ? "bg-reader-hover text-reader-text" : ""}`}
         >
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.75}
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            />
           </svg>
         </button>
       )}
@@ -364,9 +570,18 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
           title="Highlights"
           className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text ${highlights.open ? "bg-reader-hover text-reader-text" : ""}`}
         >
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.75}
+              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+            />
           </svg>
           {highlights.count > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-reader-primary px-0.5 text-[8px] font-bold text-white">
@@ -379,29 +594,54 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
       {/* TTS controls */}
       {speech && (
         <div className="flex items-center gap-1">
-          <button onClick={speech.onCycleSpeed} aria-label="Playback speed" title="Playback speed"
-            className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded px-1 text-ui-small font-bold text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
+          <button
+            onClick={speech.onCycleSpeed}
+            aria-label="Playback speed"
+            title="Playback speed"
+            className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded px-1 text-ui-small font-bold text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+          >
             {speech.speed}×
           </button>
           {speech.state === "playing" ? (
-            <button onClick={speech.onPause} aria-label="Pause"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
-              <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <button
+              onClick={speech.onPause}
+              aria-label="Pause"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
               </svg>
             </button>
           ) : (
-            <button onClick={speech.onPlay} aria-label="Listen"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
-              <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <button
+              onClick={speech.onPlay}
+              aria-label="Listen"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path d="M8 5v14l11-7z" />
               </svg>
             </button>
           )}
           {speech.state !== "idle" && (
-            <button onClick={speech.onStop} aria-label="Stop"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
-              <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <button
+              onClick={speech.onStop}
+              aria-label="Stop"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path d="M6 6h12v12H6z" />
               </svg>
             </button>
@@ -412,51 +652,117 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
       {/* Reader settings */}
       {settings && (
         <div className="relative" ref={dropdownRef}>
-          <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} aria-label="Reader settings"
-            className={`flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text ${isDropdownOpen ? "bg-reader-hover text-reader-text" : ""}`}>
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            aria-label="Reader settings"
+            className={`flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text ${isDropdownOpen ? "bg-reader-hover text-reader-text" : ""}`}
+          >
             <span className="font-headline text-ui-label font-bold">Aa</span>
           </button>
           {isDropdownOpen && (
             <div className="absolute right-0 mt-2 w-72 origin-top-right rounded-lg border border-reader-border bg-reader-header-bg p-4 ambient-shadow z-50 text-reader-text">
-              <h4 className="text-ui-small font-label font-bold uppercase tracking-wider text-reader-text-muted mb-3">Display settings</h4>
+              <h4 className="text-ui-small font-label font-bold uppercase tracking-wider text-reader-text-muted mb-3">
+                Display settings
+              </h4>
               <div className="mb-4">
-                <span className="block text-ui-small text-reader-text-muted mb-2">Font</span>
+                <span className="block text-ui-small text-reader-text-muted mb-2">
+                  Font
+                </span>
                 <div className="grid grid-cols-3 gap-1">
-                  {[{ id: "sans", label: "Sans" }, { id: "serif", label: "Serif" }, { id: "mono", label: "Mono" }].map((f) => (
-                    <button key={f.id} onClick={() => settings.onChangeFontFamily(f.id as "sans" | "serif" | "mono")}
-                      className={`rounded px-2 py-1.5 text-center text-xs border transition-all ${settings.fontFamily === f.id ? "bg-reader-primary text-white border-transparent font-bold" : "border-reader-border hover:bg-reader-hover"}`}>
+                  {[
+                    { id: "sans", label: "Sans" },
+                    { id: "serif", label: "Serif" },
+                    { id: "mono", label: "Mono" },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() =>
+                        settings.onChangeFontFamily(
+                          f.id as "sans" | "serif" | "mono",
+                        )
+                      }
+                      className={`rounded px-2 py-1.5 text-center text-xs border transition-all ${settings.fontFamily === f.id ? "bg-reader-primary text-white border-transparent font-bold" : "border-reader-border hover:bg-reader-hover"}`}
+                    >
                       {f.label}
                     </button>
                   ))}
                 </div>
               </div>
               <div className="mb-4">
-                <span className="block text-ui-small text-reader-text-muted mb-2">Font Size</span>
+                <span className="block text-ui-small text-reader-text-muted mb-2">
+                  Font Size
+                </span>
                 <div className="flex items-center justify-between gap-2 border border-reader-border rounded p-1">
-                  <button onClick={() => settings.onChangeFontSize(Math.max(settings.fontSize - 1, 14))} disabled={settings.fontSize <= 14}
-                    className="flex h-7 w-12 items-center justify-center rounded text-xs font-bold transition-colors hover:bg-reader-hover disabled:opacity-30">A−</button>
-                  <span className="text-xs font-bold">{settings.fontSize}px</span>
-                  <button onClick={() => settings.onChangeFontSize(Math.min(settings.fontSize + 1, 28))} disabled={settings.fontSize >= 28}
-                    className="flex h-7 w-12 items-center justify-center rounded text-xs font-bold transition-colors hover:bg-reader-hover disabled:opacity-30">A+</button>
+                  <button
+                    onClick={() =>
+                      settings.onChangeFontSize(
+                        Math.max(settings.fontSize - 1, 14),
+                      )
+                    }
+                    disabled={settings.fontSize <= 14}
+                    className="flex h-7 w-12 items-center justify-center rounded text-xs font-bold transition-colors hover:bg-reader-hover disabled:opacity-30"
+                  >
+                    A−
+                  </button>
+                  <span className="text-xs font-bold">
+                    {settings.fontSize}px
+                  </span>
+                  <button
+                    onClick={() =>
+                      settings.onChangeFontSize(
+                        Math.min(settings.fontSize + 1, 28),
+                      )
+                    }
+                    disabled={settings.fontSize >= 28}
+                    className="flex h-7 w-12 items-center justify-center rounded text-xs font-bold transition-colors hover:bg-reader-hover disabled:opacity-30"
+                  >
+                    A+
+                  </button>
                 </div>
               </div>
               <div className="mb-4">
-                <span className="block text-ui-small text-reader-text-muted mb-2">Width</span>
+                <span className="block text-ui-small text-reader-text-muted mb-2">
+                  Width
+                </span>
                 <div className="grid grid-cols-3 gap-1">
-                  {[{ id: "narrow", label: "Narrow" }, { id: "medium", label: "Medium" }, { id: "wide", label: "Wide" }].map((w) => (
-                    <button key={w.id} onClick={() => settings.onChangeColumnWidth(w.id as "narrow" | "medium" | "wide")}
-                      className={`rounded py-1 text-center text-xs border transition-all ${settings.columnWidth === w.id ? "bg-reader-primary text-white border-transparent font-bold" : "border-reader-border hover:bg-reader-hover"}`}>
+                  {[
+                    { id: "narrow", label: "Narrow" },
+                    { id: "medium", label: "Medium" },
+                    { id: "wide", label: "Wide" },
+                  ].map((w) => (
+                    <button
+                      key={w.id}
+                      onClick={() =>
+                        settings.onChangeColumnWidth(
+                          w.id as "narrow" | "medium" | "wide",
+                        )
+                      }
+                      className={`rounded py-1 text-center text-xs border transition-all ${settings.columnWidth === w.id ? "bg-reader-primary text-white border-transparent font-bold" : "border-reader-border hover:bg-reader-hover"}`}
+                    >
                       {w.label}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <span className="block text-ui-small text-reader-text-muted mb-2">Spacing</span>
+                <span className="block text-ui-small text-reader-text-muted mb-2">
+                  Spacing
+                </span>
                 <div className="grid grid-cols-3 gap-1">
-                  {[{ id: "compact", label: "Compact" }, { id: "normal", label: "Normal" }, { id: "roomy", label: "Roomy" }].map((lh) => (
-                    <button key={lh.id} onClick={() => settings.onChangeLineHeight(lh.id as "compact" | "normal" | "roomy")}
-                      className={`rounded py-1 text-center text-xs border transition-all ${settings.lineHeight === lh.id ? "bg-reader-primary text-white border-transparent font-bold" : "border-reader-border hover:bg-reader-hover"}`}>
+                  {[
+                    { id: "compact", label: "Compact" },
+                    { id: "normal", label: "Normal" },
+                    { id: "roomy", label: "Roomy" },
+                  ].map((lh) => (
+                    <button
+                      key={lh.id}
+                      onClick={() =>
+                        settings.onChangeLineHeight(
+                          lh.id as "compact" | "normal" | "roomy",
+                        )
+                      }
+                      className={`rounded py-1 text-center text-xs border transition-all ${settings.lineHeight === lh.id ? "bg-reader-primary text-white border-transparent font-bold" : "border-reader-border hover:bg-reader-hover"}`}
+                    >
                       {lh.label}
                     </button>
                   ))}
@@ -467,10 +773,23 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
         </div>
       )}
 
-      <button onClick={() => openUrl(url)} aria-label="Open in browser"
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
-        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+      <button
+        onClick={() => openUrl(url)}
+        aria-label="Open in browser"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+      >
+        <svg
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+          />
         </svg>
       </button>
     </div>
@@ -478,15 +797,35 @@ function PaneHeader({ title, url, onClose, onMinimize, speech, summarize, chat, 
 }
 
 const chatMarkdownComponents = {
-  p: ({ children }: { children?: React.ReactNode }) => <p className="mb-2 last:mb-0">{children}</p>,
-  ul: ({ children }: { children?: React.ReactNode }) => <ul className="mb-2 ml-4 list-disc space-y-1 last:mb-0">{children}</ul>,
-  ol: ({ children }: { children?: React.ReactNode }) => <ol className="mb-2 ml-4 list-decimal space-y-1 last:mb-0">{children}</ol>,
-  li: ({ children }: { children?: React.ReactNode }) => <li className="leading-relaxed">{children}</li>,
-  strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-semibold">{children}</strong>,
-  h1: ({ children }: { children?: React.ReactNode }) => <p className="font-bold mb-1.5">{children}</p>,
-  h2: ({ children }: { children?: React.ReactNode }) => <p className="font-bold mb-1.5">{children}</p>,
-  h3: ({ children }: { children?: React.ReactNode }) => <p className="font-semibold mb-1">{children}</p>,
-  code: ({ children }: { children?: React.ReactNode }) => <code className="bg-reader-bg rounded px-1 font-mono text-xs">{children}</code>,
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p className="mb-2 last:mb-0">{children}</p>
+  ),
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul className="mb-2 ml-4 list-disc space-y-1 last:mb-0">{children}</ul>
+  ),
+  ol: ({ children }: { children?: React.ReactNode }) => (
+    <ol className="mb-2 ml-4 list-decimal space-y-1 last:mb-0">{children}</ol>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => (
+    <li className="leading-relaxed">{children}</li>
+  ),
+  strong: ({ children }: { children?: React.ReactNode }) => (
+    <strong className="font-semibold">{children}</strong>
+  ),
+  h1: ({ children }: { children?: React.ReactNode }) => (
+    <p className="font-bold mb-1.5">{children}</p>
+  ),
+  h2: ({ children }: { children?: React.ReactNode }) => (
+    <p className="font-bold mb-1.5">{children}</p>
+  ),
+  h3: ({ children }: { children?: React.ReactNode }) => (
+    <p className="font-semibold mb-1">{children}</p>
+  ),
+  code: ({ children }: { children?: React.ReactNode }) => (
+    <code className="bg-reader-bg rounded px-1 font-mono text-xs">
+      {children}
+    </code>
+  ),
 };
 
 function ChatPanel({
@@ -542,7 +881,10 @@ function ChatPanel({
     function onMouseMove(ev: MouseEvent) {
       if (!isDragging.current) return;
       const delta = dragStartY.current - ev.clientY;
-      const next = Math.min(Math.max(dragStartHeight.current + delta, 200), window.innerHeight * 0.8);
+      const next = Math.min(
+        Math.max(dragStartHeight.current + delta, 200),
+        window.innerHeight * 0.8,
+      );
       setPanelHeight(next);
     }
 
@@ -572,9 +914,11 @@ function ChatPanel({
 
   return (
     <div
-      className={filled
-        ? "flex h-full flex-col border-l border-reader-border bg-reader-bg"
-        : "flex flex-col border-t border-reader-border bg-reader-bg"}
+      className={
+        filled
+          ? "flex h-full flex-col border-l border-reader-border bg-reader-bg"
+          : "flex flex-col border-t border-reader-border bg-reader-bg"
+      }
       style={filled ? undefined : { height: `${panelHeight}px` }}
     >
       {!filled && (
@@ -592,29 +936,52 @@ function ChatPanel({
         <span className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-reader-text-muted">
           Ask · {model}
         </span>
-        <button onClick={onClose} aria-label="Close chat"
-          className="flex h-6 w-6 items-center justify-center rounded text-reader-text-muted hover:bg-reader-hover hover:text-reader-text transition-colors">
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <button
+          onClick={onClose}
+          aria-label="Close chat"
+          className="flex h-6 w-6 items-center justify-center rounded text-reader-text-muted hover:bg-reader-hover hover:text-reader-text transition-colors"
+        >
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>
 
       {/* Message list */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
-        {messages.length === 0 && !loading && suggestions.length === 0 && !suggestionsLoading && (
-          <p className="text-sm text-reader-text-muted text-center pt-6">
-            Ask a question about this article.
-          </p>
-        )}
+        {messages.length === 0 &&
+          !loading &&
+          suggestions.length === 0 &&
+          !suggestionsLoading && (
+            <p className="text-sm text-reader-text-muted text-center pt-6">
+              Ask a question about this article.
+            </p>
+          )}
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
-              msg.role === "user"
-                ? "bg-reader-primary text-white"
-                : "bg-reader-hover text-reader-text border border-reader-border"
-            }`}>
-              {msg.role === "user" ? msg.content : (
+          <div
+            key={i}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
+                msg.role === "user"
+                  ? "bg-reader-primary text-white"
+                  : "bg-reader-hover text-reader-text border border-reader-border"
+              }`}
+            >
+              {msg.role === "user" ? (
+                msg.content
+              ) : (
                 <ReactMarkdown components={chatMarkdownComponents}>
                   {msg.content}
                 </ReactMarkdown>
@@ -635,9 +1002,18 @@ function ChatPanel({
           <div className="flex justify-start">
             <div className="bg-reader-hover border border-reader-border rounded-xl px-4 py-3">
               <span className="flex gap-1.5 items-center h-4">
-                <span className="w-2 h-2 rounded-full bg-reader-text-muted animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2 h-2 rounded-full bg-reader-text-muted animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2 h-2 rounded-full bg-reader-text-muted animate-bounce" style={{ animationDelay: "300ms" }} />
+                <span
+                  className="w-2 h-2 rounded-full bg-reader-text-muted animate-bounce"
+                  style={{ animationDelay: "0ms" }}
+                />
+                <span
+                  className="w-2 h-2 rounded-full bg-reader-text-muted animate-bounce"
+                  style={{ animationDelay: "150ms" }}
+                />
+                <span
+                  className="w-2 h-2 rounded-full bg-reader-text-muted animate-bounce"
+                  style={{ animationDelay: "300ms" }}
+                />
               </span>
             </div>
           </div>
@@ -649,7 +1025,10 @@ function ChatPanel({
             {suggestionsLoading && suggestions.length === 0 && (
               <div className="flex flex-col gap-2">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-8 w-3/4 rounded-full bg-reader-hover animate-pulse" />
+                  <div
+                    key={i}
+                    className="h-8 w-3/4 rounded-full bg-reader-hover animate-pulse"
+                  />
                 ))}
               </div>
             )}
@@ -674,17 +1053,33 @@ function ChatPanel({
           <p className="flex-1 text-xs italic text-reader-text-muted border-l-2 border-reader-primary pl-2.5 line-clamp-2">
             “{quote}”
           </p>
-          <button onClick={onClearQuote} aria-label="Remove quote"
-            className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-reader-text-muted hover:bg-reader-hover hover:text-reader-text transition-colors">
-            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <button
+            onClick={onClearQuote}
+            aria-label="Remove quote"
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-reader-text-muted hover:bg-reader-hover hover:text-reader-text transition-colors"
+          >
+            <svg
+              className="h-3 w-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
       )}
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className={`flex items-center gap-2 px-4 py-3 shrink-0 ${quote ? "" : "border-t border-reader-border"}`}>
+      <form
+        onSubmit={handleSubmit}
+        className={`flex items-center gap-2 px-4 py-3 shrink-0 ${quote ? "" : "border-t border-reader-border"}`}
+      >
         <input
           ref={inputRef}
           value={input}
@@ -699,8 +1094,18 @@ function ChatPanel({
           aria-label="Send"
           className="flex h-9 w-9 items-center justify-center rounded-full bg-reader-primary text-white disabled:opacity-40 hover:opacity-90 transition-opacity shrink-0"
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+            />
           </svg>
         </button>
       </form>
@@ -715,7 +1120,11 @@ function LoadingSkeleton() {
       <div className="h-3 w-1/3 rounded bg-reader-hover" />
       <div className="mt-4 flex flex-col gap-3">
         {[100, 95, 88, 100, 72, 90, 60].map((w, i) => (
-          <div key={i} className="h-3 rounded bg-reader-hover" style={{ width: `${w}%` }} />
+          <div
+            key={i}
+            className="h-3 rounded bg-reader-hover"
+            style={{ width: `${w}%` }}
+          />
         ))}
       </div>
     </div>
@@ -724,7 +1133,14 @@ function LoadingSkeleton() {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function ArticlePane({ url, title, itemId, content, docked = false, onClose }: Props) {
+export default function ArticlePane({
+  url,
+  title,
+  itemId,
+  content,
+  docked = false,
+  onClose,
+}: Props) {
   const [result, setResult] = useState<ExtractResult>({ state: "loading" });
   // Save state — only meaningful for external (⌘L) reads, which have no itemId.
   const isExternal = !itemId;
@@ -736,10 +1152,16 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   // Garamond at 20px is Lumina's reading default. Garamond runs small for its
   // point size, so 20 here sits close to the old 14px sans in apparent size.
   // Anyone with saved settings keeps theirs — this only affects a fresh reader.
-  const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">("serif");
+  const [fontFamily, setFontFamily] = useState<"sans" | "serif" | "mono">(
+    "serif",
+  );
   const [fontSize, setFontSize] = useState(20);
-  const [columnWidth, setColumnWidth] = useState<"narrow" | "medium" | "wide">("medium");
-  const [lineHeight, setLineHeight] = useState<"compact" | "normal" | "roomy">("normal");
+  const [columnWidth, setColumnWidth] = useState<"narrow" | "medium" | "wide">(
+    "medium",
+  );
+  const [lineHeight, setLineHeight] = useState<"compact" | "normal" | "roomy">(
+    "normal",
+  );
 
   // Scroll progress
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -754,7 +1176,9 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
 
   // TTS state
   const [speechState, setSpeechState] = useState<SpeechState>("idle");
-  const [currentParagraphIndex, setCurrentParagraphIndex] = useState<number | null>(null);
+  const [currentParagraphIndex, setCurrentParagraphIndex] = useState<
+    number | null
+  >(null);
   const lastTtsScrollRef = useRef<number | null>(null);
   const [speed, setSpeed] = useState(1);
   const speedRef = useRef(1);
@@ -781,7 +1205,8 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
   // Chat state
-  const { chatOpen, setChatOpen, minimized, setMinimized, chatSlot } = useReader();
+  const { chatOpen, setChatOpen, minimized, setMinimized, chatSlot } =
+    useReader();
   const [chatMessages, setChatMessages] = useState<ChatMessageEntry[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatStream, setChatStream] = useState<string | null>(null);
@@ -795,11 +1220,17 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   // Highlights
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [highlightsOpen, setHighlightsOpen] = useState(false);
-  const [activeNote, setActiveNote] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [activeNote, setActiveNote] = useState<{
+    id: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const notePopoverRef = useRef<HTMLDivElement>(null);
   const [obsidianPath, setObsidianPath] = useState("");
-  const [obsidianStatus, setObsidianStatus] = useState<"idle" | "ok" | "error">("idle");
+  const [obsidianStatus, setObsidianStatus] = useState<"idle" | "ok" | "error">(
+    "idle",
+  );
 
   // Key takeaways
   const [takeaways, setTakeaways] = useState<string[] | null>(null);
@@ -861,12 +1292,15 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
       if (!el) return;
       const max = el.scrollHeight - el.clientHeight;
       const p = max > 0 ? Math.min(el.scrollTop / max, 1) : 0;
-      if (progressBarRef.current) progressBarRef.current.style.width = `${p * 100}%`;
+      if (progressBarRef.current)
+        progressBarRef.current.style.width = `${p * 100}%`;
       lastProgressRef.current = p;
       if (itemId && p > 0) {
         clearTimeout(saveProgressTimerRef.current);
         saveProgressTimerRef.current = window.setTimeout(() => {
-          upsertItemState(itemId, { read_progress: p >= 0.97 ? 1 : p }).catch(() => {});
+          upsertItemState(itemId, { read_progress: p >= 0.97 ? 1 : p }).catch(
+            () => {},
+          );
         }, 800);
       }
     });
@@ -903,7 +1337,9 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   // Selection toolbar: show on mouseup only when the drag started inside the article
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
-      mouseDownInArticle.current = !!articleContentRef.current?.contains(e.target as Node);
+      mouseDownInArticle.current = !!articleContentRef.current?.contains(
+        e.target as Node,
+      );
     }
     function onMouseUp() {
       if (!mouseDownInArticle.current) return;
@@ -922,12 +1358,22 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
         }
         const rect = range.getBoundingClientRect();
         const node = range.startContainer;
-        const startEl = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+        const startEl =
+          node.nodeType === Node.ELEMENT_NODE
+            ? (node as Element)
+            : node.parentElement;
         const ttsEl = startEl?.closest("[data-tts-idx]");
         let anchor: TextAnchor | null = null;
-        try { anchor = anchorFromRange(container, range); } catch { /* selection stays usable without highlight */ }
+        try {
+          anchor = anchorFromRange(container, range);
+        } catch {
+          /* selection stays usable without highlight */
+        }
         setSelToolbar({
-          x: Math.min(Math.max(rect.left + rect.width / 2, 90), window.innerWidth - 90),
+          x: Math.min(
+            Math.max(rect.left + rect.width / 2, 90),
+            window.innerWidth - 90,
+          ),
           y: rect.top,
           text: text.slice(0, 1500),
           ttsIdx: ttsEl ? Number(ttsEl.getAttribute("data-tts-idx")) : null,
@@ -964,9 +1410,13 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
     const title = titleRef.current;
     const container = articleContentRef.current;
     const active: HTMLElement | null =
-      currentParagraphIndex === null ? null
-      : currentParagraphIndex === 0 ? title
-      : (container?.querySelector(`[data-tts-idx="${currentParagraphIndex - 1}"]`) as HTMLElement | null);
+      currentParagraphIndex === null
+        ? null
+        : currentParagraphIndex === 0
+          ? title
+          : (container?.querySelector(
+              `[data-tts-idx="${currentParagraphIndex - 1}"]`,
+            ) as HTMLElement | null);
 
     if (title && title !== active) title.classList.remove("tts-active");
     container?.querySelectorAll(".tts-active").forEach((el) => {
@@ -987,7 +1437,9 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
     const el = articleContentRef.current;
     if (!el) return;
     const handler = (e: MouseEvent) => {
-      const mark = (e.target as HTMLElement).closest?.("mark.reader-highlight") as HTMLElement | null;
+      const mark = (e.target as HTMLElement).closest?.(
+        "mark.reader-highlight",
+      ) as HTMLElement | null;
       if (!mark || !el.contains(mark)) return;
       const id = mark.dataset.highlightId;
       if (!id) return;
@@ -998,7 +1450,10 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
       setNoteDraft(h?.note ?? "");
       setActiveNote({
         id,
-        x: Math.min(Math.max(rect.left + rect.width / 2, 150), window.innerWidth - 150),
+        x: Math.min(
+          Math.max(rect.left + rect.width / 2, 150),
+          window.innerWidth - 150,
+        ),
         y: rect.bottom,
       });
     };
@@ -1010,7 +1465,10 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   useEffect(() => {
     if (!activeNote) return;
     function onMouseDown(e: MouseEvent) {
-      if (notePopoverRef.current && !notePopoverRef.current.contains(e.target as Node)) {
+      if (
+        notePopoverRef.current &&
+        !notePopoverRef.current.contains(e.target as Node)
+      ) {
         saveActiveNote();
       }
     }
@@ -1028,17 +1486,46 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
         if (p.fontSize) setFontSize(p.fontSize);
         if (p.columnWidth) setColumnWidth(p.columnWidth);
         if (p.lineHeight) setLineHeight(p.lineHeight);
-        if (p.speed) { setSpeed(p.speed); speedRef.current = p.speed; }
+        if (p.speed) {
+          setSpeed(p.speed);
+          speedRef.current = p.speed;
+        }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
-  const saveSettings = useMemo(() => (updates: Partial<{ fontFamily: typeof fontFamily; fontSize: number; columnWidth: typeof columnWidth; lineHeight: typeof lineHeight; speed: number }>) => {
-    try {
-      const current = { fontFamily, fontSize, columnWidth, lineHeight, speed, ...updates };
-      localStorage.setItem("feedlight:reader-settings", JSON.stringify(current));
-    } catch { /* ignore */ }
-  }, [fontFamily, fontSize, columnWidth, lineHeight, speed]);
+  const saveSettings = useMemo(
+    () =>
+      (
+        updates: Partial<{
+          fontFamily: typeof fontFamily;
+          fontSize: number;
+          columnWidth: typeof columnWidth;
+          lineHeight: typeof lineHeight;
+          speed: number;
+        }>,
+      ) => {
+        try {
+          const current = {
+            fontFamily,
+            fontSize,
+            columnWidth,
+            lineHeight,
+            speed,
+            ...updates,
+          };
+          localStorage.setItem(
+            "feedlight:reader-settings",
+            JSON.stringify(current),
+          );
+        } catch {
+          /* ignore */
+        }
+      },
+    [fontFamily, fontSize, columnWidth, lineHeight, speed],
+  );
 
   useEffect(() => {
     getAiSettings().then(setAiSettings).catch(console.error);
@@ -1050,7 +1537,9 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
       clearTimeout(saveProgressTimerRef.current);
       const p = lastProgressRef.current;
       if (itemId && p > 0) {
-        upsertItemState(itemId, { read_progress: p >= 0.97 ? 1 : p }).catch(() => {});
+        upsertItemState(itemId, { read_progress: p >= 0.97 ? 1 : p }).catch(
+          () => {},
+        );
       }
     };
   }, [itemId]);
@@ -1058,7 +1547,10 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   // Load saved progress for the new item
   useEffect(() => {
     setResumeProgress(0);
-    if (itemId) getItemProgress(itemId).then(setResumeProgress).catch(() => {});
+    if (itemId)
+      getItemProgress(itemId)
+        .then(setResumeProgress)
+        .catch(() => {});
   }, [itemId, url]);
 
   // Restore scroll position once content is rendered and saved progress is known
@@ -1112,7 +1604,10 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   useEffect(() => {
     if (isYT) return;
     // Pre-extracted content (e.g. an imported PDF) — render it directly, no fetch.
-    if (content) { setResult({ state: "ok", ...content }); return; }
+    if (content) {
+      setResult({ state: "ok", ...content });
+      return;
+    }
     setResult({ state: "loading" });
     let stale = false;
 
@@ -1126,7 +1621,9 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
             setResult({ state: "ok", ...archived });
             return;
           }
-        } catch { /* fall through to network */ }
+        } catch {
+          /* fall through to network */
+        }
       }
 
       try {
@@ -1140,7 +1637,10 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
 
         const article = new Readability(doc).parse();
         if (!article) {
-          setResult({ state: "error", message: "Could not extract article content" });
+          setResult({
+            state: "error",
+            message: "Could not extract article content",
+          });
           return;
         }
         setResult({
@@ -1155,24 +1655,37 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
       }
     })();
 
-    return () => { stale = true; };
+    return () => {
+      stale = true;
+    };
   }, [url, isYT, itemId, content]);
 
   // Track whether this external article is already saved (and its item id)
   useEffect(() => {
     if (!isExternal) return;
     let stale = false;
-    getSavedArticleId(url).then((id) => {
-      if (!stale) { setSavedItemId(id); setIsSaved(!!id); }
-    }).catch(() => {});
-    return () => { stale = true; };
+    getSavedArticleId(url)
+      .then((id) => {
+        if (!stale) {
+          setSavedItemId(id);
+          setIsSaved(!!id);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
   }, [url, isExternal]);
 
   // Load persisted highlights for this item
   useEffect(() => {
     if (!itemId) return;
-    getHighlightsForItem(itemId).then(setHighlights).catch(() => {});
-    getObsidianVaultPath().then(setObsidianPath).catch(() => {});
+    getHighlightsForItem(itemId)
+      .then(setHighlights)
+      .catch(() => {});
+    getObsidianVaultPath()
+      .then(setObsidianPath)
+      .catch(() => {});
   }, [itemId]);
 
   // Auto-generate key takeaways in the background once the article is extracted.
@@ -1191,11 +1704,20 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
       if (itemId) {
         try {
           const cached = await getItemTakeaways(itemId);
-          if (cached && cached.model === config.model && cached.takeaways.length > 0) {
-            if (!stale) { setTakeaways(cached.takeaways); setTakeawaysLoading(false); }
+          if (
+            cached &&
+            cached.model === config.model &&
+            cached.takeaways.length > 0
+          ) {
+            if (!stale) {
+              setTakeaways(cached.takeaways);
+              setTakeawaysLoading(false);
+            }
             return;
           }
-        } catch { /* fall through to generation */ }
+        } catch {
+          /* fall through to generation */
+        }
       }
 
       const text = getParagraphs(result.content).join(" ");
@@ -1212,7 +1734,9 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
       }
     })();
 
-    return () => { stale = true; };
+    return () => {
+      stale = true;
+    };
   }, [result, aiSettings, isYT, itemId]);
 
   // Ambient accent: dominant hue of the article's first image
@@ -1224,19 +1748,26 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
     if (!src || !/^https?:/i.test(src)) return;
     let stale = false;
     invoke<{ mime: string; data: string }>("fetch_image_base64", { url: src })
-      .then(({ mime, data }) => new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = `data:${mime};base64,${data}`;
-      }))
+      .then(
+        ({ mime, data }) =>
+          new Promise<HTMLImageElement>((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = `data:${mime};base64,${data}`;
+          }),
+      )
       .then((img) => {
         if (stale) return;
         const hue = dominantHue(img);
         if (hue !== null) setAccentHue(hue);
       })
-      .catch(() => { /* keep default theme accent */ });
-    return () => { stale = true; };
+      .catch(() => {
+        /* keep default theme accent */
+      });
+    return () => {
+      stale = true;
+    };
   }, [result, isYT]);
 
   // Link hover previews
@@ -1255,7 +1786,9 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
         let data = previewCacheRef.current.get(href);
         if (data === undefined) {
           try {
-            const html = await invoke<string>("fetch_article_html", { url: href });
+            const html = await invoke<string>("fetch_article_html", {
+              url: href,
+            });
             data = parseLinkPreview(html, href);
           } catch {
             data = null;
@@ -1264,12 +1797,19 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
         }
         if (!data || hoverUrlRef.current !== href) return;
         const domain = (() => {
-          try { return new URL(href).hostname.replace(/^www\./, ""); } catch { return ""; }
+          try {
+            return new URL(href).hostname.replace(/^www\./, "");
+          } catch {
+            return "";
+          }
         })();
         setLinkPreview({
           ...data,
           domain,
-          x: Math.min(Math.max(rect.left + rect.width / 2, 152), window.innerWidth - 152),
+          x: Math.min(
+            Math.max(rect.left + rect.width / 2, 152),
+            window.innerWidth - 152,
+          ),
           y: rect.bottom,
         });
       }, 450);
@@ -1296,7 +1836,10 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
     playSessionRef.current++;
     ttsCacheRef.current.clear();
     isPlayingRef.current = false;
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
     window.speechSynthesis.cancel();
     utterRef.current = null;
     setSpeechState("idle");
@@ -1320,7 +1863,10 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   function synthParagraph(index: number): Promise<string> {
     const cached = ttsCacheRef.current.get(index);
     if (cached) return cached;
-    const cmd = engineRef.current === "elevenlabs" ? "synthesize_speech_elevenlabs" : "synthesize_speech";
+    const cmd =
+      engineRef.current === "elevenlabs"
+        ? "synthesize_speech_elevenlabs"
+        : "synthesize_speech";
     const promise = invoke<string>(cmd, { text: paragraphs[index] });
     promise.catch(() => ttsCacheRef.current.delete(index));
     ttsCacheRef.current.set(index, promise);
@@ -1336,7 +1882,11 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
     saveSettings({ speed: next });
     // A speaking system-voice utterance can't change rate mid-flight; restart
     // the current paragraph so the new speed takes effect immediately.
-    if (engineRef.current === "system" && speechState === "playing" && currentParagraphIndex !== null) {
+    if (
+      engineRef.current === "system" &&
+      speechState === "playing" &&
+      currentParagraphIndex !== null
+    ) {
       jumpToParagraph(currentParagraphIndex);
     }
   }
@@ -1347,9 +1897,13 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
     try {
       const pref = await getTtsEngine();
       if (pref === "google") {
-        engineRef.current = (await getGoogleTtsApiKey()).trim() ? "google" : "system";
+        engineRef.current = (await getGoogleTtsApiKey()).trim()
+          ? "google"
+          : "system";
       } else if (pref === "elevenlabs") {
-        engineRef.current = (await getElevenLabsApiKey()).trim() ? "elevenlabs" : "system";
+        engineRef.current = (await getElevenLabsApiKey()).trim()
+          ? "elevenlabs"
+          : "system";
       } else {
         engineRef.current = "system";
       }
@@ -1360,7 +1914,10 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   }
 
   async function playParagraph(index: number) {
-    if (index >= paragraphs.length) { stopSpeech(); return; }
+    if (index >= paragraphs.length) {
+      stopSpeech();
+      return;
+    }
 
     const session = playSessionRef.current;
     setCurrentParagraphIndex(index);
@@ -1373,7 +1930,8 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
       utter.rate = speedRef.current;
       utterRef.current = utter;
       const advance = () => {
-        if (isPlayingRef.current && playSessionRef.current === session) playParagraph(index + 1);
+        if (isPlayingRef.current && playSessionRef.current === session)
+          playParagraph(index + 1);
       };
       utter.onend = advance;
       utter.onerror = advance;
@@ -1400,11 +1958,13 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
 
       audio.onended = () => {
         URL.revokeObjectURL(audioUrl);
-        if (isPlayingRef.current && playSessionRef.current === session) playParagraph(index + 1);
+        if (isPlayingRef.current && playSessionRef.current === session)
+          playParagraph(index + 1);
       };
       audio.onerror = () => {
         URL.revokeObjectURL(audioUrl);
-        if (isPlayingRef.current && playSessionRef.current === session) playParagraph(index + 1);
+        if (isPlayingRef.current && playSessionRef.current === session)
+          playParagraph(index + 1);
       };
 
       if (isPlayingRef.current) await audio.play();
@@ -1413,11 +1973,13 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
       // Key missing/invalid — fall back to the free system voice for this session.
       if (String(err).includes("no_api_key")) {
         engineRef.current = "system";
-        if (isPlayingRef.current && playSessionRef.current === session) playParagraph(index);
+        if (isPlayingRef.current && playSessionRef.current === session)
+          playParagraph(index);
         return;
       }
       console.error("TTS error:", err);
-      if (isPlayingRef.current && playSessionRef.current === session) playParagraph(index + 1);
+      if (isPlayingRef.current && playSessionRef.current === session)
+        playParagraph(index + 1);
     }
   }
 
@@ -1444,11 +2006,26 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   // ── Controls objects ────────────────────────────────────────────────────────
 
   const settingsControls: ReaderSettings = {
-    fontFamily, fontSize, columnWidth, lineHeight,
-    onChangeFontFamily: (f) => { setFontFamily(f); saveSettings({ fontFamily: f }); },
-    onChangeFontSize: (s) => { setFontSize(s); saveSettings({ fontSize: s }); },
-    onChangeColumnWidth: (w) => { setColumnWidth(w); saveSettings({ columnWidth: w }); },
-    onChangeLineHeight: (lh) => { setLineHeight(lh); saveSettings({ lineHeight: lh }); },
+    fontFamily,
+    fontSize,
+    columnWidth,
+    lineHeight,
+    onChangeFontFamily: (f) => {
+      setFontFamily(f);
+      saveSettings({ fontFamily: f });
+    },
+    onChangeFontSize: (s) => {
+      setFontSize(s);
+      saveSettings({ fontSize: s });
+    },
+    onChangeColumnWidth: (w) => {
+      setColumnWidth(w);
+      saveSettings({ columnWidth: w });
+    },
+    onChangeLineHeight: (lh) => {
+      setLineHeight(lh);
+      saveSettings({ lineHeight: lh });
+    },
   };
 
   const speechControls: SpeechControls | undefined =
@@ -1456,7 +2033,8 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
       ? {
           state: speechState,
           speed,
-          onPlay: () => speechState === "paused" ? resumeSpeech() : startSpeech(),
+          onPlay: () =>
+            speechState === "paused" ? resumeSpeech() : startSpeech(),
           onPause: pauseSpeech,
           onStop: stopSpeech,
           onCycleSpeed: cycleSpeed,
@@ -1490,7 +2068,10 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
       ? { state: summarizeState, onSummarize: handleSummarize }
       : undefined;
 
-  async function fetchSuggestions(articleText: string, history: ChatMessageEntry[]) {
+  async function fetchSuggestions(
+    articleText: string,
+    history: ChatMessageEntry[],
+  ) {
     if (!aiSettings) return;
     setSuggestionsLoading(true);
     setSuggestions([]);
@@ -1511,7 +2092,10 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   async function handleChatSend(question: string) {
     if (!aiSettings || result.state !== "ok") return;
     const articleText = getParagraphs(result.content).join(" ");
-    const newMessages: ChatMessageEntry[] = [...chatMessages, { role: "user", content: question }];
+    const newMessages: ChatMessageEntry[] = [
+      ...chatMessages,
+      { role: "user", content: question },
+    ];
     setChatMessages(newMessages);
     setChatLoading(true);
     setChatStream(null);
@@ -1519,7 +2103,10 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
     const onToken = new Channel<string>();
     onToken.onmessage = (tok) => setChatStream((s) => (s ?? "") + tok);
     try {
-      const historyForApi = chatMessages.map((m) => ({ role: m.role, content: m.content }));
+      const historyForApi = chatMessages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
       const answer = await invoke<string>("chat_article", {
         config: aiConfig(aiSettings),
         articleText,
@@ -1527,11 +2114,17 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
         question,
         onToken,
       });
-      const finalMessages: ChatMessageEntry[] = [...newMessages, { role: "assistant", content: answer }];
+      const finalMessages: ChatMessageEntry[] = [
+        ...newMessages,
+        { role: "assistant", content: answer },
+      ];
       setChatMessages(finalMessages);
       fetchSuggestions(articleText, finalMessages);
     } catch (err) {
-      setChatMessages([...newMessages, { role: "assistant", content: `Error: ${String(err)}` }]);
+      setChatMessages([
+        ...newMessages,
+        { role: "assistant", content: `Error: ${String(err)}` },
+      ]);
     } finally {
       setChatLoading(false);
       setChatStream(null);
@@ -1559,16 +2152,31 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
     const pos = selToolbar ? { x: selToolbar.x, y: selToolbar.y } : null;
     dismissSelection();
     try {
-      await addHighlight({ id, item_id: itemId, quote: anchor.quote, prefix: anchor.prefix, suffix: anchor.suffix, note: null });
+      await addHighlight({
+        id,
+        item_id: itemId,
+        quote: anchor.quote,
+        prefix: anchor.prefix,
+        suffix: anchor.suffix,
+        note: null,
+      });
       // Archive the extracted article on first highlight so anchors stay stable
       if (result.state === "ok") {
         setItemContent(itemId, {
-          title: result.title, byline: result.byline, siteName: result.siteName, content: result.content,
+          title: result.title,
+          byline: result.byline,
+          siteName: result.siteName,
+          content: result.content,
         }).catch(() => {});
       }
       const h: Highlight = {
-        id, item_id: itemId, quote: anchor.quote, prefix: anchor.prefix, suffix: anchor.suffix,
-        note: null, created_at: new Date().toISOString(),
+        id,
+        item_id: itemId,
+        quote: anchor.quote,
+        prefix: anchor.prefix,
+        suffix: anchor.suffix,
+        note: null,
+        created_at: new Date().toISOString(),
       };
       setHighlights((prev) => [...prev, h]);
       if (withNote && pos) {
@@ -1585,7 +2193,9 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
     const note = noteDraft.trim() || null;
     try {
       await updateHighlightNote(activeNote.id, note);
-      setHighlights((prev) => prev.map((h) => (h.id === activeNote.id ? { ...h, note } : h)));
+      setHighlights((prev) =>
+        prev.map((h) => (h.id === activeNote.id ? { ...h, note } : h)),
+      );
     } catch (err) {
       console.error("Failed to save note:", err);
     }
@@ -1610,7 +2220,8 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   }
 
   function highlightsMarkdown(): { filename: string; content: string } {
-    const articleTitle = (result.state === "ok" ? result.title : title) || "Untitled";
+    const articleTitle =
+      (result.state === "ok" ? result.title : title) || "Untitled";
     const lines: string[] = [`# ${articleTitle}`, url, ""];
     for (const h of highlights) {
       lines.push(`> ${h.quote.trim().replace(/\s*\n\s*/g, " ")}`);
@@ -1627,7 +2238,11 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
   async function sendHighlightsToObsidian() {
     const { filename, content } = highlightsMarkdown();
     try {
-      await invoke<string>("export_markdown", { dir: obsidianPath, filename, content });
+      await invoke<string>("export_markdown", {
+        dir: obsidianPath,
+        filename,
+        content,
+      });
       setObsidianStatus("ok");
     } catch (err) {
       console.error("Export failed:", err);
@@ -1650,7 +2265,11 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
       ? {
           open: chatOpen,
           onToggle: () => {
-            if (!chatOpen && chatMessages.length === 0 && result.state === "ok") {
+            if (
+              !chatOpen &&
+              chatMessages.length === 0 &&
+              result.state === "ok"
+            ) {
               const articleText = getParagraphs(result.content).join(" ");
               fetchSuggestions(articleText, []);
             }
@@ -1664,10 +2283,20 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
     setIsSaved(next); // optimistic
     try {
       if (next) {
-        const savedContent = result.state === "ok"
-          ? { title: result.title, byline: result.byline, siteName: result.siteName, content: result.content }
-          : null;
-        const id = await saveExternalArticle({ url, title: result.state === "ok" ? result.title : title, content: savedContent });
+        const savedContent =
+          result.state === "ok"
+            ? {
+                title: result.title,
+                byline: result.byline,
+                siteName: result.siteName,
+                content: result.content,
+              }
+            : null;
+        const id = await saveExternalArticle({
+          url,
+          title: result.state === "ok" ? result.title : title,
+          content: savedContent,
+        });
         setSavedItemId(id); // makes the tag bar available now that it's a real item
       } else {
         await removeSavedArticleByUrl(url);
@@ -1679,68 +2308,138 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
     }
   }
 
-  const saveControls: SaveControls | undefined =
-    isExternal ? { saved: isSaved, onToggle: handleToggleSave } : undefined;
+  const saveControls: SaveControls | undefined = isExternal
+    ? { saved: isSaved, onToggle: handleToggleSave }
+    : undefined;
 
   const paneTitle = result.state === "ok" ? result.title : title;
-  const paneDomain = (() => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } })();
+  const paneDomain = (() => {
+    try {
+      return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+      return "";
+    }
+  })();
 
   // Ambient accent: fixed saturation/lightness keeps text contrast safe against
   // the paper surface.
-  const accentColor = accentHue === null ? undefined : `hsl(${accentHue} 50% 30%)`;
+  const accentColor =
+    accentHue === null ? undefined : `hsl(${accentHue} 50% 30%)`;
 
   return (
     <>
-      {!docked && !minimized && <div className="fixed inset-0 z-40 bg-black/25" onClick={onClose} aria-hidden="true" />}
+      {!docked && !minimized && (
+        <div
+          className="fixed inset-0 z-40 bg-black/25"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
       {minimized && (
         <div
           className={`fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] items-center gap-2 rounded-lg border px-3 py-2 ambient-shadow bg-reader-bg border-reader-border text-reader-text`}
-          style={accentColor ? ({ "--reader-primary": accentColor } as React.CSSProperties) : undefined}
+          style={
+            accentColor
+              ? ({ "--reader-primary": accentColor } as React.CSSProperties)
+              : undefined
+          }
         >
-          <button onClick={() => setMinimized(false)} aria-label="Expand article" title="Expand"
-            className="flex min-w-0 flex-1 items-center gap-2 text-left">
+          <button
+            onClick={() => setMinimized(false)}
+            aria-label="Expand article"
+            title="Expand"
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-reader-primary/15 text-reader-primary">
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4.03v8.05A4.5 4.5 0 0016.5 12z" />
               </svg>
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-ui-label font-headline font-semibold leading-tight">{paneTitle ?? "Reading"}</span>
-              <span className="block truncate text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted">{paneDomain}</span>
+              <span className="block truncate text-ui-label font-headline font-semibold leading-tight">
+                {paneTitle ?? "Reading"}
+              </span>
+              <span className="block truncate text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted">
+                {paneDomain}
+              </span>
             </span>
           </button>
 
           {speechControls && (
             <div className="flex shrink-0 items-center gap-0.5">
-              <button onClick={speechControls.onCycleSpeed} aria-label="Playback speed" title="Playback speed"
-                className="flex h-7 min-w-7 items-center justify-center rounded px-1 text-ui-small font-bold text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
+              <button
+                onClick={speechControls.onCycleSpeed}
+                aria-label="Playback speed"
+                title="Playback speed"
+                className="flex h-7 min-w-7 items-center justify-center rounded px-1 text-ui-small font-bold text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+              >
                 {speechControls.speed}×
               </button>
               {speechControls.state === "playing" ? (
-                <button onClick={speechControls.onPause} aria-label="Pause"
-                  className="flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
-                  <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+                <button
+                  onClick={speechControls.onPause}
+                  aria-label="Pause"
+                  className="flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+                >
+                  <svg
+                    className="h-3.5 w-3.5"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                  </svg>
                 </button>
               ) : (
-                <button onClick={speechControls.onPlay} aria-label="Listen"
-                  className="flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
-                  <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                <button
+                  onClick={speechControls.onPlay}
+                  aria-label="Listen"
+                  className="flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+                >
+                  <svg
+                    className="h-3.5 w-3.5"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
                 </button>
               )}
               {speechControls.state !== "idle" && (
-                <button onClick={speechControls.onStop} aria-label="Stop"
-                  className="flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
-                  <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z" /></svg>
+                <button
+                  onClick={speechControls.onStop}
+                  aria-label="Stop"
+                  className="flex h-7 w-7 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+                >
+                  <svg
+                    className="h-3.5 w-3.5"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M6 6h12v12H6z" />
+                  </svg>
                 </button>
               )}
             </div>
           )}
 
-          <button onClick={onClose} aria-label="Close article"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text">
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <button
+            onClick={onClose}
+            aria-label="Close article"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-reader-text-muted transition-colors hover:bg-reader-hover hover:text-reader-text"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -1754,12 +2453,19 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
             : "fixed right-0 top-0 bottom-0 z-50 w-full border-l ambient-shadow sm:w-[72vw] xl:w-[64vw] border-reader-border",
           minimized ? "hidden" : "",
         ].join(" ")}
-        style={accentColor ? ({ "--reader-primary": accentColor } as React.CSSProperties) : undefined}
+        style={
+          accentColor
+            ? ({ "--reader-primary": accentColor } as React.CSSProperties)
+            : undefined
+        }
       >
         {!isYT && result.state === "ok" && (
           <div className="h-[2px] shrink-0 bg-surface-container-highest">
-            <div ref={progressBarRef} className="h-full bg-tertiary transition-[width] duration-150 ease-out"
-              style={{ width: "0%" }} />
+            <div
+              ref={progressBarRef}
+              className="h-full bg-tertiary transition-[width] duration-150 ease-out"
+              style={{ width: "0%" }}
+            />
           </div>
         )}
         <PaneHeader
@@ -1772,29 +2478,45 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
           chat={chatControls}
           save={saveControls}
           settings={isYT ? undefined : settingsControls}
-          highlights={itemId && !isYT ? {
-            count: highlights.length,
-            open: highlightsOpen,
-            onToggle: () => setHighlightsOpen((o) => !o),
-          } : undefined}
+          highlights={
+            itemId && !isYT
+              ? {
+                  count: highlights.length,
+                  open: highlightsOpen,
+                  onToggle: () => setHighlightsOpen((o) => !o),
+                }
+              : undefined
+          }
         />
         {tagItemId && <TagBar itemId={tagItemId} />}
-        <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto min-h-0">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto min-h-0"
+        >
           {isYT ? (
             <div className="flex h-full flex-col items-center justify-center gap-5 p-8 text-center text-reader-text">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15">
-                <svg className="h-7 w-7 translate-x-0.5 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                <svg
+                  className="h-7 w-7 translate-x-0.5 text-primary"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
                   <path d="M8 5v14l11-7z" />
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-headline font-semibold">{title ?? "Video"}</p>
+                <p className="text-sm font-headline font-semibold">
+                  {title ?? "Video"}
+                </p>
                 <p className="mt-1 text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted">
                   Plays in a separate window
                 </p>
               </div>
-              <button onClick={openVideoWindow}
-                className="ghost-border bg-primary px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary transition-opacity hover:opacity-90">
+              <button
+                onClick={openVideoWindow}
+                className="ghost-border bg-primary px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary transition-opacity hover:opacity-90"
+              >
                 Play video
               </button>
             </div>
@@ -1802,14 +2524,20 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
             <LoadingSkeleton />
           ) : result.state === "error" ? (
             <div className="flex flex-col items-center justify-center gap-4 p-12 text-center text-reader-text">
-              <p className="text-ui-label font-label text-reader-text-muted uppercase tracking-[0.14em]">{result.message}</p>
-              <button onClick={() => openUrl(url)}
-                className="border border-reader-border hover:bg-reader-hover px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] transition-colors">
+              <p className="text-ui-label font-label text-reader-text-muted uppercase tracking-[0.14em]">
+                {result.message}
+              </p>
+              <button
+                onClick={() => openUrl(url)}
+                className="border border-reader-border hover:bg-reader-hover px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] transition-colors"
+              >
                 Open in browser ↗
               </button>
             </div>
           ) : (
-            <div className={`mx-auto px-reading-margin-mobile py-stack-lg transition-all md:px-16 ${columnWidth === "narrow" ? "max-w-md" : columnWidth === "wide" ? "max-w-5xl" : "max-w-reading"} ${fontFamily === "sans" ? "font-reader-sans" : fontFamily === "mono" ? "font-reader-mono" : "font-reader-serif"} ${lineHeight === "compact" ? "leading-normal" : lineHeight === "roomy" ? "leading-loose" : "leading-relaxed"}`}>
+            <div
+              className={`mx-auto px-reading-margin-mobile py-stack-lg transition-all md:px-16 ${columnWidth === "narrow" ? "max-w-md" : columnWidth === "wide" ? "max-w-5xl" : "max-w-reading"} ${fontFamily === "sans" ? "font-reader-sans" : fontFamily === "mono" ? "font-reader-mono" : "font-reader-serif"} ${lineHeight === "compact" ? "leading-normal" : lineHeight === "roomy" ? "leading-loose" : "leading-relaxed"}`}
+            >
               {/* Summary card */}
               {summarizeState === "loading" && summary === null && (
                 <div className="mb-6 rounded border border-reader-border bg-reader-hover/40 px-5 py-4 animate-pulse">
@@ -1825,21 +2553,37 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
                 <div className="mb-6 rounded border border-reader-border bg-reader-hover/40 px-5 py-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-reader-text-muted">
-                      {summarizeState === "loading" ? "Summarizing" : "Summary"} · {aiSettings && aiConfig(aiSettings).model}
+                      {summarizeState === "loading" ? "Summarizing" : "Summary"}{" "}
+                      · {aiSettings && aiConfig(aiSettings).model}
                     </span>
                     {summarizeState === "done" && (
                       <button
-                        onClick={() => { setSummarizeState("idle"); setSummary(null); }}
+                        onClick={() => {
+                          setSummarizeState("idle");
+                          setSummary(null);
+                        }}
                         className="text-reader-text-muted hover:text-reader-text transition-colors"
                         aria-label="Dismiss summary"
                       >
-                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg
+                          className="h-3.5 w-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
                         </svg>
                       </button>
                     )}
                   </div>
-                  <p className="text-sm font-body leading-relaxed text-reader-text">{summary}</p>
+                  <p className="text-sm font-body leading-relaxed text-reader-text">
+                    {summary}
+                  </p>
                 </div>
               )}
               {summarizeState === "error" && summaryError && (
@@ -1867,16 +2611,30 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
                         <span className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-reader-text-muted">
                           ✦ Key points
                         </span>
-                        <svg className={`h-3 w-3 text-reader-text-muted transition-transform ${takeawaysOpen ? "rotate-180" : ""}`}
-                          fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        <svg
+                          className={`h-3 w-3 text-reader-text-muted transition-transform ${takeawaysOpen ? "rotate-180" : ""}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
                         </svg>
                       </button>
                       {takeawaysOpen && (
                         <ul className="mt-3 space-y-2">
                           {takeaways!.map((t, i) => (
-                            <li key={i} className="flex gap-2.5 text-sm font-body leading-relaxed text-reader-text">
-                              <span className="text-reader-primary shrink-0">•</span>
+                            <li
+                              key={i}
+                              className="flex gap-2.5 text-sm font-body leading-relaxed text-reader-text"
+                            >
+                              <span className="text-reader-primary shrink-0">
+                                •
+                              </span>
                               <span>{t}</span>
                             </li>
                           ))}
@@ -1892,18 +2650,29 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
                     {result.siteName || paneDomain}
                   </p>
                 )}
-                <h1 ref={titleRef} className="font-headline text-headline-lg-mobile text-reader-text md:text-headline-lg">
+                <h1
+                  ref={titleRef}
+                  className="font-headline text-headline-lg-mobile text-reader-text md:text-headline-lg"
+                >
                   {result.title || paneTitle || "Untitled"}
                 </h1>
                 {(result.byline || readMinutes) && (
                   <p className="mt-stack-sm font-body text-lg italic text-reader-text-muted">
-                    {[result.byline, readMinutes ? `${readMinutes} min read` : null]
-                      .filter(Boolean).join(" · ")}
+                    {[
+                      result.byline,
+                      readMinutes ? `${readMinutes} min read` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                 )}
               </header>
-              <div ref={articleContentRef} className="article-content article-content--dropcap" style={{ fontSize: `${fontSize}px` }}
-                dangerouslySetInnerHTML={{ __html: taggedContent }} />
+              <div
+                ref={articleContentRef}
+                className="article-content article-content--dropcap"
+                style={{ fontSize: `${fontSize}px` }}
+                dangerouslySetInnerHTML={{ __html: taggedContent }}
+              />
             </div>
           )}
         </div>
@@ -1911,10 +2680,17 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
         {linkPreview && (
           <div
             className="fixed z-[60] w-72 -translate-x-1/2 overflow-hidden rounded-lg border border-reader-border bg-reader-header-bg ambient-shadow pointer-events-none text-reader-text"
-            style={{ left: linkPreview.x, top: Math.min(linkPreview.y + 8, window.innerHeight - 220) }}
+            style={{
+              left: linkPreview.x,
+              top: Math.min(linkPreview.y + 8, window.innerHeight - 220),
+            }}
           >
             {linkPreview.image && (
-              <img src={linkPreview.image} alt="" className="h-28 w-full object-cover" />
+              <img
+                src={linkPreview.image}
+                alt=""
+                className="h-28 w-full object-cover"
+              />
             )}
             <div className="p-3">
               <p className="text-ui-small font-label uppercase tracking-[0.14em] text-reader-text-muted mb-1">
@@ -1946,7 +2722,9 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
                     const passage = selToolbar.text;
                     dismissSelection();
                     setChatOpen(true);
-                    handleChatSend(`Explain this passage from the article:\n"${passage}"`);
+                    handleChatSend(
+                      `Explain this passage from the article:\n"${passage}"`,
+                    );
                   }}
                   className="rounded px-2 py-1 text-ui-small font-label font-semibold transition-colors hover:bg-reader-hover"
                 >
@@ -2007,25 +2785,37 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
           <div
             ref={notePopoverRef}
             className="fixed z-[60] w-72 -translate-x-1/2 rounded-lg border border-reader-border bg-reader-header-bg p-3 ambient-shadow text-reader-text"
-            style={{ left: activeNote.x, top: Math.min(activeNote.y + 8, window.innerHeight - 190) }}
+            style={{
+              left: activeNote.x,
+              top: Math.min(activeNote.y + 8, window.innerHeight - 190),
+            }}
           >
             <textarea
-              value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} rows={3} autoFocus
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              rows={3}
+              autoFocus
               placeholder="Add a note…"
               className="w-full rounded border border-reader-border bg-reader-bg px-2 py-1.5 text-xs font-body text-reader-text placeholder-reader-text-muted focus:outline-none resize-none"
             />
             <div className="mt-2 flex items-center justify-between">
-              <button onClick={removeActiveHighlight}
-                className="text-ui-small font-label text-reader-text-muted transition-colors hover:text-error">
+              <button
+                onClick={removeActiveHighlight}
+                className="text-ui-small font-label text-reader-text-muted transition-colors hover:text-error"
+              >
                 Delete highlight
               </button>
               <div className="flex gap-2">
-                <button onClick={() => setActiveNote(null)}
-                  className="text-ui-small font-label text-reader-text-muted transition-colors hover:text-reader-text">
+                <button
+                  onClick={() => setActiveNote(null)}
+                  className="text-ui-small font-label text-reader-text-muted transition-colors hover:text-reader-text"
+                >
                   Cancel
                 </button>
-                <button onClick={saveActiveNote}
-                  className="rounded bg-reader-primary px-3 py-1 text-ui-small font-label font-bold text-white transition-opacity hover:opacity-90">
+                <button
+                  onClick={saveActiveNote}
+                  className="rounded bg-reader-primary px-3 py-1 text-ui-small font-label font-bold text-white transition-opacity hover:opacity-90"
+                >
                   Save
                 </button>
               </div>
@@ -2040,17 +2830,28 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
               </h4>
               {highlights.length > 0 && (
                 <div className="flex items-center gap-3">
-                  <button onClick={copyHighlightsMarkdown}
-                    className="text-ui-small font-label text-reader-text-muted transition-colors hover:text-reader-text">
+                  <button
+                    onClick={copyHighlightsMarkdown}
+                    className="text-ui-small font-label text-reader-text-muted transition-colors hover:text-reader-text"
+                  >
                     Copy markdown
                   </button>
                   {obsidianPath && (
-                    <button onClick={sendHighlightsToObsidian}
+                    <button
+                      onClick={sendHighlightsToObsidian}
                       className={`text-ui-small font-label transition-colors ${
-                        obsidianStatus === "ok" ? "text-reader-primary"
-                        : obsidianStatus === "error" ? "text-error"
-                        : "text-reader-text-muted hover:text-reader-text"}`}>
-                      {obsidianStatus === "ok" ? "Sent ✓" : obsidianStatus === "error" ? "Failed" : "Send to Obsidian"}
+                        obsidianStatus === "ok"
+                          ? "text-reader-primary"
+                          : obsidianStatus === "error"
+                            ? "text-error"
+                            : "text-reader-text-muted hover:text-reader-text"
+                      }`}
+                    >
+                      {obsidianStatus === "ok"
+                        ? "Sent ✓"
+                        : obsidianStatus === "error"
+                          ? "Failed"
+                          : "Send to Obsidian"}
                     </button>
                   )}
                 </div>
@@ -2064,11 +2865,17 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
               <ul className="space-y-2">
                 {highlights.map((h) => (
                   <li key={h.id}>
-                    <button onClick={() => scrollToHighlight(h.id)}
-                      className="w-full rounded border border-reader-border p-2 text-left transition-colors hover:bg-reader-hover">
-                      <p className="text-xs font-body leading-relaxed line-clamp-3">“{h.quote.trim()}”</p>
+                    <button
+                      onClick={() => scrollToHighlight(h.id)}
+                      className="w-full rounded border border-reader-border p-2 text-left transition-colors hover:bg-reader-hover"
+                    >
+                      <p className="text-xs font-body leading-relaxed line-clamp-3">
+                        “{h.quote.trim()}”
+                      </p>
                       {h.note && (
-                        <p className="mt-1 text-ui-small font-body text-reader-text-muted line-clamp-2">{h.note}</p>
+                        <p className="mt-1 text-ui-small font-body text-reader-text-muted line-clamp-2">
+                          {h.note}
+                        </p>
                       )}
                     </button>
                   </li>
@@ -2079,8 +2886,28 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
         )}
         {/* Docked, the conversation owns the right-hand column so the reading
             column keeps its full height; otherwise it stays a bottom drawer. */}
-        {chatOpen && chatControls && aiSettings && (docked ? (
-          chatSlot && createPortal(
+        {chatOpen &&
+          chatControls &&
+          aiSettings &&
+          (docked ? (
+            chatSlot &&
+            createPortal(
+              <ChatPanel
+                messages={chatMessages}
+                loading={chatLoading}
+                streaming={chatStream}
+                suggestions={suggestions}
+                suggestionsLoading={suggestionsLoading}
+                quote={pendingQuote}
+                onClearQuote={() => setPendingQuote(null)}
+                onSend={sendChat}
+                onClose={() => setChatOpen(false)}
+                model={aiConfig(aiSettings).model}
+                filled
+              />,
+              chatSlot,
+            )
+          ) : (
             <ChatPanel
               messages={chatMessages}
               loading={chatLoading}
@@ -2092,24 +2919,8 @@ export default function ArticlePane({ url, title, itemId, content, docked = fals
               onSend={sendChat}
               onClose={() => setChatOpen(false)}
               model={aiConfig(aiSettings).model}
-              filled
-            />,
-            chatSlot
-          )
-        ) : (
-          <ChatPanel
-            messages={chatMessages}
-            loading={chatLoading}
-            streaming={chatStream}
-            suggestions={suggestions}
-            suggestionsLoading={suggestionsLoading}
-            quote={pendingQuote}
-            onClearQuote={() => setPendingQuote(null)}
-            onSend={sendChat}
-            onClose={() => setChatOpen(false)}
-            model={aiConfig(aiSettings).model}
-          />
-        ))}
+            />
+          ))}
       </div>
     </>
   );

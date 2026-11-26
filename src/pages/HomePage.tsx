@@ -32,15 +32,19 @@ export default function HomePage() {
   const [activeHighlights, setActiveHighlights] = useState(false);
   const [activeTagId, setActiveTagId] = useState<string | null>(null);
   const [activeTagName, setActiveTagName] = useState<string | null>(null);
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsResult | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsResult | null>(
+    null,
+  );
   const [analyticsError, setAnalyticsError] = useState("");
   const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
 
   useEffect(() => {
-    getSubscribedFeeds().then((f) => {
-      setFeeds(f);
-      if (feedsRefreshKey === 0 && f.length === 0) setActiveDiscover(true);
-    }).catch(console.error);
+    getSubscribedFeeds()
+      .then((f) => {
+        setFeeds(f);
+        if (feedsRefreshKey === 0 && f.length === 0) setActiveDiscover(true);
+      })
+      .catch(console.error);
   }, [feedsRefreshKey]);
 
   // Re-render timeline + sidebar whenever the background crawler finishes
@@ -70,7 +74,15 @@ export default function HomePage() {
     setActiveHighlights(!!filter.highlights);
     setActiveTagId(filter.tagId ?? null);
     setActiveTagName(filter.tagName ?? null);
-    if (filter.analytics || filter.digest || filter.discover || filter.starred || filter.today || filter.highlights || filter.tagId) {
+    if (
+      filter.analytics ||
+      filter.digest ||
+      filter.discover ||
+      filter.starred ||
+      filter.today ||
+      filter.highlights ||
+      filter.tagId
+    ) {
       setActiveFeedId(null);
       setActiveFolder(null);
     } else {
@@ -106,7 +118,10 @@ export default function HomePage() {
 
   const feedIds = useMemo(() => {
     if (activeFeedId) return [activeFeedId];
-    if (activeFolder) return feeds.filter((f) => (f.folder ?? "Uncategorized") === activeFolder).map((f) => f.id);
+    if (activeFolder)
+      return feeds
+        .filter((f) => (f.folder ?? "Uncategorized") === activeFolder)
+        .map((f) => f.id);
     return feeds.map((f) => f.id);
   }, [feeds, activeFeedId, activeFolder]);
 
@@ -114,10 +129,19 @@ export default function HomePage() {
     if (activeTagId) return `#${activeTagName ?? "Tag"}`;
     if (activeToday) return "Today";
     if (activeStarred) return "Saved";
-    if (activeFeedId) return feeds.find((f) => f.id === activeFeedId)?.title ?? "Feed";
+    if (activeFeedId)
+      return feeds.find((f) => f.id === activeFeedId)?.title ?? "Feed";
     if (activeFolder) return activeFolder;
     return "All Articles";
-  }, [feeds, activeFeedId, activeFolder, activeStarred, activeToday, activeTagId, activeTagName]);
+  }, [
+    feeds,
+    activeFeedId,
+    activeFolder,
+    activeStarred,
+    activeToday,
+    activeTagId,
+    activeTagName,
+  ]);
 
   const sidebar = (
     <SidebarContent
@@ -141,7 +165,10 @@ export default function HomePage() {
   const main = activeHighlights ? (
     <HighlightsView />
   ) : activeStarred ? (
-    <SavedView refreshKey={timelineRefreshKey} onStatesChanged={handleStatesChanged} />
+    <SavedView
+      refreshKey={timelineRefreshKey}
+      onStatesChanged={handleStatesChanged}
+    />
   ) : activeDiscover ? (
     <DiscoverView feeds={feeds} onFeedAdded={handleFeedAdded} />
   ) : activeDigest ? (
@@ -150,14 +177,21 @@ export default function HomePage() {
     <div>
       {analyticsError ? (
         <div className="flex items-center justify-center p-20">
-          <p className="font-label text-ui-label text-error">{analyticsError}</p>
+          <p className="font-label text-ui-label text-error">
+            {analyticsError}
+          </p>
         </div>
       ) : !analyticsData ? (
         <div className="flex items-center justify-center p-20">
-          <p className="animate-pulse font-label text-ui-small uppercase tracking-[0.14em] text-outline">Loading…</p>
+          <p className="animate-pulse font-label text-ui-small uppercase tracking-[0.14em] text-outline">
+            Loading…
+          </p>
         </div>
       ) : (
-        <AnalyticsDashboard data={analyticsData} onFeedDeleted={handleFeedDeleted} />
+        <AnalyticsDashboard
+          data={analyticsData}
+          onFeedDeleted={handleFeedDeleted}
+        />
       )}
     </div>
   ) : (
@@ -174,5 +208,11 @@ export default function HomePage() {
     />
   );
 
-  return <AppShell sidebar={sidebar} main={main} onRefreshComplete={handleRefreshComplete} />;
+  return (
+    <AppShell
+      sidebar={sidebar}
+      main={main}
+      onRefreshComplete={handleRefreshComplete}
+    />
+  );
 }

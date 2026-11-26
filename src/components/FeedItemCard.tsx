@@ -1,7 +1,10 @@
 import type { TimelineItem } from "../types/database";
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function extractFirstImage(html: string): string | null {
@@ -10,7 +13,10 @@ function extractFirstImage(html: string): string | null {
 }
 
 function readMinutes(text: string): number {
-  return Math.max(1, Math.round(text.split(/\s+/).filter(Boolean).length / 220));
+  return Math.max(
+    1,
+    Math.round(text.split(/\s+/).filter(Boolean).length / 220),
+  );
 }
 
 function formatRelative(iso: string | null): string {
@@ -22,7 +28,10 @@ function formatRelative(iso: string | null): string {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(diff / 86_400_000);
   if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 type Props = {
@@ -41,17 +50,43 @@ type Props = {
 function ProgressLine({ progress }: { progress: number }) {
   if (progress <= 0 || progress >= 0.97) return null;
   return (
-    <div className="pointer-events-none absolute bottom-0 left-0 h-0.5 bg-tertiary"
-      style={{ width: `${progress * 100}%` }} />
+    <div
+      className="pointer-events-none absolute bottom-0 left-0 h-0.5 bg-tertiary"
+      style={{ width: `${progress * 100}%` }}
+    />
   );
 }
 
-function StarButton({ isStarred, onToggleStar }: { isStarred: boolean; onToggleStar: (e: React.MouseEvent) => void }) {
+function StarButton({
+  isStarred,
+  onToggleStar,
+}: {
+  isStarred: boolean;
+  onToggleStar: (e: React.MouseEvent) => void;
+}) {
   return (
-    <button onClick={onToggleStar} aria-label={isStarred ? "Remove from Saved" : "Save"}
-      className={["rounded p-0.5 transition-colors", isStarred ? "text-tertiary" : "text-outline opacity-0 group-hover:opacity-100 hover:text-tertiary"].join(" ")}>
-      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill={isStarred ? "currentColor" : "none"} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+    <button
+      onClick={onToggleStar}
+      aria-label={isStarred ? "Remove from Saved" : "Save"}
+      className={[
+        "rounded p-0.5 transition-colors",
+        isStarred
+          ? "text-tertiary"
+          : "text-outline opacity-0 group-hover:opacity-100 hover:text-tertiary",
+      ].join(" ")}
+    >
+      <svg
+        className="h-3.5 w-3.5"
+        viewBox="0 0 24 24"
+        fill={isStarred ? "currentColor" : "none"}
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.75}
+          d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+        />
       </svg>
     </button>
   );
@@ -63,22 +98,36 @@ function TagChips({ tags, max = 3 }: { tags: string[]; max?: number }) {
   return (
     <div className="flex flex-wrap items-center gap-1 min-w-0">
       {shown.map((t) => (
-        <span key={t} className="truncate rounded-sm bg-surface-container px-1.5 py-0.5 font-label text-ui-small uppercase tracking-[0.1em] text-on-surface-variant">
+        <span
+          key={t}
+          className="truncate rounded-sm bg-surface-container px-1.5 py-0.5 font-label text-ui-small uppercase tracking-[0.1em] text-on-surface-variant"
+        >
           #{t}
         </span>
       ))}
       {tags.length > shown.length && (
-        <span className="font-label text-ui-small text-outline">+{tags.length - shown.length}</span>
+        <span className="font-label text-ui-small text-outline">
+          +{tags.length - shown.length}
+        </span>
       )}
     </div>
   );
 }
 
 function YouTubeCard({
-  item, isRead, isStarred, isSelected, onActivate, onOpen, onToggleStar,
+  item,
+  isRead,
+  isStarred,
+  isSelected,
+  onActivate,
+  onOpen,
+  onToggleStar,
 }: Omit<Props, "elRef" | "layout" | "hero">) {
   return (
-    <div onClick={onActivate} className="flex flex-col flex-1 cursor-pointer select-none">
+    <div
+      onClick={onActivate}
+      className="flex flex-col flex-1 cursor-pointer select-none"
+    >
       <div className="relative aspect-video overflow-hidden rounded-lg bg-surface-container-low">
         <img
           src={item.thumbnail_url!}
@@ -87,7 +136,11 @@ function YouTubeCard({
         />
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150">
           <div className="flex h-10 w-10 items-center justify-center bg-primary/90">
-            <svg className="h-4 w-4 translate-x-0.5 text-on-primary" viewBox="0 0 24 24" fill="currentColor">
+            <svg
+              className="h-4 w-4 translate-x-0.5 text-on-primary"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
               <path d="M8 5v14l11-7z" />
             </svg>
           </div>
@@ -104,16 +157,38 @@ function YouTubeCard({
             {formatRelative(item.published_at)}
           </span>
         </div>
-        <h3 className={`font-headline text-base font-semibold leading-snug text-on-surface transition-colors group-hover:text-primary ${isRead && !isSelected ? "opacity-50" : ""}`}>
+        <h3
+          className={`font-headline text-base font-semibold leading-snug text-on-surface transition-colors group-hover:text-primary ${isRead && !isSelected ? "opacity-50" : ""}`}
+        >
           {item.title ?? "Untitled"}
         </h3>
-        {item.tags.length > 0 && <div className="mt-3"><TagChips tags={item.tags} /></div>}
+        {item.tags.length > 0 && (
+          <div className="mt-3">
+            <TagChips tags={item.tags} />
+          </div>
+        )}
         <div className="mt-auto pt-3 flex items-center justify-end gap-2">
           <StarButton isStarred={isStarred} onToggleStar={onToggleStar} />
-          <button onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="Open video"
-            className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 hover:text-primary`}>
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen();
+            }}
+            aria-label="Open video"
+            className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 hover:text-primary`}
+          >
+            <svg
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
             </svg>
           </button>
         </div>
@@ -122,10 +197,24 @@ function YouTubeCard({
   );
 }
 
-export default function FeedItemCard({ item, isRead, isStarred, isSelected, layout, hero, onActivate, onOpen, onToggleStar, elRef }: Props) {
+export default function FeedItemCard({
+  item,
+  isRead,
+  isStarred,
+  isSelected,
+  layout,
+  hero,
+  onActivate,
+  onOpen,
+  onToggleStar,
+  elRef,
+}: Props) {
   const stripped = item.content ? stripHtml(item.content) : null;
   const minutes = stripped ? readMinutes(stripped) : null;
-  const imageUrl = !item.thumbnail_url && item.content ? extractFirstImage(item.content) : null;
+  const imageUrl =
+    !item.thumbnail_url && item.content
+      ? extractFirstImage(item.content)
+      : null;
   const isHero = !!hero && layout === "card" && !item.thumbnail_url;
   const preview = stripped ? stripped.slice(0, isHero ? 320 : 200) : null;
 
@@ -134,10 +223,17 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, layo
   // one click away in the article itself.
   if (layout === "compact") {
     return (
-      <li ref={elRef} onClick={onActivate}
-        className={["group relative cursor-pointer select-none border-l-2 px-4 py-3 transition-colors",
-          isSelected ? "border-primary bg-secondary-container" : "border-transparent hover:bg-surface-container-low",
-          isRead && !isSelected ? "opacity-55" : ""].join(" ")}>
+      <li
+        ref={elRef}
+        onClick={onActivate}
+        className={[
+          "group relative cursor-pointer select-none border-l-2 px-4 py-3 transition-colors",
+          isSelected
+            ? "border-primary bg-secondary-container"
+            : "border-transparent hover:bg-surface-container-low",
+          isRead && !isSelected ? "opacity-55" : "",
+        ].join(" ")}
+      >
         <span className="line-clamp-3 font-body text-base leading-snug text-on-surface transition-colors group-hover:text-primary">
           {item.title ?? "Untitled"}
         </span>
@@ -148,11 +244,20 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, layo
 
   if (layout === "row") {
     return (
-      <li ref={elRef} onClick={onActivate}
-        className={["group relative flex items-center gap-3 px-4 py-2 border-l-2 cursor-pointer select-none transition-colors",
-          isSelected ? "border-primary bg-secondary-container" : "border-transparent hover:bg-surface-container-low",
-          isRead && !isSelected ? "opacity-50" : ""].join(" ")}>
-        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isRead ? "bg-outline-variant/60" : "bg-primary"}`} />
+      <li
+        ref={elRef}
+        onClick={onActivate}
+        className={[
+          "group relative flex items-center gap-3 px-4 py-2 border-l-2 cursor-pointer select-none transition-colors",
+          isSelected
+            ? "border-primary bg-secondary-container"
+            : "border-transparent hover:bg-surface-container-low",
+          isRead && !isSelected ? "opacity-50" : "",
+        ].join(" ")}
+      >
+        <span
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${isRead ? "bg-outline-variant/60" : "bg-primary"}`}
+        />
         {item.feed_title && (
           <span className="hidden @2xl:inline-block shrink-0 max-w-[9rem] truncate font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-on-surface-variant">
             {item.feed_title}
@@ -162,17 +267,36 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, layo
           {item.title ?? "Untitled"}
         </span>
         {item.tags.length > 0 && (
-          <div className="hidden @4xl:flex shrink-0 max-w-[12rem]"><TagChips tags={item.tags} max={2} /></div>
+          <div className="hidden @4xl:flex shrink-0 max-w-[12rem]">
+            <TagChips tags={item.tags} max={2} />
+          </div>
         )}
         <span className="shrink-0 font-label text-ui-small uppercase text-outline">
-          {minutes ? `${minutes} min · ` : ""}{formatRelative(item.published_at)}
+          {minutes ? `${minutes} min · ` : ""}
+          {formatRelative(item.published_at)}
         </span>
         <div className="flex items-center gap-1 shrink-0">
           <StarButton isStarred={isStarred} onToggleStar={onToggleStar} />
-          <button onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="Open article"
-            className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 hover:text-primary`}>
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen();
+            }}
+            aria-label="Open article"
+            className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 hover:text-primary`}
+          >
+            <svg
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
             </svg>
           </button>
         </div>
@@ -182,27 +306,53 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, layo
   }
 
   return (
-    <li ref={elRef}
-      className={["group relative flex flex-col rounded transition-colors duration-200",
+    <li
+      ref={elRef}
+      className={[
+        "group relative flex flex-col rounded transition-colors duration-200",
         isHero ? "col-span-full" : "",
-        isSelected ? "bg-secondary-container" : "hover:bg-surface-container-low"].join(" ")}>
+        isSelected
+          ? "bg-secondary-container"
+          : "hover:bg-surface-container-low",
+      ].join(" ")}
+    >
       {item.thumbnail_url ? (
-        <YouTubeCard item={item} isRead={isRead} isStarred={isStarred} isSelected={isSelected}
-          onActivate={onActivate} onOpen={onOpen} onToggleStar={onToggleStar} />
+        <YouTubeCard
+          item={item}
+          isRead={isRead}
+          isStarred={isStarred}
+          isSelected={isSelected}
+          onActivate={onActivate}
+          onOpen={onOpen}
+          onToggleStar={onToggleStar}
+        />
       ) : (
-        <div onClick={onActivate}
-          className={`flex flex-col flex-1 cursor-pointer select-none ${isRead && !isSelected ? "opacity-50" : ""}`}>
+        <div
+          onClick={onActivate}
+          className={`flex flex-col flex-1 cursor-pointer select-none ${isRead && !isSelected ? "opacity-50" : ""}`}
+        >
           {imageUrl && (
-            <div className={`overflow-hidden rounded-lg bg-surface-container-low ${isHero ? "h-60" : "h-36"}`}>
-              <img src={imageUrl} alt="" loading="lazy"
-                onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }}
-                className="h-full w-full object-cover" />
+            <div
+              className={`overflow-hidden rounded-lg bg-surface-container-low ${isHero ? "h-60" : "h-36"}`}
+            >
+              <img
+                src={imageUrl}
+                alt=""
+                loading="lazy"
+                onError={(e) => {
+                  (e.currentTarget.parentElement as HTMLElement).style.display =
+                    "none";
+                }}
+                className="h-full w-full object-cover"
+              />
             </div>
           )}
           <div className="flex flex-col flex-1 p-5">
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-2 min-w-0">
-                {!isRead && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+                {!isRead && (
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                )}
                 {item.feed_title && (
                   <span className="truncate font-label text-ui-small font-semibold uppercase tracking-[0.14em] text-on-surface-variant">
                     {item.feed_title}
@@ -210,26 +360,53 @@ export default function FeedItemCard({ item, isRead, isStarred, isSelected, layo
                 )}
               </div>
               <span className="ml-2 shrink-0 font-label text-ui-small uppercase text-outline">
-                {minutes ? `${minutes} min · ` : ""}{formatRelative(item.published_at)}
+                {minutes ? `${minutes} min · ` : ""}
+                {formatRelative(item.published_at)}
               </span>
             </div>
-            <h3 className={`font-headline font-semibold leading-snug mb-3 text-on-surface transition-colors group-hover:text-primary ${isHero ? "text-headline-md" : "text-base"}`}>
+            <h3
+              className={`font-headline font-semibold leading-snug mb-3 text-on-surface transition-colors group-hover:text-primary ${isHero ? "text-headline-md" : "text-base"}`}
+            >
               {item.title ?? "Untitled"}
             </h3>
             {preview && (
-              <p className={`mb-6 font-body leading-relaxed text-on-surface-variant ${isHero ? "text-lg line-clamp-3 max-w-prose" : imageUrl ? "text-base line-clamp-2" : "text-base line-clamp-3"}`}>{preview}</p>
+              <p
+                className={`mb-6 font-body leading-relaxed text-on-surface-variant ${isHero ? "text-lg line-clamp-3 max-w-prose" : imageUrl ? "text-base line-clamp-2" : "text-base line-clamp-3"}`}
+              >
+                {preview}
+              </p>
             )}
-            {item.tags.length > 0 && <div className="mb-3"><TagChips tags={item.tags} /></div>}
+            {item.tags.length > 0 && (
+              <div className="mb-3">
+                <TagChips tags={item.tags} />
+              </div>
+            )}
             <div className="mt-auto flex items-center justify-between gap-2 border-t border-outline-variant/60 pt-4">
               <span className="truncate font-label text-ui-small uppercase text-outline">
                 {item.author ?? item.feed_title ?? ""}
               </span>
               <div className="flex items-center gap-2 shrink-0">
                 <StarButton isStarred={isStarred} onToggleStar={onToggleStar} />
-                <button onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="Open article"
-                  className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 hover:text-primary`}>
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpen();
+                  }}
+                  aria-label="Open article"
+                  className={`rounded p-0.5 text-outline transition-colors opacity-0 group-hover:opacity-100 hover:text-primary`}
+                >
+                  <svg
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
                   </svg>
                 </button>
               </div>

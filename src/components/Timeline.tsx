@@ -16,7 +16,17 @@ type Props = {
 
 const PAGE_SIZE = 20;
 
-export default function Timeline({ feedIds, filterLabel, range, starredOnly, tagId, lockRange, refreshKey, onRangeChange, onStatesChanged }: Props) {
+export default function Timeline({
+  feedIds,
+  filterLabel,
+  range,
+  starredOnly,
+  tagId,
+  lockRange,
+  refreshKey,
+  onRangeChange,
+  onStatesChanged,
+}: Props) {
   const since = rangeToSince(range);
   const filterKey = `${feedIds.join(",")}|${range}|${starredOnly}|${tagId ?? ""}|${refreshKey}`;
 

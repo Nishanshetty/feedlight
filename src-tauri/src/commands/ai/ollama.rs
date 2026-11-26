@@ -137,10 +137,7 @@ fn map_tag_models(models: Vec<TagModel>) -> Vec<LocalModel> {
         .into_iter()
         .map(|m| LocalModel {
             size_mb: m.size.map(|bytes| bytes.div_ceil(1_000_000)),
-            parameter_size: m
-                .details
-                .as_ref()
-                .and_then(|d| d.parameter_size.clone()),
+            parameter_size: m.details.as_ref().and_then(|d| d.parameter_size.clone()),
             quantization: m
                 .details
                 .as_ref()

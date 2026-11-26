@@ -39,8 +39,9 @@ export function classifyFeeds(raw: FeedAnalytics[]): AnalyticsResult {
     if (rf.oldest_item_date && rf.newest_item_date) {
       const spanDays = Math.max(
         1,
-        (new Date(rf.newest_item_date).getTime() - new Date(rf.oldest_item_date).getTime()) /
-          86_400_000
+        (new Date(rf.newest_item_date).getTime() -
+          new Date(rf.oldest_item_date).getTime()) /
+          86_400_000,
       );
       weeklyPostVolume = Math.round((total / spanDays) * 7 * 10) / 10;
     }
@@ -49,7 +50,9 @@ export function classifyFeeds(raw: FeedAnalytics[]): AnalyticsResult {
     if (rf.newest_item_date) {
       daysSinceLastPost = Math.max(
         0,
-        Math.floor((Date.now() - new Date(rf.newest_item_date).getTime()) / 86_400_000)
+        Math.floor(
+          (Date.now() - new Date(rf.newest_item_date).getTime()) / 86_400_000,
+        ),
       );
     }
 
@@ -83,10 +86,13 @@ export function classifyFeeds(raw: FeedAnalytics[]): AnalyticsResult {
   const totalUnreads = classified.reduce((s, f) => s + f.unreadItems, 0);
   const totalItems = classified.reduce((s, f) => s + f.totalItems, 0);
   const totalReadItems = classified.reduce((s, f) => s + f.readItems, 0);
-  const overallReadRate = totalItems > 0 ? Math.round((totalReadItems / totalItems) * 100) : 0;
+  const overallReadRate =
+    totalItems > 0 ? Math.round((totalReadItems / totalItems) * 100) : 0;
 
   const folderCounts: Record<string, number> = {};
-  classified.forEach((f) => { folderCounts[f.folder] = (folderCounts[f.folder] ?? 0) + 1; });
+  classified.forEach((f) => {
+    folderCounts[f.folder] = (folderCounts[f.folder] ?? 0) + 1;
+  });
   const folderBreakdown = Object.entries(folderCounts)
     .map(([folder, count]) => ({ folder, count }))
     .sort((a, b) => b.count - a.count);
@@ -96,10 +102,20 @@ export function classifyFeeds(raw: FeedAnalytics[]): AnalyticsResult {
     totalUnreads,
     overallReadRate,
     folderBreakdown,
-    noisyFeeds: classified.filter((f) => f.weeklyPostVolume > 15).sort((a, b) => b.weeklyPostVolume - a.weeklyPostVolume),
-    ignoredFeeds: classified.filter((f) => f.totalItems >= 10 && f.readRate < 10).sort((a, b) => a.readRate - b.readRate),
+    noisyFeeds: classified
+      .filter((f) => f.weeklyPostVolume > 15)
+      .sort((a, b) => b.weeklyPostVolume - a.weeklyPostVolume),
+    ignoredFeeds: classified
+      .filter((f) => f.totalItems >= 10 && f.readRate < 10)
+      .sort((a, b) => a.readRate - b.readRate),
     deadFeeds: classified
-      .filter((f) => (f.daysSinceLastPost !== null && f.daysSinceLastPost >= 30) || f.isFailing)
-      .sort((a, b) => (b.daysSinceLastPost ?? 9999) - (a.daysSinceLastPost ?? 9999)),
+      .filter(
+        (f) =>
+          (f.daysSinceLastPost !== null && f.daysSinceLastPost >= 30) ||
+          f.isFailing,
+      )
+      .sort(
+        (a, b) => (b.daysSinceLastPost ?? 9999) - (a.daysSinceLastPost ?? 9999),
+      ),
   };
 }
