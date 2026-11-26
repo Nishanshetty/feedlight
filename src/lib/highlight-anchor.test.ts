@@ -93,10 +93,14 @@ describe("anchorFromRange", () => {
 
 describe("findRange", () => {
   it("re-anchors a quote in a freshly rendered container", () => {
-    const source = container("<p>The quick brown fox jumps over the lazy dog.</p>");
+    const source = container(
+      "<p>The quick brown fox jumps over the lazy dog.</p>",
+    );
     const anchor = anchorFromRange(source, rangeFor(source, "brown fox"))!;
 
-    const fresh = container("<p>The quick brown fox jumps over the lazy dog.</p>");
+    const fresh = container(
+      "<p>The quick brown fox jumps over the lazy dog.</p>",
+    );
     const range = findRange(fresh, anchor);
     expect(range).not.toBeNull();
     expect(range!.toString()).toBe("brown fox");
@@ -104,10 +108,13 @@ describe("findRange", () => {
 
   it("picks the occurrence its prefix and suffix match when the quote is ambiguous", () => {
     const el = container(
-      "<p>first: the recurring phrase appears here. second: the recurring phrase appears again.</p>"
+      "<p>first: the recurring phrase appears here. second: the recurring phrase appears again.</p>",
     );
     // The quote itself repeats, so only the stored context says which one it is.
-    const anchor = anchorFromRange(el, rangeFor(el, "the recurring phrase", 1))!;
+    const anchor = anchorFromRange(
+      el,
+      rangeFor(el, "the recurring phrase", 1),
+    )!;
     expect(el.textContent!.split("the recurring phrase").length - 1).toBe(2);
 
     const range = findRange(el, anchor)!;
@@ -126,14 +133,24 @@ describe("findRange", () => {
 
   it("returns null when the quote is gone", () => {
     const el = container("<p>nothing here</p>");
-    expect(findRange(el, { quote: "absent quote", prefix: null, suffix: null })).toBeNull();
+    expect(
+      findRange(el, { quote: "absent quote", prefix: null, suffix: null }),
+    ).toBeNull();
   });
 });
 
 describe("wrapRangeWithMarks", () => {
   it("wraps the selection in a mark carrying the highlight id", () => {
     const el = container("<p>The quick brown fox jumps.</p>");
-    wrapRangeWithMarks(findRange(el, { quote: "brown fox", prefix: "The quick ", suffix: " jumps." })!, "h1", false);
+    wrapRangeWithMarks(
+      findRange(el, {
+        quote: "brown fox",
+        prefix: "The quick ",
+        suffix: " jumps.",
+      })!,
+      "h1",
+      false,
+    );
 
     const marks = el.querySelectorAll<HTMLModElement>("mark.reader-highlight");
     expect(marks).toHaveLength(1);
@@ -155,11 +172,17 @@ describe("wrapRangeWithMarks", () => {
   it("keeps the concatenated text stable so a second highlight still anchors", () => {
     const el = container("<p>one two three four</p>");
     wrapRangeWithMarks(rangeFor(el, "two"), "h1", false);
-    const second = findRange(el, { quote: "three", prefix: "two ", suffix: " four" });
+    const second = findRange(el, {
+      quote: "three",
+      prefix: "two ",
+      suffix: " four",
+    });
     expect(second).not.toBeNull();
     wrapRangeWithMarks(second!, "h2", false);
 
-    expect(el.querySelectorAll<HTMLModElement>("mark.reader-highlight")).toHaveLength(2);
+    expect(
+      el.querySelectorAll<HTMLModElement>("mark.reader-highlight"),
+    ).toHaveLength(2);
     expect(textOf(el)).toBe("one two three four");
   });
 });
@@ -171,8 +194,12 @@ describe("unwrapHighlights", () => {
     wrapRangeWithMarks(rangeFor(el, "three"), "h2", false);
 
     unwrapHighlights(el, "h1");
-    expect(el.querySelectorAll<HTMLModElement>("mark.reader-highlight")).toHaveLength(1);
-    expect(el.querySelector("mark[data-highlight-id='h2']")?.textContent).toBe("three");
+    expect(
+      el.querySelectorAll<HTMLModElement>("mark.reader-highlight"),
+    ).toHaveLength(1);
+    expect(el.querySelector("mark[data-highlight-id='h2']")?.textContent).toBe(
+      "three",
+    );
     expect(textOf(el)).toBe("one two three");
   });
 

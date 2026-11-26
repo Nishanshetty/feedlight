@@ -47,13 +47,17 @@ describe("classifyFeeds — per feed", () => {
   it("falls back to the feed URL when the title is missing", () => {
     // A feed that was never fetched is always classified, so the title
     // fallback is observable there.
-    const result = classifyFeeds([feed({ feed_title: null, last_fetched_at: null })]);
+    const result = classifyFeeds([
+      feed({ feed_title: null, last_fetched_at: null }),
+    ]);
     expect(result.deadFeeds[0]?.feedTitle).toBe("https://example.com/feed.xml");
   });
 
   it("defaults an unset folder to Uncategorized", () => {
     const result = classifyFeeds([feed({ folder: null })]);
-    expect(result.folderBreakdown).toEqual([{ folder: "Uncategorized", count: 1 }]);
+    expect(result.folderBreakdown).toEqual([
+      { folder: "Uncategorized", count: 1 },
+    ]);
   });
 
   it("estimates weekly post volume from the item date span", () => {
@@ -87,9 +91,24 @@ describe("classifyFeeds — per feed", () => {
 describe("classifyFeeds — classification buckets", () => {
   it("flags feeds posting more than 15 items a week as noisy, most noisy first", () => {
     const result = classifyFeeds([
-      feed({ feed_id: "a", total_items: 70, oldest_item_date: isoDaysAgo(14), newest_item_date: isoDaysAgo(0) }),
-      feed({ feed_id: "b", total_items: 140, oldest_item_date: isoDaysAgo(14), newest_item_date: isoDaysAgo(0) }),
-      feed({ feed_id: "c", total_items: 15, oldest_item_date: isoDaysAgo(14), newest_item_date: isoDaysAgo(0) }),
+      feed({
+        feed_id: "a",
+        total_items: 70,
+        oldest_item_date: isoDaysAgo(14),
+        newest_item_date: isoDaysAgo(0),
+      }),
+      feed({
+        feed_id: "b",
+        total_items: 140,
+        oldest_item_date: isoDaysAgo(14),
+        newest_item_date: isoDaysAgo(0),
+      }),
+      feed({
+        feed_id: "c",
+        total_items: 15,
+        oldest_item_date: isoDaysAgo(14),
+        newest_item_date: isoDaysAgo(0),
+      }),
     ]);
     expect(result.noisyFeeds.map((f) => f.feedId)).toEqual(["b", "a"]);
   });
@@ -117,13 +136,19 @@ describe("classifyFeeds — classification buckets", () => {
   });
 
   it("flags a feed as dead when it was never fetched", () => {
-    const result = classifyFeeds([feed({ feed_id: "never", last_fetched_at: null })]);
+    const result = classifyFeeds([
+      feed({ feed_id: "never", last_fetched_at: null }),
+    ]);
     expect(result.deadFeeds.map((f) => f.feedId)).toEqual(["never"]);
   });
 
   it("flags a feed as dead when its last fetch is far past three fetch intervals", () => {
     const result = classifyFeeds([
-      feed({ feed_id: "broken", last_fetched_at: isoDaysAgo(3), fetch_interval: 900 }),
+      feed({
+        feed_id: "broken",
+        last_fetched_at: isoDaysAgo(3),
+        fetch_interval: 900,
+      }),
     ]);
     expect(result.deadFeeds.map((f) => f.feedId)).toEqual(["broken"]);
   });
@@ -133,12 +158,20 @@ describe("classifyFeeds — classification buckets", () => {
     // 30h old is still alive; 40h old is dead. A dropped `* 1000` or a wrong
     // multiplier would flip one of these two.
     const alive = classifyFeeds([
-      feed({ feed_id: "slow", last_fetched_at: isoDaysAgo(30 / 24), fetch_interval: 43_200 }),
+      feed({
+        feed_id: "slow",
+        last_fetched_at: isoDaysAgo(30 / 24),
+        fetch_interval: 43_200,
+      }),
     ]);
     expect(alive.deadFeeds.map((f) => f.feedId)).toEqual([]);
 
     const dead = classifyFeeds([
-      feed({ feed_id: "slow", last_fetched_at: isoDaysAgo(40 / 24), fetch_interval: 43_200 }),
+      feed({
+        feed_id: "slow",
+        last_fetched_at: isoDaysAgo(40 / 24),
+        fetch_interval: 43_200,
+      }),
     ]);
     expect(dead.deadFeeds.map((f) => f.feedId)).toEqual(["slow"]);
   });

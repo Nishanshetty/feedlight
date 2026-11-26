@@ -24,4 +24,8 @@ export const analyticsRoute = createRoute({
   component: AnalyticsPage,
 });
 
-export const routeTree = rootRoute.addChildren([homeRoute, settingsRoute, analyticsRoute]);
+export const routeTree = rootRoute.addChildren([
+  homeRoute,
+  settingsRoute,
+  analyticsRoute,
+]);

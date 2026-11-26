@@ -204,8 +204,12 @@ pub async fn complete_stream(
 ) -> Result<String, String> {
     match cfg.provider {
         AiProvider::Local => match cfg.protocol {
-            LocalProtocol::Ollama => ollama::complete_stream(cfg, prompt, timeout_secs, on_token).await,
-            LocalProtocol::OpenAi => openai::complete_stream(cfg, prompt, timeout_secs, on_token).await,
+            LocalProtocol::Ollama => {
+                ollama::complete_stream(cfg, prompt, timeout_secs, on_token).await
+            }
+            LocalProtocol::OpenAi => {
+                openai::complete_stream(cfg, prompt, timeout_secs, on_token).await
+            }
         },
         AiProvider::Gemini => gemini::complete_stream(cfg, prompt, timeout_secs, on_token).await,
     }
@@ -297,31 +301,48 @@ mod url_tests {
 
     #[test]
     fn appends_v1_to_a_bare_host_because_that_is_how_people_paste_it() {
-        assert_eq!(openai_base(Some("http://192.168.0.109:8080")), "http://192.168.0.109:8080/v1");
+        assert_eq!(
+            openai_base(Some("http://192.168.0.109:8080")),
+            "http://192.168.0.109:8080/v1"
+        );
     }
 
     #[test]
     fn keeps_v1_when_it_is_already_there() {
-        assert_eq!(openai_base(Some("http://192.168.0.109:8080/v1")), "http://192.168.0.109:8080/v1");
+        assert_eq!(
+            openai_base(Some("http://192.168.0.109:8080/v1")),
+            "http://192.168.0.109:8080/v1"
+        );
     }
 
     #[test]
     fn keeps_a_path_of_its_own_because_not_every_server_mounts_v1() {
         assert_eq!(
-            openai_base(Some("https://generativelanguage.googleapis.com/v1beta/openai")),
+            openai_base(Some(
+                "https://generativelanguage.googleapis.com/v1beta/openai"
+            )),
             "https://generativelanguage.googleapis.com/v1beta/openai"
         );
-        assert_eq!(openai_base(Some("http://192.168.0.109:8080/api")), "http://192.168.0.109:8080/api");
+        assert_eq!(
+            openai_base(Some("http://192.168.0.109:8080/api")),
+            "http://192.168.0.109:8080/api"
+        );
     }
 
     #[test]
     fn a_trailing_slash_still_counts_as_a_bare_host() {
-        assert_eq!(openai_base(Some("http://192.168.0.109:8080/")), "http://192.168.0.109:8080/v1");
+        assert_eq!(
+            openai_base(Some("http://192.168.0.109:8080/")),
+            "http://192.168.0.109:8080/v1"
+        );
     }
 
     #[test]
     fn tolerates_trailing_slashes_and_surrounding_spaces() {
-        assert_eq!(openai_base(Some("  https://api.example.com/v1/  ")), "https://api.example.com/v1");
+        assert_eq!(
+            openai_base(Some("  https://api.example.com/v1/  ")),
+            "https://api.example.com/v1"
+        );
     }
 
     #[test]

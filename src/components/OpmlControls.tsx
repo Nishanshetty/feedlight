@@ -22,11 +22,21 @@ type State =
   | { status: "error"; message: string };
 
 type ParsedFeedItem = {
-  id: string; guid: string; title: string | null; link: string | null;
-  content: string | null; content_hash: string | null; published_at: string | null;
-  author: string | null; thumbnail_url: string | null;
+  id: string;
+  guid: string;
+  title: string | null;
+  link: string | null;
+  content: string | null;
+  content_hash: string | null;
+  published_at: string | null;
+  author: string | null;
+  thumbnail_url: string | null;
 };
-type ParsedFeed = { title: string | null; site_url: string | null; items: ParsedFeedItem[] };
+type ParsedFeed = {
+  title: string | null;
+  site_url: string | null;
+  items: ParsedFeedItem[];
+};
 
 function parseOpml(xml: string): OpmlFeed[] {
   const doc = new DOMParser().parseFromString(xml, "text/xml");
@@ -38,17 +48,29 @@ function parseOpml(xml: string): OpmlFeed[] {
   function walk(node: Element, folder: string) {
     const xmlUrl = node.getAttribute("xmlUrl")?.trim();
     if (xmlUrl) {
-      const title = (node.getAttribute("title") || node.getAttribute("text") || xmlUrl).trim();
+      const title = (
+        node.getAttribute("title") ||
+        node.getAttribute("text") ||
+        xmlUrl
+      ).trim();
       feeds.push({ url: xmlUrl, title, folder });
     } else {
-      const name = (node.getAttribute("title") || node.getAttribute("text") || "").trim();
+      const name = (
+        node.getAttribute("title") ||
+        node.getAttribute("text") ||
+        ""
+      ).trim();
       Array.from(node.children).forEach((child) => walk(child, folder || name));
     }
   }
 
   Array.from(body.children).forEach((child) => walk(child, ""));
   const seen = new Set<string>();
-  return feeds.filter((f) => { if (seen.has(f.url)) return false; seen.add(f.url); return true; });
+  return feeds.filter((f) => {
+    if (seen.has(f.url)) return false;
+    seen.add(f.url);
+    return true;
+  });
 }
 
 type Props = { onImportComplete: () => void };
@@ -57,7 +79,10 @@ export default function OpmlControls({ onImportComplete }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<State>({ status: "idle" });
 
-  const busy = state.status !== "idle" && state.status !== "done" && state.status !== "error";
+  const busy =
+    state.status !== "idle" &&
+    state.status !== "done" &&
+    state.status !== "error";
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -66,14 +91,26 @@ export default function OpmlControls({ onImportComplete }: Props) {
     setState({ status: "parsing" });
 
     const reader = new FileReader();
-    reader.onerror = () => setState({ status: "error", message: "Could not read file" });
+    reader.onerror = () =>
+      setState({ status: "error", message: "Could not read file" });
     reader.onload = async (ev) => {
       try {
         const feeds = parseOpml(ev.target?.result as string);
-        if (feeds.length === 0) { setState({ status: "error", message: "No feed URLs found in OPML file" }); return; }
+        if (feeds.length === 0) {
+          setState({
+            status: "error",
+            message: "No feed URLs found in OPML file",
+          });
+          return;
+        }
 
         setState({ status: "importing", total: feeds.length, done: 0 });
-        const result: ImportResult = { added: 0, alreadySubscribed: 0, failed: 0, errors: [] };
+        const result: ImportResult = {
+          added: 0,
+          alreadySubscribed: 0,
+          failed: 0,
+          errors: [],
+        };
 
         // Check which feeds are already subscribed
         const existing = await getSubscribedFeeds();
@@ -84,27 +121,44 @@ export default function OpmlControls({ onImportComplete }: Props) {
           setState({ status: "importing", total: feeds.length, done: i });
           try {
             new URL(feed.url); // validate URL
-            if (existingUrls.has(feed.url)) { result.alreadySubscribed++; continue; }
+            if (existingUrls.has(feed.url)) {
+              result.alreadySubscribed++;
+              continue;
+            }
 
-            const parsed = await invoke<ParsedFeed>("fetch_feed", { url: feed.url });
+            const parsed = await invoke<ParsedFeed>("fetch_feed", {
+              url: feed.url,
+            });
             const feedId = uuidv4();
             await addFeed(
-              { id: feedId, url: feed.url, title: parsed.title ?? feed.title, site_url: parsed.site_url },
+              {
+                id: feedId,
+                url: feed.url,
+                title: parsed.title ?? feed.title,
+                site_url: parsed.site_url,
+              },
               feed.folder || null,
-              uuidv4()
+              uuidv4(),
             );
-            await upsertFeedItems(parsed.items.map((item) => ({ ...item, feed_id: feedId })));
+            await upsertFeedItems(
+              parsed.items.map((item) => ({ ...item, feed_id: feedId })),
+            );
             result.added++;
           } catch (err) {
             result.failed++;
-            result.errors.push(`${feed.url}: ${err instanceof Error ? err.message : String(err)}`);
+            result.errors.push(
+              `${feed.url}: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         }
 
         setState({ status: "done", result });
         if (result.added > 0) onImportComplete();
       } catch (err) {
-        setState({ status: "error", message: err instanceof Error ? err.message : "Failed to parse OPML" });
+        setState({
+          status: "error",
+          message: err instanceof Error ? err.message : "Failed to parse OPML",
+        });
       }
     };
     reader.readAsText(file);
@@ -116,26 +170,61 @@ export default function OpmlControls({ onImportComplete }: Props) {
       await exportFeedsToOpml();
       setState({ status: "idle" });
     } catch (err) {
-      setState({ status: "error", message: err instanceof Error ? err.message : "Export failed" });
+      setState({
+        status: "error",
+        message: err instanceof Error ? err.message : "Export failed",
+      });
     }
   }
 
   return (
     <div className="space-y-2">
-      <input ref={fileRef} type="file" accept=".opml,.xml" className="hidden" onChange={handleFileChange} />
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".opml,.xml"
+        className="hidden"
+        onChange={handleFileChange}
+      />
 
       <div className="flex gap-1.5">
-        <button onClick={() => fileRef.current?.click()} disabled={busy}
-          className="flex flex-1 items-center justify-center gap-1.5 ghost-border bg-surface-container px-2 py-1.5 text-ui-small font-label text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50">
-          <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+          className="flex flex-1 items-center justify-center gap-1.5 ghost-border bg-surface-container px-2 py-1.5 text-ui-small font-label text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50"
+        >
+          <svg
+            className="h-3.5 w-3.5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+            />
           </svg>
           Import
         </button>
-        <button onClick={handleExport} disabled={busy}
-          className="flex flex-1 items-center justify-center gap-1.5 ghost-border bg-surface-container px-2 py-1.5 text-ui-small font-label text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50">
-          <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        <button
+          onClick={handleExport}
+          disabled={busy}
+          className="flex flex-1 items-center justify-center gap-1.5 ghost-border bg-surface-container px-2 py-1.5 text-ui-small font-label text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-50"
+        >
+          <svg
+            className="h-3.5 w-3.5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+            />
           </svg>
           Export
         </button>
@@ -152,23 +241,42 @@ export default function OpmlControls({ onImportComplete }: Props) {
       {state.status === "done" && (
         <div className="ghost-border bg-surface-container-low p-2 text-ui-small font-label space-y-0.5">
           <p className="font-bold text-primary">Import complete</p>
-          <p className="text-on-surface-variant">{state.result.added} added · {state.result.alreadySubscribed} already subscribed · {state.result.failed} failed</p>
+          <p className="text-on-surface-variant">
+            {state.result.added} added · {state.result.alreadySubscribed}{" "}
+            already subscribed · {state.result.failed} failed
+          </p>
           {state.result.errors.length > 0 && (
-            <details><summary className="cursor-pointer text-outline">
-              {state.result.errors.length} error{state.result.errors.length !== 1 ? "s" : ""}
-            </summary>
+            <details>
+              <summary className="cursor-pointer text-outline">
+                {state.result.errors.length} error
+                {state.result.errors.length !== 1 ? "s" : ""}
+              </summary>
               <ul className="mt-1 space-y-0.5">
-                {state.result.errors.slice(0, 5).map((m, i) => <li key={i} className="truncate text-error">{m}</li>)}
+                {state.result.errors.slice(0, 5).map((m, i) => (
+                  <li key={i} className="truncate text-error">
+                    {m}
+                  </li>
+                ))}
               </ul>
             </details>
           )}
-          <button onClick={() => setState({ status: "idle" })} className="text-outline hover:text-on-surface mt-1">Dismiss</button>
+          <button
+            onClick={() => setState({ status: "idle" })}
+            className="text-outline hover:text-on-surface mt-1"
+          >
+            Dismiss
+          </button>
         </div>
       )}
       {state.status === "error" && (
         <div className="ghost-border bg-surface-container-low p-2 text-ui-small font-label flex items-start justify-between gap-2">
           <p className="text-error">{state.message}</p>
-          <button onClick={() => setState({ status: "idle" })} className="shrink-0 text-outline hover:text-on-surface">✕</button>
+          <button
+            onClick={() => setState({ status: "idle" })}
+            className="shrink-0 text-outline hover:text-on-surface"
+          >
+            ✕
+          </button>
         </div>
       )}
     </div>

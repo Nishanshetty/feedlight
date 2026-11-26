@@ -58,7 +58,7 @@ export interface TimelineItem {
   is_saved: boolean;
   is_starred: boolean;
   read_progress: number; // 0..1 scroll progress in the article pane
-  tags: string[];        // tag names applied to this item
+  tags: string[]; // tag names applied to this item
 }
 
 export interface Tag {
@@ -72,13 +72,13 @@ export interface TagWithCount extends Tag {
 
 export interface TimelineOptions {
   feedIds: string[];
-  cursor: string;       // ISO8601 — items strictly older than this; pass far-future for first page
+  cursor: string; // ISO8601 — items strictly older than this; pass far-future for first page
   since: string | null; // ISO8601 lower bound, null means no lower bound
   limit: number;
   unreadOnly: boolean;
   starredOnly?: boolean;
-  query?: string;       // title/content substring search
-  tagId?: string;       // restrict to items carrying this tag
+  query?: string; // title/content substring search
+  tagId?: string; // restrict to items carrying this tag
 }
 
 // Shape returned by getFeedAnalytics()

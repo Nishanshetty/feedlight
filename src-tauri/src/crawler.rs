@@ -130,10 +130,7 @@ async fn fetch_items(client: &Client, url: &str) -> Result<Vec<FeedItem>, String
                 let stripped = strip_html(&s.content);
                 stripped.chars().take(300).collect::<String>()
             });
-            let published_at = entry
-                .published
-                .or(entry.updated)
-                .map(|dt| dt.to_rfc3339());
+            let published_at = entry.published.or(entry.updated).map(|dt| dt.to_rfc3339());
             let author = entry.authors.first().map(|a| a.name.clone());
             let thumbnail_url = entry
                 .media
@@ -202,10 +199,11 @@ pub async fn do_refresh(app: &AppHandle) -> Result<RefreshResult, String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    let rows = sqlx::query("SELECT f.id, f.url FROM feeds f JOIN subscriptions s ON s.feed_id = f.id")
-        .fetch_all(&pool)
-        .await
-        .map_err(|e| format!("Failed to query feeds: {e}"))?;
+    let rows =
+        sqlx::query("SELECT f.id, f.url FROM feeds f JOIN subscriptions s ON s.feed_id = f.id")
+            .fetch_all(&pool)
+            .await
+            .map_err(|e| format!("Failed to query feeds: {e}"))?;
 
     let feeds_checked = rows.len();
     let mut new_items: usize = 0;
@@ -348,7 +346,10 @@ pub async fn do_refresh(app: &AppHandle) -> Result<RefreshResult, String> {
     }
 
     pool.close().await;
-    Ok(RefreshResult { new_items, feeds_checked })
+    Ok(RefreshResult {
+        new_items,
+        feeds_checked,
+    })
 }
 
 /// Reads the user's auto-refresh interval (seconds) from the settings store.

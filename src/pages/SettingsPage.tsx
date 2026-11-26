@@ -3,20 +3,39 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Link } from "@tanstack/react-router";
 import {
-  getYouTubeApiKey, setYouTubeApiKey,
-  getAiSettings, setAiSettings, aiConfig,
-  getGeminiApiKey, setGeminiApiKey, GEMINI_DEFAULT_MODEL,
-  getLocalAiApiKey, setLocalAiApiKey,
-  getRefreshIntervalSecs, setRefreshIntervalSecs,
-  getObsidianVaultPath, setObsidianVaultPath,
-  getGoogleTtsApiKey, setGoogleTtsApiKey,
-  getTtsEngine, setTtsEngine,
-  getGoogleTtsVoice, setGoogleTtsVoice,
-  getElevenLabsApiKey, setElevenLabsApiKey,
-  getElevenLabsVoice, setElevenLabsVoice,
-  getElevenLabsModel, setElevenLabsModel, ELEVENLABS_DEFAULT_MODEL,
+  getYouTubeApiKey,
+  setYouTubeApiKey,
+  getAiSettings,
+  setAiSettings,
+  aiConfig,
+  getGeminiApiKey,
+  setGeminiApiKey,
+  GEMINI_DEFAULT_MODEL,
+  getLocalAiApiKey,
+  setLocalAiApiKey,
+  getRefreshIntervalSecs,
+  setRefreshIntervalSecs,
+  getObsidianVaultPath,
+  setObsidianVaultPath,
+  getGoogleTtsApiKey,
+  setGoogleTtsApiKey,
+  getTtsEngine,
+  setTtsEngine,
+  getGoogleTtsVoice,
+  setGoogleTtsVoice,
+  getElevenLabsApiKey,
+  setElevenLabsApiKey,
+  getElevenLabsVoice,
+  setElevenLabsVoice,
+  getElevenLabsModel,
+  setElevenLabsModel,
+  ELEVENLABS_DEFAULT_MODEL,
   resetSettings,
-  type AiSettings, type AiProvider, type LocalProtocol, type TtsEngine, type LocalModel,
+  type AiSettings,
+  type AiProvider,
+  type LocalProtocol,
+  type TtsEngine,
+  type LocalModel,
 } from "../lib/settings";
 import { eraseAllData } from "../lib/db";
 import { exportFeedsToOpml } from "../lib/opml";
@@ -24,28 +43,64 @@ import { exportFeedsToOpml } from "../lib/opml";
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 function SettingField({
-  label, description, value, onChange, onSave, placeholder, type = "text", saveState,
+  label,
+  description,
+  value,
+  onChange,
+  onSave,
+  placeholder,
+  type = "text",
+  saveState,
 }: {
-  label: string; description: string; value: string; onChange: (v: string) => void;
-  onSave: () => void; placeholder: string; type?: string; saveState: SaveState;
+  label: string;
+  description: string;
+  value: string;
+  onChange: (v: string) => void;
+  onSave: () => void;
+  placeholder: string;
+  type?: string;
+  saveState: SaveState;
 }) {
   return (
     <div className="border border-outline-variant p-5 space-y-3">
       <div>
-        <p className="text-sm font-headline font-semibold text-on-surface">{label}</p>
-        <p className="text-xs font-body text-on-surface-variant mt-0.5">{description}</p>
+        <p className="text-sm font-headline font-semibold text-on-surface">
+          {label}
+        </p>
+        <p className="text-xs font-body text-on-surface-variant mt-0.5">
+          {description}
+        </p>
       </div>
       <div className="flex gap-2">
         {type === "textarea" ? (
-          <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={4}
-            className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary resize-y" />
+          <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            rows={4}
+            className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+          />
         ) : (
-          <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-            className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary" />
+          <input
+            type={type}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
+          />
         )}
-        <button onClick={onSave} disabled={saveState === "saving"}
-          className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
-          {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : saveState === "error" ? "Error" : "Save"}
+        <button
+          onClick={onSave}
+          disabled={saveState === "saving"}
+          className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+        >
+          {saveState === "saving"
+            ? "Saving…"
+            : saveState === "saved"
+              ? "Saved ✓"
+              : saveState === "error"
+                ? "Error"
+                : "Save"}
         </button>
       </div>
     </div>
@@ -67,13 +122,15 @@ function FeedSyncingSection() {
   const [customMins, setCustomMins] = useState("30");
 
   useEffect(() => {
-    getRefreshIntervalSecs().then((s) => {
-      setSecs(s);
-      if (!SYNC_PRESETS.some((p) => p.secs === s)) {
-        setIsCustom(true);
-        setCustomMins(String(Math.max(1, Math.round(s / 60))));
-      }
-    }).catch(console.error);
+    getRefreshIntervalSecs()
+      .then((s) => {
+        setSecs(s);
+        if (!SYNC_PRESETS.some((p) => p.secs === s)) {
+          setIsCustom(true);
+          setCustomMins(String(Math.max(1, Math.round(s / 60))));
+        }
+      })
+      .catch(console.error);
   }, []);
 
   function save(next: number) {
@@ -101,33 +158,52 @@ function FeedSyncingSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">Feed Syncing</h2>
+      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">
+        Feed Syncing
+      </h2>
       <div className="border border-outline-variant p-5 space-y-3">
         <div>
-          <p className="text-sm font-headline font-semibold text-on-surface">Auto-refresh interval</p>
+          <p className="text-sm font-headline font-semibold text-on-surface">
+            Auto-refresh interval
+          </p>
           <p className="text-xs font-body text-on-surface-variant mt-0.5">
-            How often Feedlight checks your feeds for new articles in the background.
-            "Manual only" turns off auto-refresh — you can still refresh anytime with the
-            toolbar button. Changes take effect within a minute.
+            How often Feedlight checks your feeds for new articles in the
+            background. "Manual only" turns off auto-refresh — you can still
+            refresh anytime with the toolbar button. Changes take effect within
+            a minute.
           </p>
         </div>
         <select
           value={isCustom ? "custom" : String(secs)}
           onChange={(e) => onSelect(e.target.value)}
-          className="w-full ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
-          {SYNC_PRESETS.map((p) => <option key={p.secs} value={p.secs}>{p.label}</option>)}
+          className="w-full ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          {SYNC_PRESETS.map((p) => (
+            <option key={p.secs} value={p.secs}>
+              {p.label}
+            </option>
+          ))}
           <option value="custom">Custom…</option>
         </select>
         {isCustom && (
           <div className="flex items-center gap-2">
             <input
-              type="number" min={1} value={customMins}
+              type="number"
+              min={1}
+              value={customMins}
               onChange={(e) => setCustomMins(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") saveCustom(); }}
-              className="w-24 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary" />
-            <span className="text-xs font-body text-on-surface-variant">minutes</span>
-            <button onClick={saveCustom}
-              className="ml-auto shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90">
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveCustom();
+              }}
+              className="w-24 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <span className="text-xs font-body text-on-surface-variant">
+              minutes
+            </span>
+            <button
+              onClick={saveCustom}
+              className="ml-auto shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90"
+            >
               Set
             </button>
           </div>
@@ -139,14 +215,26 @@ function FeedSyncingSection() {
 
 type AiCheckState = "idle" | "checking" | "ok" | "error";
 
-const AI_PROVIDERS: { value: AiProvider; label: string; description: string }[] = [
+const AI_PROVIDERS: {
+  value: AiProvider;
+  label: string;
+  description: string;
+}[] = [
   { value: "local", label: "Local", description: "Your machine · private" },
   { value: "gemini", label: "Gemini", description: "Google · API key" },
 ];
 
-const LOCAL_PROTOCOLS: { value: LocalProtocol; label: string; description: string }[] = [
+const LOCAL_PROTOCOLS: {
+  value: LocalProtocol;
+  label: string;
+  description: string;
+}[] = [
   { value: "ollama", label: "Ollama", description: "/api/chat · port 11434" },
-  { value: "openai", label: "OpenAI-compatible", description: "/v1/chat/completions · llama.cpp, vLLM, LM Studio" },
+  {
+    value: "openai",
+    label: "OpenAI-compatible",
+    description: "/v1/chat/completions · llama.cpp, vLLM, LM Studio",
+  },
 ];
 
 /** Suggested Gemini models. The field stays free-text so new ones work day one. */
@@ -166,8 +254,12 @@ function modelHint(m: LocalModel): string {
 
 function AiSection() {
   const [settings, setSettings] = useState<AiSettings>({
-    enabled: false, provider: "local", localProtocol: "ollama",
-    localApiUrl: "http://localhost:11434", localModel: "llama3.2", geminiModel: GEMINI_DEFAULT_MODEL,
+    enabled: false,
+    provider: "local",
+    localProtocol: "ollama",
+    localApiUrl: "http://localhost:11434",
+    localModel: "llama3.2",
+    geminiModel: GEMINI_DEFAULT_MODEL,
   });
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [checkState, setCheckState] = useState<AiCheckState>("idle");
@@ -178,7 +270,9 @@ function AiSection() {
   const [hasLocalKey, setHasLocalKey] = useState(false);
   const [keySaveState, setKeySaveState] = useState<SaveState>("idle");
   const [localModels, setLocalModels] = useState<LocalModel[] | null>(null);
-  const [modelsState, setModelsState] = useState<"idle" | "loading" | "error">("idle");
+  const [modelsState, setModelsState] = useState<"idle" | "loading" | "error">(
+    "idle",
+  );
   const [modelsMessage, setModelsMessage] = useState("");
   // Id of the latest model-list request; anything older that lands late is
   // dropped instead of overwriting the list for the protocol now selected.
@@ -190,13 +284,18 @@ function AiSection() {
         setSettings(loaded);
         // One listing per settings load, keyed to the URL as saved — typing a
         // new URL reloads the list on blur instead of on every keystroke.
-        if (loaded.provider === "local") loadLocalModels(loaded.localApiUrl, loaded.localProtocol);
+        if (loaded.provider === "local")
+          loadLocalModels(loaded.localApiUrl, loaded.localProtocol);
       })
       .catch(console.error);
     // Only whether a key exists — never the key itself, so the secret stays out
     // of component state and the DOM.
-    getGeminiApiKey().then((k) => setHasGeminiKey(!!k.trim())).catch(console.error);
-    getLocalAiApiKey().then((k) => setHasLocalKey(!!k.trim())).catch(console.error);
+    getGeminiApiKey()
+      .then((k) => setHasGeminiKey(!!k.trim()))
+      .catch(console.error);
+    getLocalAiApiKey()
+      .then((k) => setHasLocalKey(!!k.trim()))
+      .catch(console.error);
   }, []);
 
   async function save(updated: AiSettings) {
@@ -256,7 +355,10 @@ function AiSection() {
   }
 
   /** Lists whatever models the Local provider exposes, over its protocol. */
-  async function loadLocalModels(url = settings.localApiUrl, protocol = settings.localProtocol) {
+  async function loadLocalModels(
+    url = settings.localApiUrl,
+    protocol = settings.localProtocol,
+  ) {
     // Mount, protocol clicks, URL blur and Reload all call this, and the slowest
     // answer would otherwise win: click OpenAI-compatible, then quickly Ollama,
     // and the picker could show the OpenAI list under the Ollama protocol.
@@ -264,14 +366,17 @@ function AiSection() {
     setModelsState("loading");
     setModelsMessage("");
     try {
-      const list = await invoke<LocalModel[]>("list_local_models", { baseUrl: url, protocol });
+      const list = await invoke<LocalModel[]>("list_local_models", {
+        baseUrl: url,
+        protocol,
+      });
       if (requestId !== modelsRequestRef.current) return;
       setLocalModels(list);
       setModelsState("idle");
       setModelsMessage(
         list.length === 0
           ? "Server reachable, but it reports no models."
-          : `${list.length} model${list.length === 1 ? "" : "s"} available`
+          : `${list.length} model${list.length === 1 ? "" : "s"} available`,
       );
     } catch (err) {
       if (requestId !== modelsRequestRef.current) return;
@@ -300,11 +405,16 @@ function AiSection() {
       setCheckState("ok");
     } else if (models.length > 0) {
       setCheckMessage(
-        `Server reachable. Model "${wanted}" not found. Available: ${models.slice(0, 3).map((m) => m.name).join(", ")}`
+        `Server reachable. Model "${wanted}" not found. Available: ${models
+          .slice(0, 3)
+          .map((m) => m.name)
+          .join(", ")}`,
       );
       setCheckState("error");
     } else {
-      setCheckMessage("Server reachable but it reports no models. Load one, then reload the list.");
+      setCheckMessage(
+        "Server reachable but it reports no models. Load one, then reload the list.",
+      );
       setCheckState("error");
     }
   }
@@ -323,7 +433,9 @@ function AiSection() {
       else await checkLocal();
     } catch (err) {
       const msg = String(err);
-      setCheckMessage(msg.includes("no_api_key") ? "No Gemini API key saved yet." : msg);
+      setCheckMessage(
+        msg.includes("no_api_key") ? "No Gemini API key saved yet." : msg,
+      );
       setCheckState("error");
     }
   }
@@ -338,12 +450,16 @@ function AiSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">AI</h2>
+      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">
+        AI
+      </h2>
 
       {/* Enable toggle */}
       <div className="border border-outline-variant p-5 flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-headline font-semibold text-on-surface">Enable AI Features</p>
+          <p className="text-sm font-headline font-semibold text-on-surface">
+            Enable AI Features
+          </p>
           <p className="text-xs font-body text-on-surface-variant mt-0.5">
             Adds summaries, key takeaways, article chat and the daily digest.
           </p>
@@ -354,21 +470,30 @@ function AiSection() {
           onClick={() => update({ enabled: !settings.enabled })}
           className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${settings.enabled ? "bg-primary" : "bg-outline/30"}`}
         >
-          <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${settings.enabled ? "translate-x-5" : "translate-x-0"}`} />
+          <span
+            className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${settings.enabled ? "translate-x-5" : "translate-x-0"}`}
+          />
         </button>
       </div>
 
       {/* Provider picker */}
       <div className="flex gap-2">
         {AI_PROVIDERS.map((opt) => (
-          <button key={opt.value} onClick={() => update({ provider: opt.value })} aria-pressed={settings.provider === opt.value}
-            className={["flex-1 px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] transition-colors",
+          <button
+            key={opt.value}
+            onClick={() => update({ provider: opt.value })}
+            aria-pressed={settings.provider === opt.value}
+            className={[
+              "flex-1 px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] transition-colors",
               settings.provider === opt.value
                 ? "bg-primary-container text-on-primary-container"
                 : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
-            ].join(" ")}>
+            ].join(" ")}
+          >
             {opt.label}
-            <span className="mt-0.5 block text-ui-small font-normal normal-case tracking-normal opacity-70">{opt.description}</span>
+            <span className="mt-0.5 block text-ui-small font-normal normal-case tracking-normal opacity-70">
+              {opt.description}
+            </span>
           </button>
         ))}
       </div>
@@ -378,7 +503,9 @@ function AiSection() {
         {settings.provider === "local" ? (
           <>
             <div className="space-y-2">
-              <p className="text-sm font-headline font-semibold text-on-surface">Protocol</p>
+              <p className="text-sm font-headline font-semibold text-on-surface">
+                Protocol
+              </p>
               <div className="flex gap-2">
                 {LOCAL_PROTOCOLS.map((opt) => (
                   <button
@@ -405,21 +532,34 @@ function AiSection() {
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-headline font-semibold text-on-surface">Local API URL</p>
+              <p className="text-sm font-headline font-semibold text-on-surface">
+                Local API URL
+              </p>
               <div className="flex gap-2">
                 <input
                   value={settings.localApiUrl}
-                  onChange={(e) => setSettings((s) => ({ ...s, localApiUrl: e.target.value }))}
-                  onBlur={() => { save(settings); loadLocalModels(settings.localApiUrl); }}
-                  placeholder={settings.localProtocol === "ollama" ? "http://localhost:11434" : "http://192.168.1.10:8080/v1"}
+                  onChange={(e) =>
+                    setSettings((s) => ({ ...s, localApiUrl: e.target.value }))
+                  }
+                  onBlur={() => {
+                    save(settings);
+                    loadLocalModels(settings.localApiUrl);
+                  }}
+                  placeholder={
+                    settings.localProtocol === "ollama"
+                      ? "http://localhost:11434"
+                      : "http://192.168.1.10:8080/v1"
+                  }
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               {settings.localProtocol === "openai" && (
                 <p className="text-ui-small font-body text-on-surface-variant">
-                  <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">/v1</code> is
-                  added only when the URL has no path, so the bare host works and a server mounted
-                  somewhere else keeps its own path.
+                  <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">
+                    /v1
+                  </code>{" "}
+                  is added only when the URL has no path, so the bare host works
+                  and a server mounted somewhere else keeps its own path.
                 </p>
               )}
             </div>
@@ -430,17 +570,24 @@ function AiSection() {
                 keychain and reappears with that protocol. */}
             {settings.localProtocol === "openai" && (
               <div className="space-y-2">
-                <p className="text-sm font-headline font-semibold text-on-surface">API Key</p>
+                <p className="text-sm font-headline font-semibold text-on-surface">
+                  API Key
+                </p>
                 <p className="text-xs font-body text-on-surface-variant">
-                  Sent as a bearer token, stored in your macOS keychain, never written to the settings
-                  file. Most OpenAI-compatible servers require one.
+                  Sent as a bearer token, stored in your macOS keychain, never
+                  written to the settings file. Most OpenAI-compatible servers
+                  require one.
                 </p>
                 <div className="flex gap-2">
                   <input
                     type="password"
                     value={localKey}
                     onChange={(e) => setLocalKey(e.target.value)}
-                    placeholder={hasLocalKey ? "••••••••  saved — enter a new key to replace" : "Bearer token"}
+                    placeholder={
+                      hasLocalKey
+                        ? "••••••••  saved — enter a new key to replace"
+                        : "Bearer token"
+                    }
                     className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                   <button
@@ -448,7 +595,13 @@ function AiSection() {
                     disabled={keySaveState === "saving" || !localKey.trim()}
                     className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
                   >
-                    {keySaveState === "saving" ? "Saving…" : keySaveState === "saved" ? "Saved ✓" : keySaveState === "error" ? "Error" : "Save"}
+                    {keySaveState === "saving"
+                      ? "Saving…"
+                      : keySaveState === "saved"
+                        ? "Saved ✓"
+                        : keySaveState === "error"
+                          ? "Error"
+                          : "Save"}
                   </button>
                   {hasLocalKey && (
                     <button
@@ -465,7 +618,9 @@ function AiSection() {
 
             <div className="space-y-2">
               <div className="flex items-baseline justify-between gap-2">
-                <p className="text-sm font-headline font-semibold text-on-surface">Model</p>
+                <p className="text-sm font-headline font-semibold text-on-surface">
+                  Model
+                </p>
                 <button
                   onClick={() => loadLocalModels()}
                   disabled={modelsState === "loading"}
@@ -477,7 +632,9 @@ function AiSection() {
               <div className="flex gap-2">
                 <input
                   value={settings.localModel}
-                  onChange={(e) => setSettings((s) => ({ ...s, localModel: e.target.value }))}
+                  onChange={(e) =>
+                    setSettings((s) => ({ ...s, localModel: e.target.value }))
+                  }
                   onBlur={() => save(settings)}
                   placeholder="llama3.2"
                   list="local-models"
@@ -485,7 +642,9 @@ function AiSection() {
                 />
                 <datalist id="local-models">
                   {(localModels ?? []).map((m) => (
-                    <option key={m.name} value={m.name}>{modelHint(m)}</option>
+                    <option key={m.name} value={m.name}>
+                      {modelHint(m)}
+                    </option>
                   ))}
                 </datalist>
                 <button
@@ -517,7 +676,9 @@ function AiSection() {
                 </div>
               )}
               {modelsMessage && (
-                <p className={`text-ui-small font-body ${modelsState === "error" ? "text-error" : "text-on-surface-variant"}`}>
+                <p
+                  className={`text-ui-small font-body ${modelsState === "error" ? "text-error" : "text-on-surface-variant"}`}
+                >
                   {modelsMessage}
                 </p>
               )}
@@ -526,16 +687,23 @@ function AiSection() {
         ) : (
           <>
             <div className="space-y-2">
-              <p className="text-sm font-headline font-semibold text-on-surface">Gemini API Key</p>
+              <p className="text-sm font-headline font-semibold text-on-surface">
+                Gemini API Key
+              </p>
               <p className="text-xs font-body text-on-surface-variant">
-                Stored in your macOS keychain. Article text is sent to Google when Gemini is selected.
+                Stored in your macOS keychain. Article text is sent to Google
+                when Gemini is selected.
               </p>
               <div className="flex gap-2">
                 <input
                   type="password"
                   value={geminiKey}
                   onChange={(e) => setGeminiKey(e.target.value)}
-                  placeholder={hasGeminiKey ? "••••••••  saved — enter a new key to replace" : "Paste your AI Studio key"}
+                  placeholder={
+                    hasGeminiKey
+                      ? "••••••••  saved — enter a new key to replace"
+                      : "Paste your AI Studio key"
+                  }
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <button
@@ -543,24 +711,38 @@ function AiSection() {
                   disabled={keySaveState === "saving" || !geminiKey.trim()}
                   className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
                 >
-                  {keySaveState === "saving" ? "Saving…" : keySaveState === "saved" ? "Saved ✓" : keySaveState === "error" ? "Error" : "Save"}
+                  {keySaveState === "saving"
+                    ? "Saving…"
+                    : keySaveState === "saved"
+                      ? "Saved ✓"
+                      : keySaveState === "error"
+                        ? "Error"
+                        : "Save"}
                 </button>
               </div>
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-headline font-semibold text-on-surface">Model</p>
+              <p className="text-sm font-headline font-semibold text-on-surface">
+                Model
+              </p>
               <div className="flex gap-2">
                 <input
                   value={settings.geminiModel}
-                  onChange={(e) => setSettings((s) => ({ ...s, geminiModel: e.target.value }))}
+                  onChange={(e) =>
+                    setSettings((s) => ({ ...s, geminiModel: e.target.value }))
+                  }
                   onBlur={() => save(settings)}
                   placeholder={GEMINI_DEFAULT_MODEL}
                   list="gemini-models"
                   className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <datalist id="gemini-models">
-                  {GEMINI_MODELS.map((m) => <option key={m.value} value={m.value}>{m.hint}</option>)}
+                  {GEMINI_MODELS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.hint}
+                    </option>
+                  ))}
                 </datalist>
                 <button
                   onClick={checkConnection}
@@ -575,27 +757,50 @@ function AiSection() {
         )}
 
         {checkMessage && (
-          <p className={`text-ui-small font-body ${checkState === "ok" ? "text-primary" : "text-error"}`}>
-            {checkState === "ok" ? "✓ " : "✗ "}{checkMessage}
+          <p
+            className={`text-ui-small font-body ${checkState === "ok" ? "text-primary" : "text-error"}`}
+          >
+            {checkState === "ok" ? "✓ " : "✗ "}
+            {checkMessage}
           </p>
         )}
 
         {settings.provider === "local" ? (
           <p className="text-ui-small font-body text-on-surface-variant">
             {settings.localProtocol === "ollama" ? (
-              <>To install a model: <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">ollama pull {settings.localModel || "llama3.2"}</code></>
+              <>
+                To install a model:{" "}
+                <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">
+                  ollama pull {settings.localModel || "llama3.2"}
+                </code>
+              </>
             ) : (
-              <>Requests go to <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">{settings.localApiUrl || "http://192.168.1.10:8080/v1"}</code> as <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">/v1/chat/completions</code> — nothing leaves your network.</>
+              <>
+                Requests go to{" "}
+                <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">
+                  {settings.localApiUrl || "http://192.168.1.10:8080/v1"}
+                </code>{" "}
+                as{" "}
+                <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">
+                  /v1/chat/completions
+                </code>{" "}
+                — nothing leaves your network.
+              </>
             )}
           </p>
         ) : (
           <p className="text-ui-small font-body text-on-surface-variant">
-            Get a key at <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">aistudio.google.com/apikey</code>
+            Get a key at{" "}
+            <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small">
+              aistudio.google.com/apikey
+            </code>
           </p>
         )}
 
         {saveState === "saved" && (
-          <p className="text-ui-small font-label text-primary">Settings saved ✓</p>
+          <p className="text-ui-small font-label text-primary">
+            Settings saved ✓
+          </p>
         )}
       </div>
     </section>
@@ -609,16 +814,25 @@ type GoogleVoice = {
   naturalSampleRateHertz?: number;
 };
 
-const TTS_ENGINES: { value: TtsEngine; label: string; description: string }[] = [
-  { value: "system", label: "System", description: "Free, offline" },
-  { value: "google", label: "Google", description: "Your API key" },
-  { value: "elevenlabs", label: "ElevenLabs", description: "Premium · paid" },
-];
+const TTS_ENGINES: { value: TtsEngine; label: string; description: string }[] =
+  [
+    { value: "system", label: "System", description: "Free, offline" },
+    { value: "google", label: "Google", description: "Your API key" },
+    { value: "elevenlabs", label: "ElevenLabs", description: "Premium · paid" },
+  ];
 
 const ELEVEN_MODELS: { value: string; label: string; hint: string }[] = [
   { value: "eleven_turbo_v2_5", label: "Turbo v2.5", hint: "Fast, ~½ credits" },
-  { value: "eleven_flash_v2_5", label: "Flash v2.5", hint: "Fastest, ~½ credits" },
-  { value: "eleven_multilingual_v2", label: "Multilingual v2", hint: "Highest quality" },
+  {
+    value: "eleven_flash_v2_5",
+    label: "Flash v2.5",
+    hint: "Fastest, ~½ credits",
+  },
+  {
+    value: "eleven_multilingual_v2",
+    label: "Multilingual v2",
+    hint: "Highest quality",
+  },
 ];
 
 type ElevenVoice = { voice_id: string; name: string; category?: string };
@@ -634,8 +848,14 @@ function ElevenLabsVoiceSettings() {
   const [model, setModel] = useState(ELEVENLABS_DEFAULT_MODEL);
 
   useEffect(() => {
-    getElevenLabsApiKey().then((k) => setHasKey(!!k.trim())).catch(console.error);
-    getElevenLabsVoice().then((v) => { if (v) setVoiceId(v.id); }).catch(console.error);
+    getElevenLabsApiKey()
+      .then((k) => setHasKey(!!k.trim()))
+      .catch(console.error);
+    getElevenLabsVoice()
+      .then((v) => {
+        if (v) setVoiceId(v.id);
+      })
+      .catch(console.error);
     getElevenLabsModel().then(setModel).catch(console.error);
   }, []);
 
@@ -683,50 +903,97 @@ function ElevenLabsVoiceSettings() {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <p className="text-sm font-headline font-semibold text-on-surface">ElevenLabs API Key</p>
+        <p className="text-sm font-headline font-semibold text-on-surface">
+          ElevenLabs API Key
+        </p>
         <p className="text-xs font-body text-on-surface-variant">
-          Create a key at elevenlabs.io → Profile → API Keys, then paste it here. ElevenLabs is a
-          paid, premium voice — billed per character to your own account.
+          Create a key at elevenlabs.io → Profile → API Keys, then paste it
+          here. ElevenLabs is a paid, premium voice — billed per character to
+          your own account.
         </p>
         <div className="flex gap-2">
-          <input type="password" value={key} onChange={(e) => setKey(e.target.value)}
-            placeholder={hasKey ? "••••••••  saved — enter a new key to replace" : "sk_..."}
-            className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary" />
-          <button onClick={saveKey} disabled={keySave === "saving"}
-            className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
-            {keySave === "saving" ? "Saving…" : keySave === "saved" ? "Saved ✓" : keySave === "error" ? "Error" : "Save"}
+          <input
+            type="password"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder={
+              hasKey ? "••••••••  saved — enter a new key to replace" : "sk_..."
+            }
+            className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <button
+            onClick={saveKey}
+            disabled={keySave === "saving"}
+            className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            {keySave === "saving"
+              ? "Saving…"
+              : keySave === "saved"
+                ? "Saved ✓"
+                : keySave === "error"
+                  ? "Error"
+                  : "Save"}
           </button>
         </div>
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-headline font-semibold text-on-surface">Model</p>
-        <select value={model} onChange={(e) => chooseModel(e.target.value)}
-          className="w-full ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
-          {ELEVEN_MODELS.map((m) => <option key={m.value} value={m.value}>{m.label} — {m.hint}</option>)}
+        <p className="text-sm font-headline font-semibold text-on-surface">
+          Model
+        </p>
+        <select
+          value={model}
+          onChange={(e) => chooseModel(e.target.value)}
+          className="w-full ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          {ELEVEN_MODELS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label} — {m.hint}
+            </option>
+          ))}
         </select>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
-          <button onClick={loadVoices} disabled={loading || (!hasKey && !key.trim())}
-            className="shrink-0 ghost-border px-3 py-1.5 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant transition-opacity hover:opacity-90 disabled:opacity-40">
+          <p className="text-sm font-headline font-semibold text-on-surface">
+            Voice
+          </p>
+          <button
+            onClick={loadVoices}
+            disabled={loading || (!hasKey && !key.trim())}
+            className="shrink-0 ghost-border px-3 py-1.5 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
             {loading ? "Loading…" : voices ? "Reload" : "Load voices"}
           </button>
         </div>
         {!voices && !error && (
           <p className="text-xs font-body text-on-surface-variant">
-            {hasKey ? "Load voices to choose one." : "Save your API key to load voices."}
+            {hasKey
+              ? "Load voices to choose one."
+              : "Save your API key to load voices."}
           </p>
         )}
         {voices && (
-          <select value={voiceId} onChange={(e) => { const v = voices.find((x) => x.voice_id === e.target.value); if (v) chooseVoice(v); }}
-            className="w-full ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
-            {voices.map((v) => <option key={v.voice_id} value={v.voice_id}>{v.name}{v.category ? ` · ${v.category}` : ""}</option>)}
+          <select
+            value={voiceId}
+            onChange={(e) => {
+              const v = voices.find((x) => x.voice_id === e.target.value);
+              if (v) chooseVoice(v);
+            }}
+            className="w-full ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            {voices.map((v) => (
+              <option key={v.voice_id} value={v.voice_id}>
+                {v.name}
+                {v.category ? ` · ${v.category}` : ""}
+              </option>
+            ))}
           </select>
         )}
-        {error && <p className="text-ui-small font-body text-error">✗ {error}</p>}
+        {error && (
+          <p className="text-ui-small font-body text-error">✗ {error}</p>
+        )}
       </div>
     </div>
   );
@@ -750,9 +1017,16 @@ function TtsSection() {
 
   useEffect(() => {
     getTtsEngine().then(setEngine).catch(console.error);
-    getGoogleTtsApiKey().then((k) => setHasKey(!!k.trim())).catch(console.error);
+    getGoogleTtsApiKey()
+      .then((k) => setHasKey(!!k.trim()))
+      .catch(console.error);
     getGoogleTtsVoice()
-      .then((v) => { if (v) { setLang(v.lang); setVoiceName(v.name); } })
+      .then((v) => {
+        if (v) {
+          setLang(v.lang);
+          setVoiceName(v.name);
+        }
+      })
       .catch(console.error);
   }, []);
 
@@ -769,7 +1043,8 @@ function TtsSection() {
       list.sort((a, b) => a.name.localeCompare(b.name));
       setVoices(list);
       const langs = uniqueLangs(list);
-      if (!langs.includes(lang)) setLang(langs.includes("en-US") ? "en-US" : langs[0] ?? "en-US");
+      if (!langs.includes(lang))
+        setLang(langs.includes("en-US") ? "en-US" : (langs[0] ?? "en-US"));
     } catch (e) {
       setVoiceError(String(e));
     } finally {
@@ -805,39 +1080,53 @@ function TtsSection() {
   }
 
   const langs = voices ? uniqueLangs(voices) : [];
-  const voicesForLang = voices ? voices.filter((v) => v.languageCodes.includes(lang)) : [];
+  const voicesForLang = voices
+    ? voices.filter((v) => v.languageCodes.includes(lang))
+    : [];
 
   return (
     <section className="space-y-3">
-      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">Read Aloud</h2>
+      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">
+        Read Aloud
+      </h2>
       <div className="border border-outline-variant p-5 space-y-4">
         <div>
-          <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
+          <p className="text-sm font-headline font-semibold text-on-surface">
+            Voice
+          </p>
           <p className="text-xs font-body text-on-surface-variant mt-0.5">
-            System voices are free and work offline. Google Cloud is higher quality and cheap
-            (largely free for personal use). ElevenLabs is the most natural voice but paid — both use
-            your own API key.
+            System voices are free and work offline. Google Cloud is higher
+            quality and cheap (largely free for personal use). ElevenLabs is the
+            most natural voice but paid — both use your own API key.
           </p>
         </div>
 
         <div className="flex gap-2">
           {TTS_ENGINES.map((opt) => (
-            <button key={opt.value} onClick={() => chooseEngine(opt.value)} aria-pressed={engine === opt.value}
-              className={["flex-1 px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] transition-colors",
+            <button
+              key={opt.value}
+              onClick={() => chooseEngine(opt.value)}
+              aria-pressed={engine === opt.value}
+              className={[
+                "flex-1 px-3 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] transition-colors",
                 engine === opt.value
                   ? "bg-primary-container text-on-primary-container"
                   : "ghost-border bg-surface-container-low text-on-surface-variant hover:text-on-surface",
-              ].join(" ")}>
+              ].join(" ")}
+            >
               {opt.label}
-              <span className="mt-0.5 block text-ui-small font-normal normal-case tracking-normal opacity-70">{opt.description}</span>
+              <span className="mt-0.5 block text-ui-small font-normal normal-case tracking-normal opacity-70">
+                {opt.description}
+              </span>
             </button>
           ))}
         </div>
 
         {engine === "system" && (
           <p className="text-xs font-body text-on-surface-variant">
-            Uses your Mac's built-in speech voices. Pick or download higher-quality system voices in
-            macOS System Settings → Accessibility → Spoken Content → System Voice.
+            Uses your Mac's built-in speech voices. Pick or download
+            higher-quality system voices in macOS System Settings →
+            Accessibility → Spoken Content → System Voice.
           </p>
         )}
 
@@ -846,53 +1135,100 @@ function TtsSection() {
         {engine === "google" && (
           <div className="space-y-4">
             <div className="space-y-2">
-              <p className="text-sm font-headline font-semibold text-on-surface">Google Cloud TTS API Key</p>
+              <p className="text-sm font-headline font-semibold text-on-surface">
+                Google Cloud TTS API Key
+              </p>
               <p className="text-xs font-body text-on-surface-variant">
-                In Google Cloud: enable the Text-to-Speech API, create an API key (restrict it to that
-                API), then paste it here. Set a quota on the key to cap spend.
+                In Google Cloud: enable the Text-to-Speech API, create an API
+                key (restrict it to that API), then paste it here. Set a quota
+                on the key to cap spend.
               </p>
               <div className="flex gap-2">
-                <input type="password" value={key} onChange={(e) => setKey(e.target.value)}
-                  placeholder={hasKey ? "••••••••  saved — enter a new key to replace" : "AIzaSy..."}
-                  className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary" />
-                <button onClick={saveKey} disabled={keySave === "saving"}
-                  className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
-                  {keySave === "saving" ? "Saving…" : keySave === "saved" ? "Saved ✓" : keySave === "error" ? "Error" : "Save"}
+                <input
+                  type="password"
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                  placeholder={
+                    hasKey
+                      ? "••••••••  saved — enter a new key to replace"
+                      : "AIzaSy..."
+                  }
+                  className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  onClick={saveKey}
+                  disabled={keySave === "saving"}
+                  className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {keySave === "saving"
+                    ? "Saving…"
+                    : keySave === "saved"
+                      ? "Saved ✓"
+                      : keySave === "error"
+                        ? "Error"
+                        : "Save"}
                 </button>
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-headline font-semibold text-on-surface">Voice</p>
-                <button onClick={loadVoices} disabled={loadingVoices || (!hasKey && !key.trim())}
-                  className="shrink-0 ghost-border px-3 py-1.5 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant transition-opacity hover:opacity-90 disabled:opacity-40">
-                  {loadingVoices ? "Loading…" : voices ? "Reload" : "Load voices"}
+                <p className="text-sm font-headline font-semibold text-on-surface">
+                  Voice
+                </p>
+                <button
+                  onClick={loadVoices}
+                  disabled={loadingVoices || (!hasKey && !key.trim())}
+                  className="shrink-0 ghost-border px-3 py-1.5 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-surface-variant transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {loadingVoices
+                    ? "Loading…"
+                    : voices
+                      ? "Reload"
+                      : "Load voices"}
                 </button>
               </div>
 
               {!voices && !voiceError && (
                 <p className="text-xs font-body text-on-surface-variant">
-                  {key.trim() ? "Load voices to choose one." : "Save your API key to load voices."}
+                  {key.trim()
+                    ? "Load voices to choose one."
+                    : "Save your API key to load voices."}
                 </p>
               )}
 
               {voices && (
                 <div className="flex gap-2">
-                  <select value={lang} onChange={(e) => chooseLang(e.target.value)}
-                    className="ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
-                    {langs.map((l) => <option key={l} value={l}>{l}</option>)}
+                  <select
+                    value={lang}
+                    onChange={(e) => chooseLang(e.target.value)}
+                    className="ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    {langs.map((l) => (
+                      <option key={l} value={l}>
+                        {l}
+                      </option>
+                    ))}
                   </select>
-                  <select value={voiceName} onChange={(e) => chooseVoice(e.target.value, lang)}
-                    className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+                  <select
+                    value={voiceName}
+                    onChange={(e) => chooseVoice(e.target.value, lang)}
+                    className="flex-1 ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
                     {voicesForLang.map((v) => (
-                      <option key={v.name} value={v.name}>{v.name} · {v.ssmlGender.toLowerCase()}</option>
+                      <option key={v.name} value={v.name}>
+                        {v.name} · {v.ssmlGender.toLowerCase()}
+                      </option>
                     ))}
                   </select>
                 </div>
               )}
 
-              {voiceError && <p className="text-ui-small font-body text-error">✗ {voiceError}</p>}
+              {voiceError && (
+                <p className="text-ui-small font-body text-error">
+                  ✗ {voiceError}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -920,7 +1256,9 @@ function DangerZoneSection() {
       await exportFeedsToOpml();
     } catch (err) {
       setState("error");
-      setErrorMsg(`Backup failed, nothing was erased: ${err instanceof Error ? err.message : String(err)}`);
+      setErrorMsg(
+        `Backup failed, nothing was erased: ${err instanceof Error ? err.message : String(err)}`,
+      );
       return;
     }
     setState("erasing");
@@ -930,25 +1268,36 @@ function DangerZoneSection() {
       window.location.reload();
     } catch (err) {
       setState("error");
-      setErrorMsg(`Reset failed: ${err instanceof Error ? err.message : String(err)}`);
+      setErrorMsg(
+        `Reset failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
   return (
     <section className="space-y-3">
-      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-error">Danger Zone</h2>
+      <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-error">
+        Danger Zone
+      </h2>
       <div className="border border-error/40 p-5 space-y-4">
         <div>
-          <p className="text-sm font-headline font-semibold text-on-surface">Factory Reset</p>
+          <p className="text-sm font-headline font-semibold text-on-surface">
+            Factory Reset
+          </p>
           <p className="text-xs font-body text-on-surface-variant mt-0.5">
-            Permanently erases all feeds, articles, read state, highlights, settings, and API keys —
-            returning the app to its first-launch state. A backup of your feed list (.opml) is
-            downloaded automatically before erasing, so you can re-import it later.
+            Permanently erases all feeds, articles, read state, highlights,
+            settings, and API keys — returning the app to its first-launch
+            state. A backup of your feed list (.opml) is downloaded
+            automatically before erasing, so you can re-import it later.
           </p>
         </div>
         <div className="space-y-2">
           <label className="text-xs font-body text-on-surface-variant">
-            Type <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small text-on-surface">confirm</code> to enable the button.
+            Type{" "}
+            <code className="bg-surface-container px-1 py-0.5 rounded text-ui-small text-on-surface">
+              confirm
+            </code>{" "}
+            to enable the button.
           </label>
           <div className="flex gap-2">
             <input
@@ -963,11 +1312,17 @@ function DangerZoneSection() {
               disabled={!armed || busy}
               className="shrink-0 bg-error px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-background transition-opacity hover:opacity-90 disabled:opacity-30"
             >
-              {state === "backing-up" ? "Backing up…" : state === "erasing" ? "Erasing…" : "Erase all data & reset"}
+              {state === "backing-up"
+                ? "Backing up…"
+                : state === "erasing"
+                  ? "Erasing…"
+                  : "Erase all data & reset"}
             </button>
           </div>
         </div>
-        {state === "error" && <p className="text-ui-small font-body text-error">✗ {errorMsg}</p>}
+        {state === "error" && (
+          <p className="text-ui-small font-body text-error">✗ {errorMsg}</p>
+        )}
       </div>
     </section>
   );
@@ -981,18 +1336,29 @@ export default function SettingsPage() {
   const [vaultSave, setVaultSave] = useState<SaveState>("idle");
 
   useEffect(() => {
-    getYouTubeApiKey().then((k) => setYtHasKey(!!k.trim())).catch(console.error);
+    getYouTubeApiKey()
+      .then((k) => setYtHasKey(!!k.trim()))
+      .catch(console.error);
     getObsidianVaultPath().then(setVaultPath).catch(console.error);
   }, []);
 
   async function persistVaultPath(next: string) {
     setVaultSave("saving");
-    try { await setObsidianVaultPath(next); setVaultPath(next); setVaultSave("saved"); setTimeout(() => setVaultSave("idle"), 2000); }
-    catch { setVaultSave("error"); }
+    try {
+      await setObsidianVaultPath(next);
+      setVaultPath(next);
+      setVaultSave("saved");
+      setTimeout(() => setVaultSave("idle"), 2000);
+    } catch {
+      setVaultSave("error");
+    }
   }
 
   async function chooseVaultFolder() {
-    const selected = await open({ directory: true, title: "Choose Obsidian vault folder" });
+    const selected = await open({
+      directory: true,
+      title: "Choose Obsidian vault folder",
+    });
     if (typeof selected === "string") await persistVaultPath(selected);
   }
 
@@ -1000,17 +1366,37 @@ export default function SettingsPage() {
     const trimmed = ytKey.trim();
     if (!trimmed) return;
     setYtSave("saving");
-    try { await setYouTubeApiKey(trimmed); setYtHasKey(true); setYtKey(""); setYtSave("saved"); setTimeout(() => setYtSave("idle"), 2000); }
-    catch { setYtSave("error"); }
+    try {
+      await setYouTubeApiKey(trimmed);
+      setYtHasKey(true);
+      setYtKey("");
+      setYtSave("saved");
+      setTimeout(() => setYtSave("idle"), 2000);
+    } catch {
+      setYtSave("error");
+    }
   }
 
   return (
     <div className="flex h-full flex-col bg-background">
       <header className="flex h-14 shrink-0 items-center gap-2 bg-background px-6">
-        <Link to="/" aria-label="Back to reader"
-          className="group flex items-center gap-2 rounded p-1.5 font-label text-ui-label text-outline transition-colors hover:text-primary">
-          <svg className="h-5 w-5 transition-transform group-active:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 19l-7-7 7-7" />
+        <Link
+          to="/"
+          aria-label="Back to reader"
+          className="group flex items-center gap-2 rounded p-1.5 font-label text-ui-label text-outline transition-colors hover:text-primary"
+        >
+          <svg
+            className="h-5 w-5 transition-transform group-active:-translate-x-1"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.75}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
           Reader
         </Link>
@@ -1018,20 +1404,31 @@ export default function SettingsPage() {
 
       <div className="flex-1 overflow-y-auto">
         <header className="px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop pb-stack-md pt-unit">
-          <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">Settings</h1>
+          <h1 className="font-headline text-headline-lg-mobile text-primary md:text-headline-lg">
+            Settings
+          </h1>
         </header>
         <div className="px-reading-margin-mobile lg:px-16 2xl:px-reading-margin-desktop max-w-3xl space-y-stack-md pb-stack-lg">
-
-
           <FeedSyncingSection />
 
           <section className="space-y-3">
-            <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">YouTube</h2>
+            <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">
+              YouTube
+            </h2>
             <SettingField
               label="YouTube Data API Key"
               description="Required to subscribe to YouTube @handle channels. Get a key from Google Cloud Console."
-              value={ytKey} onChange={setYtKey} onSave={saveYtKey} type="password"
-              placeholder={ytHasKey ? "••••••••  saved — enter a new key to replace" : "AIzaSy..."} saveState={ytSave} />
+              value={ytKey}
+              onChange={setYtKey}
+              onSave={saveYtKey}
+              type="password"
+              placeholder={
+                ytHasKey
+                  ? "••••••••  saved — enter a new key to replace"
+                  : "AIzaSy..."
+              }
+              saveState={ytSave}
+            />
           </section>
 
           <TtsSection />
@@ -1039,25 +1436,47 @@ export default function SettingsPage() {
           <AiSection />
 
           <section className="space-y-3">
-            <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">Export</h2>
+            <h2 className="text-ui-small font-label font-bold uppercase tracking-[0.14em] text-outline">
+              Export
+            </h2>
             <div className="border border-outline-variant p-5 space-y-3">
               <div>
-                <p className="text-sm font-headline font-semibold text-on-surface">Obsidian Vault Folder</p>
+                <p className="text-sm font-headline font-semibold text-on-surface">
+                  Obsidian Vault Folder
+                </p>
                 <p className="text-xs font-body text-on-surface-variant mt-0.5">
-                  Choose a folder inside your vault. "Send to Obsidian" writes one markdown file per article with your highlights and notes.
+                  Choose a folder inside your vault. "Send to Obsidian" writes
+                  one markdown file per article with your highlights and notes.
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <p className="flex-1 truncate ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface" title={vaultPath || undefined}>
-                  {vaultPath || <span className="text-outline">No folder selected</span>}
+                <p
+                  className="flex-1 truncate ghost-border bg-surface-container-low px-3 py-2 text-xs font-body text-on-surface"
+                  title={vaultPath || undefined}
+                >
+                  {vaultPath || (
+                    <span className="text-outline">No folder selected</span>
+                  )}
                 </p>
-                <button onClick={chooseVaultFolder} disabled={vaultSave === "saving"}
-                  className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40">
-                  {vaultSave === "saving" ? "Saving…" : vaultSave === "saved" ? "Saved ✓" : vaultSave === "error" ? "Error" : "Choose Folder…"}
+                <button
+                  onClick={chooseVaultFolder}
+                  disabled={vaultSave === "saving"}
+                  className="shrink-0 bg-primary-container px-4 py-2 text-ui-small font-label font-bold uppercase tracking-[0.14em] text-on-primary-container transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  {vaultSave === "saving"
+                    ? "Saving…"
+                    : vaultSave === "saved"
+                      ? "Saved ✓"
+                      : vaultSave === "error"
+                        ? "Error"
+                        : "Choose Folder…"}
                 </button>
                 {vaultPath && (
-                  <button onClick={() => persistVaultPath("")} disabled={vaultSave === "saving"}
-                    className="shrink-0 px-2 py-2 text-ui-small font-label text-on-surface-variant transition-colors hover:text-error disabled:opacity-40">
+                  <button
+                    onClick={() => persistVaultPath("")}
+                    disabled={vaultSave === "saving"}
+                    className="shrink-0 px-2 py-2 text-ui-small font-label text-on-surface-variant transition-colors hover:text-error disabled:opacity-40"
+                  >
                     Clear
                   </button>
                 )}
@@ -1066,7 +1485,6 @@ export default function SettingsPage() {
           </section>
 
           <DangerZoneSection />
-
         </div>
       </div>
     </div>

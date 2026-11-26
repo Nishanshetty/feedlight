@@ -18,7 +18,9 @@ export default function AnalyticsPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   function handleFeedDeleted() {
     load();
@@ -27,10 +29,23 @@ export default function AnalyticsPage() {
   return (
     <div className="flex h-full flex-col bg-background">
       <header className="flex h-14 shrink-0 items-center gap-2 bg-background px-6">
-        <Link to="/" aria-label="Back to reader"
-          className="rounded p-1.5 text-outline transition-colors hover:text-primary">
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 19l-7-7 7-7" />
+        <Link
+          to="/"
+          aria-label="Back to reader"
+          className="rounded p-1.5 text-outline transition-colors hover:text-primary"
+        >
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.75}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
         </Link>
         <span className="font-label text-ui-label text-outline">Analytics</span>
@@ -43,7 +58,9 @@ export default function AnalyticsPage() {
           </div>
         ) : !data ? (
           <div className="flex items-center justify-center p-20">
-            <p className="text-ui-small font-label text-outline uppercase tracking-[0.14em] animate-pulse">Loading…</p>
+            <p className="text-ui-small font-label text-outline uppercase tracking-[0.14em] animate-pulse">
+              Loading…
+            </p>
           </div>
         ) : (
           <AnalyticsDashboard data={data} onFeedDeleted={handleFeedDeleted} />

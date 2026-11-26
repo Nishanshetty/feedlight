@@ -138,7 +138,11 @@ fn check_refusal(resp: &GenerateResponse, text: &str) -> Result<(), String> {
         return Err(format!("Gemini blocked this request ({reason})"));
     }
     if text.is_empty() {
-        if let Some(reason) = resp.candidates.first().and_then(|c| c.finish_reason.as_deref()) {
+        if let Some(reason) = resp
+            .candidates
+            .first()
+            .and_then(|c| c.finish_reason.as_deref())
+        {
             if fatal_finish_reason(reason) {
                 return Err(format!("Gemini returned no output ({reason})"));
             }

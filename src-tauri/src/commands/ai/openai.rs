@@ -172,8 +172,7 @@ fn stream_error(payload: &str) -> Option<String> {
     let value: serde_json::Value = serde_json::from_str(payload).ok()?;
     let error = value.get("error")?;
     Some(
-        error_text(error)
-            .unwrap_or_else(|| "The server reported an error mid-stream.".to_string()),
+        error_text(error).unwrap_or_else(|| "The server reported an error mid-stream.".to_string()),
     )
 }
 
@@ -421,7 +420,9 @@ mod tests {
         assert_eq!(take_sse_line(&mut buf), None);
         assert_eq!(
             take_sse_tail(&mut buf),
-            Some(SseLine::Data("{\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}".into()))
+            Some(SseLine::Data(
+                "{\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}".into()
+            ))
         );
         assert_eq!(take_sse_tail(&mut buf), None);
     }

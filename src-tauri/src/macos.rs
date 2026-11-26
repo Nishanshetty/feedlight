@@ -42,7 +42,9 @@ unsafe extern "C-unwind" fn on_uncaught_exception(exception: NonNull<NSException
         .reason()
         .map(|r| r.to_string())
         .unwrap_or_else(|| "<no reason>".to_string());
-    log_line(&format!("=== Uncaught NSException ===\nname:   {name}\nreason: {reason}\n"));
+    log_line(&format!(
+        "=== Uncaught NSException ===\nname:   {name}\nreason: {reason}\n"
+    ));
 }
 
 // ─── setStyleMask: exception guard (swizzle) ────────────────────────────────────
@@ -51,7 +53,9 @@ type SetStyleMaskFn = unsafe extern "C-unwind" fn(*mut AnyObject, Sel, usize);
 static ORIGINAL_SET_STYLE_MASK: OnceLock<SetStyleMaskFn> = OnceLock::new();
 
 unsafe extern "C-unwind" fn guarded_set_style_mask(this: *mut AnyObject, cmd: Sel, mask: usize) {
-    let Some(&original) = ORIGINAL_SET_STYLE_MASK.get() else { return };
+    let Some(&original) = ORIGINAL_SET_STYLE_MASK.get() else {
+        return;
+    };
     // The args are plain Copy values; nothing is observed after a throw, so
     // asserting unwind-safety across the Obj-C exception boundary is sound.
     let result = objc2::exception::catch(std::panic::AssertUnwindSafe(|| unsafe {
@@ -72,7 +76,8 @@ fn swizzle_set_style_mask() {
     };
     let new_imp: Imp = unsafe { std::mem::transmute(guarded_set_style_mask as SetStyleMaskFn) };
     let original_imp = unsafe { method.set_implementation(new_imp) };
-    let _ = ORIGINAL_SET_STYLE_MASK.set(unsafe { std::mem::transmute::<Imp, SetStyleMaskFn>(original_imp) });
+    let _ = ORIGINAL_SET_STYLE_MASK
+        .set(unsafe { std::mem::transmute::<Imp, SetStyleMaskFn>(original_imp) });
 }
 
 // ─── Entry point ────────────────────────────────────────────────────────────────

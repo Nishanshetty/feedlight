@@ -42,7 +42,10 @@ fn validate_url(raw: &str) -> Result<(), String> {
 
     // `Url::host_str()` keeps the brackets around IPv6 literals (`"[::1]"`),
     // which would otherwise slip past both the name check and IpAddr parsing.
-    let host = host.strip_prefix('[').and_then(|h| h.strip_suffix(']')).unwrap_or(&host);
+    let host = host
+        .strip_prefix('[')
+        .and_then(|h| h.strip_suffix(']'))
+        .unwrap_or(&host);
 
     if host == "localhost" || host == "::1" {
         return Err("Access to local addresses is not allowed".to_string());
@@ -158,7 +161,12 @@ mod tests {
 
     #[test]
     fn rejects_non_http_schemes() {
-        for url in ["file:///etc/passwd", "ftp://example.com/x", "tauri://localhost", "javascript:alert(1)"] {
+        for url in [
+            "file:///etc/passwd",
+            "ftp://example.com/x",
+            "tauri://localhost",
+            "javascript:alert(1)",
+        ] {
             assert!(validate_url(url).is_err(), "should reject {url}");
         }
     }

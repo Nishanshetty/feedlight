@@ -12,7 +12,11 @@ async function getStore(): Promise<Store> {
 }
 
 export async function getYouTubeApiKey(): Promise<string> {
-  return (await invoke<string | null>("get_credential", { key: "youtube_api_key" })) ?? "";
+  return (
+    (await invoke<string | null>("get_credential", {
+      key: "youtube_api_key",
+    })) ?? ""
+  );
 }
 
 export async function setYouTubeApiKey(key: string): Promise<void> {
@@ -23,7 +27,11 @@ export async function setYouTubeApiKey(key: string): Promise<void> {
 
 /** Google Cloud TTS API key — stored in the OS keychain, not the plaintext store. */
 export async function getGoogleTtsApiKey(): Promise<string> {
-  return (await invoke<string | null>("get_credential", { key: "gcp_tts_api_key" })) ?? "";
+  return (
+    (await invoke<string | null>("get_credential", {
+      key: "gcp_tts_api_key",
+    })) ?? ""
+  );
 }
 
 export async function setGoogleTtsApiKey(key: string): Promise<void> {
@@ -65,7 +73,11 @@ export async function setGoogleTtsVoice(voice: GoogleTtsVoice): Promise<void> {
 
 /** ElevenLabs API key — stored in the OS keychain, not the plaintext store. */
 export async function getElevenLabsApiKey(): Promise<string> {
-  return (await invoke<string | null>("get_credential", { key: "elevenlabs_api_key" })) ?? "";
+  return (
+    (await invoke<string | null>("get_credential", {
+      key: "elevenlabs_api_key",
+    })) ?? ""
+  );
 }
 
 export async function setElevenLabsApiKey(key: string): Promise<void> {
@@ -81,7 +93,9 @@ export async function getElevenLabsVoice(): Promise<ElevenLabsVoice | null> {
   return id ? { id, name: name ?? id } : null;
 }
 
-export async function setElevenLabsVoice(voice: ElevenLabsVoice): Promise<void> {
+export async function setElevenLabsVoice(
+  voice: ElevenLabsVoice,
+): Promise<void> {
   const store = await getStore();
   await store.set("elevenlabs_voice_id", voice.id);
   await store.set("elevenlabs_voice_name", voice.name);
@@ -92,7 +106,9 @@ export const ELEVENLABS_DEFAULT_MODEL = "eleven_turbo_v2_5";
 
 export async function getElevenLabsModel(): Promise<string> {
   const store = await getStore();
-  return (await store.get<string>("elevenlabs_model")) ?? ELEVENLABS_DEFAULT_MODEL;
+  return (
+    (await store.get<string>("elevenlabs_model")) ?? ELEVENLABS_DEFAULT_MODEL
+  );
 }
 
 export async function setElevenLabsModel(model: string): Promise<void> {
@@ -197,7 +213,11 @@ export type LocalModel = {
 
 export function aiConfig(settings: AiSettings): AiConfig {
   return settings.provider === "gemini"
-    ? { provider: "gemini", model: settings.geminiModel, protocol: settings.localProtocol }
+    ? {
+        provider: "gemini",
+        model: settings.geminiModel,
+        protocol: settings.localProtocol,
+      }
     : {
         provider: "local",
         model: settings.localModel,
@@ -241,7 +261,8 @@ export async function getAiSettings(): Promise<AiSettings> {
       (await store.get<string>(LOCAL_MODEL_KEY)) ??
       (await store.get<string>(LOCAL_MODEL_KEY_LEGACY)) ??
       AI_DEFAULTS.localModel,
-    geminiModel: (await store.get<string>("gemini_model")) ?? AI_DEFAULTS.geminiModel,
+    geminiModel:
+      (await store.get<string>("gemini_model")) ?? AI_DEFAULTS.geminiModel,
   };
 }
 
@@ -261,7 +282,11 @@ export async function setAiSettings(settings: AiSettings): Promise<void> {
 
 /** Gemini API key — stored in the OS keychain, not the plaintext store. */
 export async function getGeminiApiKey(): Promise<string> {
-  return (await invoke<string | null>("get_credential", { key: "gemini_api_key" })) ?? "";
+  return (
+    (await invoke<string | null>("get_credential", {
+      key: "gemini_api_key",
+    })) ?? ""
+  );
 }
 
 export async function setGeminiApiKey(key: string): Promise<void> {
@@ -282,9 +307,13 @@ const LOCAL_AI_KEY = "local_ai_api_key";
 const LOCAL_AI_KEY_LEGACY = "ollama_api_key";
 
 export async function getLocalAiApiKey(): Promise<string> {
-  const current = await invoke<string | null>("get_credential", { key: LOCAL_AI_KEY });
+  const current = await invoke<string | null>("get_credential", {
+    key: LOCAL_AI_KEY,
+  });
   if (current?.trim()) return current;
-  const legacy = await invoke<string | null>("get_credential", { key: LOCAL_AI_KEY_LEGACY });
+  const legacy = await invoke<string | null>("get_credential", {
+    key: LOCAL_AI_KEY_LEGACY,
+  });
   if (legacy?.trim()) {
     await setLocalAiApiKey(legacy);
     await invoke("set_credential", { key: LOCAL_AI_KEY_LEGACY, value: "" });

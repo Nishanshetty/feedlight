@@ -1,4 +1,11 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ArchivedContent } from "./db";
 
 /**
@@ -83,11 +90,24 @@ export function ReaderProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<ReaderContextValue>(
-    () => ({ request, isOpen: request !== null, open, close, chatOpen, setChatOpen, minimized, setMinimized, chatSlot, setChatSlot }),
-    [request, open, close, chatOpen, minimized, chatSlot]
+    () => ({
+      request,
+      isOpen: request !== null,
+      open,
+      close,
+      chatOpen,
+      setChatOpen,
+      minimized,
+      setMinimized,
+      chatSlot,
+      setChatSlot,
+    }),
+    [request, open, close, chatOpen, minimized, chatSlot],
   );
 
-  return <ReaderContext.Provider value={value}>{children}</ReaderContext.Provider>;
+  return (
+    <ReaderContext.Provider value={value}>{children}</ReaderContext.Provider>
+  );
 }
 
 export function useReader(): ReaderContextValue {

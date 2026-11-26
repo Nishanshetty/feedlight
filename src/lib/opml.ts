@@ -1,11 +1,18 @@
 import { getSubscribedFeeds } from "./db";
 
 function escapeXml(s: string) {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 export function buildOpml(
-  groups: Map<string, Array<{ title: string; url: string; siteUrl: string | null }>>
+  groups: Map<
+    string,
+    Array<{ title: string; url: string; siteUrl: string | null }>
+  >,
 ): string {
   const lines = [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -17,10 +24,14 @@ export function buildOpml(
     "  <body>",
   ];
   for (const [folder, entries] of groups) {
-    lines.push(`    <outline text="${escapeXml(folder)}" title="${escapeXml(folder)}">`);
+    lines.push(
+      `    <outline text="${escapeXml(folder)}" title="${escapeXml(folder)}">`,
+    );
     for (const e of entries) {
       const htmlAttr = e.siteUrl ? ` htmlUrl="${escapeXml(e.siteUrl)}"` : "";
-      lines.push(`      <outline type="rss" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"${htmlAttr}/>`);
+      lines.push(
+        `      <outline type="rss" text="${escapeXml(e.title)}" title="${escapeXml(e.title)}" xmlUrl="${escapeXml(e.url)}"${htmlAttr}/>`,
+      );
     }
     lines.push("    </outline>");
   }
@@ -37,11 +48,18 @@ export async function exportFeedsToOpml(): Promise<number> {
   const feeds = await getSubscribedFeeds();
   if (feeds.length === 0) return 0;
 
-  const groups = new Map<string, Array<{ title: string; url: string; siteUrl: string | null }>>();
+  const groups = new Map<
+    string,
+    Array<{ title: string; url: string; siteUrl: string | null }>
+  >();
   for (const feed of feeds) {
     const folder = feed.folder ?? "Uncategorized";
     if (!groups.has(folder)) groups.set(folder, []);
-    groups.get(folder)!.push({ title: feed.title ?? feed.url, url: feed.url, siteUrl: feed.site_url });
+    groups.get(folder)!.push({
+      title: feed.title ?? feed.url,
+      url: feed.url,
+      siteUrl: feed.site_url,
+    });
   }
 
   const xml = buildOpml(groups);

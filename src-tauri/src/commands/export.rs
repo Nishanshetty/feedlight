@@ -24,7 +24,11 @@ fn sanitize_filename(name: &str) -> String {
 /// Writes a markdown file into the given folder (e.g. an Obsidian vault).
 /// Returns the full path of the written file.
 #[tauri::command]
-pub async fn export_markdown(dir: String, filename: String, content: String) -> Result<String, String> {
+pub async fn export_markdown(
+    dir: String,
+    filename: String,
+    content: String,
+) -> Result<String, String> {
     let dir_path = Path::new(&dir);
     if !dir_path.is_dir() {
         return Err(format!("Folder does not exist: {dir}"));
@@ -53,7 +57,10 @@ mod tests {
 
     #[test]
     fn collapses_whitespace_and_trims() {
-        assert_eq!(sanitize_filename("  many   spaces \n here "), "many spaces here");
+        assert_eq!(
+            sanitize_filename("  many   spaces \n here "),
+            "many spaces here"
+        );
     }
 
     #[test]
@@ -70,6 +77,9 @@ mod tests {
 
     #[test]
     fn keeps_non_ascii_titles() {
-        assert_eq!(sanitize_filename("Übertragung — Artikel"), "Übertragung — Artikel");
+        assert_eq!(
+            sanitize_filename("Übertragung — Artikel"),
+            "Übertragung — Artikel"
+        );
     }
 }
