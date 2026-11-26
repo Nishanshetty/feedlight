@@ -14,7 +14,11 @@
     "test:watch": "vitest",
     "tauri": "tauri",
     "dev:app": "tauri dev --config src-tauri/tauri.dev.conf.json",
-    "build:app": "tauri build"
+    "build:app": "tauri build",
+    "lint": "oxlint",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "lint:rust": "cd src-tauri && cargo fmt --check && cargo clippy --lib --all-targets -- -D warnings"
   },
   "dependencies": {
     "@fontsource/eb-garamond": "^5.3.0",
@@ -45,7 +49,9 @@
     "@vitejs/plugin-react": "^6.3.0",
     "autoprefixer": "^10.5.0",
     "jsdom": "^31.0.1",
+    "oxlint": "^1.95.0",
     "postcss": "^8.5.33",
+    "prettier": "^3.10.1",
     "tailwindcss": "^3.4.19",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
