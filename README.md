@@ -11,7 +11,8 @@ A local-first RSS reader for macOS. No accounts, no servers, no subscriptions �
 
 ## Features
 
-- **Local-first** — all data stored in SQLite on your Mac; works fully offline
+- **Local-first** — all data stored in SQLite on your Mac; works fully offline. No telemetry: the only request Feedlight makes on its own (besides fetching your feeds) is a once-a-day update check to GitHub, which you can turn off in Settings
+- **Automatic updates** — new versions install in one click from inside the app, verified against the project's signing key
 - **RSS & Atom** — subscribe to any RSS/Atom feed; paste a site URL and Feedlight auto-discovers the feed
 - **YouTube channels** — subscribe to channels by URL (`/channel/`, `/user/`, or `@handle` with API key)
 - **Article timeline** — magazine-style cards or compact list density, hero lead story, article images, read-time estimates, date group headers, infinite scroll, full-text search (`/`), and a Starred view
