@@ -1,6 +1,6 @@
 [package]
 name = "feedlight"
-version = "0.2.1"
+version = "0.3.0"
 description = "Feedlight — because focus matters."
 authors = ["Nishan Shetty"]
 edition = "2021"
