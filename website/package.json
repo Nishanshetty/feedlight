@@ -14,5 +14,9 @@
     "tailwindcss": "^3.4.0",
     "@fontsource/manrope": "^5.0.0",
     "@fontsource/epilogue": "^5.0.0"
+  },
+  "devDependencies": {
+    "postcss": "^8.5.15",
+    "postcss-load-config": "^4.0.2"
   }
 }
