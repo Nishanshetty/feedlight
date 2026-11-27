@@ -16,6 +16,9 @@ dist-ssr
 src-tauri/target/
 src-tauri/gen/
 
+# Personal Claude Code settings (the shared ones are .claude/settings.json)
+.claude/settings.local.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
