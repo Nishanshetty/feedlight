@@ -37,7 +37,7 @@ export default function AnalyticsDashboard({ data, onFeedDeleted }: Props) {
       {/* Stats row */}
       <div className="grid grid-cols-1 @3xl:grid-cols-3 gap-6 mb-8">
         {/* Read engagement */}
-        <div className="bg-surface-container-lowest border border-outline-variant p-5 flex items-center justify-between shadow-sm">
+        <div className="bg-surface-container-lowest border border-outline-variant p-5 flex items-center justify-between shadow-xs">
           <div className="flex flex-col">
             <span className="text-ui-small font-label text-outline uppercase tracking-[0.14em] mb-1">
               Read Engagement
@@ -76,7 +76,7 @@ export default function AnalyticsDashboard({ data, onFeedDeleted }: Props) {
         </div>
 
         {/* Counts */}
-        <div className="bg-surface-container-lowest border border-outline-variant p-5 shadow-sm">
+        <div className="bg-surface-container-lowest border border-outline-variant p-5 shadow-xs">
           <span className="text-ui-small font-label text-outline uppercase tracking-[0.14em] block mb-4">
             Subscription Volume
           </span>
@@ -101,7 +101,7 @@ export default function AnalyticsDashboard({ data, onFeedDeleted }: Props) {
         </div>
 
         {/* Folder distribution */}
-        <div className="bg-surface-container-lowest border border-outline-variant p-5 shadow-sm">
+        <div className="bg-surface-container-lowest border border-outline-variant p-5 shadow-xs">
           <span className="text-ui-small font-label text-outline uppercase tracking-[0.14em] block mb-3">
             Folder Distribution
           </span>
