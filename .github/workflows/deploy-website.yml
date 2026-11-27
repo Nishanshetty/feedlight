@@ -17,14 +17,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Only the upstream repo hosts the site. Forks keep GitHub Pages disabled,
+  # so deploying from one fails with a 404. A skipped gate job skips every job
+  # that needs it, which keeps the whole workflow off in forks.
+  gate:
+    runs-on: ubuntu-latest
+    if: github.repository == 'Nishanshetty/feedlight'
+    steps:
+      - run: echo "Deploying the website from ${{ github.repository }}"
+
   build:
+    needs: gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          # Same floor as the test and release workflows (Node 22).
+          node-version: '22'
           cache: npm
           cache-dependency-path: website/package-lock.json
 
@@ -37,7 +48,7 @@ jobs:
         working-directory: website
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: website/dist
 
@@ -50,4 +61,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

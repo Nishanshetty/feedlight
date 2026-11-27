@@ -37,9 +37,10 @@ revoked and replaced in App Store Connect at any time.
 
 ## In-app updates
 
-Tag builds also produce a signed update (`Feedlight.app.tar.gz` plus its
-`.sig`) and a `latest.json` that lists it. Installed copies of Feedlight fetch
-`latest.json` from the newest **published** release at most once a day
+Tag builds also produce a signed update (`Feedlight_<version>.app.tar.gz` plus
+its `.sig`; `tauri-action@v1` puts the version in the file name) and a
+`latest.json` that lists it. Installed copies of Feedlight fetch `latest.json`
+from the newest **published** release at most once a day
 (`plugins.updater.endpoints` in `src-tauri/tauri.conf.json`), so drafts and
 `-rc` tags never reach users. Before installing, the app checks the update's
 signature against the public key in `plugins.updater.pubkey`.
