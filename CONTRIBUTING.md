@@ -78,6 +78,11 @@ The repo-wide reformat is listed in `.git-blame-ignore-revs`. Run
 `git config blame.ignoreRevsFile .git-blame-ignore-revs` once so `git blame`
 skips it.
 
+Using a coding agent? The project notes for it are in [`AGENTS.md`](AGENTS.md),
+which most agents read on their own. Claude Code loads them through `CLAUDE.md`
+and also picks up the shared permissions in `.claude/settings.json`; put
+personal overrides in `.claude/settings.local.json`, which is git-ignored.
+
 Fill in the PR template when you open the PR, and attach screenshots or a short
 screen recording for anything that changes the UI.
 
