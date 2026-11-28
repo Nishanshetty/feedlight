@@ -15,18 +15,25 @@ pub struct ParsedFeedItem {
     pub thumbnail_url: Option<String>,
 }
 
-fn strip_html(html: &str) -> String {
-    let mut out = String::with_capacity(html.len());
-    let mut in_tag = false;
-    for ch in html.chars() {
-        match ch {
-            '<' => in_tag = true,
-            '>' => in_tag = false,
-            _ if !in_tag => out.push(ch),
-            _ => {}
+/// Plain text of an HTML fragment, with entities decoded (`&#8217;` → `’`)
+/// and whitespace collapsed. Text inside `<script>` and `<style>` is skipped.
+/// Used for item excerpts by both the manual refresh and the background crawler.
+pub(crate) fn strip_html(html: &str) -> String {
+    let fragment = Html::parse_fragment(html);
+    let mut text = String::with_capacity(html.len());
+    for node in fragment.root_element().descendants() {
+        let Some(t) = node.value().as_text() else {
+            continue;
+        };
+        let in_code = node
+            .parent()
+            .and_then(|p| p.value().as_element().map(|e| e.name()))
+            .is_some_and(|name| matches!(name, "script" | "style"));
+        if !in_code {
+            text.push_str(t);
         }
     }
-    out.split_whitespace().collect::<Vec<_>>().join(" ")
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 #[derive(Serialize)]
@@ -248,13 +255,37 @@ mod tests {
     }
 
     #[test]
-    fn strip_html_is_tag_delimited_not_quote_aware() {
-        // The stripper ends a tag at the first '>' regardless of attribute
-        // quoting, so a '>' inside an attribute value leaks the trailing quote.
-        // Documented behaviour, not an assertion of intent: feed content is
-        // plain text here, and the reader sanitises separately with DOMPurify.
-        assert_eq!(strip_html("<a href=\"x\" title=\"<b>\">text</a>"), "\"text");
-        assert_eq!(strip_html("<p title=\"a>b\">text</p>"), "b\"text");
+    fn strip_html_ignores_angle_brackets_inside_attributes() {
+        assert_eq!(strip_html("<a href=\"x\" title=\"<b>\">text</a>"), "text");
+        assert_eq!(strip_html("<p title=\"a>b\">text</p>"), "text");
+    }
+
+    #[test]
+    fn strip_html_decodes_entities() {
+        // WordPress feeds encode apostrophes and dashes as numeric entities;
+        // these used to show up literally in excerpts.
+        assert_eq!(
+            strip_html("<p>It&#8217;s here &#8212; finally</p>"),
+            "It\u{2019}s here \u{2014} finally"
+        );
+        assert_eq!(strip_html("Tom &amp; Jerry &lt;3"), "Tom & Jerry <3");
+        assert_eq!(strip_html("caf&eacute; &#x263A;"), "caf\u{e9} \u{263a}");
+        // A non-breaking space counts as whitespace and collapses like one.
+        assert_eq!(strip_html("a&nbsp;&nbsp;b"), "a b");
+    }
+
+    #[test]
+    fn strip_html_keeps_a_bare_less_than_sign() {
+        assert_eq!(strip_html("1 < 2 and 3 > 2"), "1 < 2 and 3 > 2");
+    }
+
+    #[test]
+    fn strip_html_drops_script_and_style_text() {
+        // Excerpts must not contain code from embedded scripts or styles.
+        assert_eq!(
+            strip_html("<style>p{color:red}</style><p>hi</p><script>alert(1)</script>"),
+            "hi"
+        );
     }
 
     #[test]
