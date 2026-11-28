@@ -13,6 +13,12 @@ Tags with a hyphen (`v0.2.2-rc.1`) create a **draft** release instead. Only
 maintainers can see it, and it never becomes "Latest", which the website's
 download button links to. Use them to test a build before a real release.
 
+## Release notes
+
+Write the notes only after the tag build has succeeded. The build sets the
+release's title and body, and so does re-running it: a re-run replaces notes
+you added by hand with the default text.
+
 ## Signing secrets
 
 Signing uses these repository secrets:
@@ -37,8 +43,8 @@ revoked and replaced in App Store Connect at any time.
 
 ## In-app updates
 
-Tag builds also produce a signed update (`Feedlight_<version>.app.tar.gz` plus
-its `.sig`; `tauri-action@v1` puts the version in the file name) and a
+Tag builds also produce a signed update (`Feedlight_<version>_universal.app.tar.gz`
+plus its `.sig`; `tauri-action@v1` puts the version in the file name) and a
 `latest.json` that lists it. Installed copies of Feedlight fetch `latest.json`
 from the newest **published** release at most once a day
 (`plugins.updater.endpoints` in `src-tauri/tauri.conf.json`), so drafts and
