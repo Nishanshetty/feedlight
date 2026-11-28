@@ -8,6 +8,8 @@ use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_store::StoreExt;
 use uuid::Uuid;
 
+use crate::commands::feed::strip_html;
+
 const DEFAULT_REFRESH_INTERVAL_SECS: u64 = 900; // 15 minutes
 const TICK_SECS: u64 = 60; // how often we re-check the configured interval
 const MAX_ITEMS_PER_FEED: i64 = 50;
@@ -59,20 +61,6 @@ struct FeedItem {
     author: Option<String>,
     thumbnail_url: Option<String>,
     categories: Vec<String>,
-}
-
-fn strip_html(html: &str) -> String {
-    let mut out = String::with_capacity(html.len());
-    let mut in_tag = false;
-    for ch in html.chars() {
-        match ch {
-            '<' => in_tag = true,
-            '>' => in_tag = false,
-            _ if !in_tag => out.push(ch),
-            _ => {}
-        }
-    }
-    out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 async fn fetch_items(client: &Client, url: &str) -> Result<Vec<FeedItem>, String> {
