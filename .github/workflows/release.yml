@@ -51,7 +51,7 @@ jobs:
               build=false
               while IFS= read -r f; do
                 case "$f" in
-                  docs/*|website/*|brand/*|.claude/*|.github/ISSUE_TEMPLATE/*|*.md) ;;
+                  docs/*|website/*|brand/*|.claude/*|.github/ISSUE_TEMPLATE/*|*.md|.gitignore|.git-blame-ignore-revs|.prettierignore) ;;
                   *) build=true; echo "App change: $f"; break ;;
                 esac
               done <<<"$changed"
