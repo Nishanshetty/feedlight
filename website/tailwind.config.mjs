@@ -11,7 +11,7 @@ export default {
         'accent-bright': '#fbd089',
         'accent-dim':    '#4a3a18',
         cream:           '#f0ede4',
-        muted:           '#6b6353',
+        muted:           '#9a907c',
         border:          'rgba(246, 166, 35, 0.12)',
       },
       fontFamily: {
