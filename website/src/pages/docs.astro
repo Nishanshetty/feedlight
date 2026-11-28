@@ -13,6 +13,7 @@ const toc = [
     items: [
       { id: 'install', label: 'Installation' },
       { id: 'first-launch', label: 'First launch' },
+      { id: 'updates', label: 'Updates' },
       { id: 'quick-start', label: 'Quick start' },
     ],
   },
@@ -23,6 +24,7 @@ const toc = [
       { id: 'youtube', label: 'YouTube channels' },
       { id: 'discover', label: 'Discover' },
       { id: 'folders', label: 'Folders' },
+      { id: 'tags', label: 'Tags' },
       { id: 'opml', label: 'OPML import / export' },
     ],
   },
@@ -31,6 +33,7 @@ const toc = [
     items: [
       { id: 'timeline', label: 'The timeline' },
       { id: 'reader', label: 'The reader' },
+      { id: 'read-url', label: 'Read any URL or PDF' },
       { id: 'highlights', label: 'Highlights & notes' },
       { id: 'tts', label: 'Text to speech' },
     ],
@@ -123,7 +126,7 @@ const toc = [
         <!-- ════════════════════ INSTALLATION ════════════════════ -->
         <h2 id="install">Installation</h2>
         <p>
-          Feedlight ships as a universal macOS app (Apple Silicon + Intel). Requires <strong>macOS 13 Ventura or later</strong>.
+          Feedlight ships as a universal macOS app (Apple Silicon + Intel). Requires <strong>macOS 13.3 Ventura or later</strong>.
         </p>
         <ol>
           <li>Go to the <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer">latest release</a> and download the <code>.dmg</code>.</li>
@@ -132,27 +135,36 @@ const toc = [
         </ol>
 
         <h3>Build from source</h3>
-        <p>If you'd rather build it yourself, you'll need <a href="https://rustup.rs" target="_blank" rel="noopener noreferrer">Rust</a> 1.80+, Node.js 18+, and the Xcode Command Line Tools.</p>
+        <p>If you'd rather build it yourself, you'll need <a href="https://rustup.rs" target="_blank" rel="noopener noreferrer">Rust</a> 1.80+, Node.js 22.10+, and the Xcode Command Line Tools.</p>
         <pre><code>git clone https://github.com/nishanshetty/feedlight.git
 cd feedlight
 npm install
-npm run tauri dev      # development build with hot reload
+npm run dev:app        # development build with hot reload
 npm run tauri build    # production .dmg + .app</code></pre>
         <p>The production build is written to <code>src-tauri/target/release/bundle/</code>.</p>
 
         <!-- ════════════════════ FIRST LAUNCH ════════════════════ -->
         <h2 id="first-launch">First launch</h2>
         <p>
-          The release builds are not notarized by Apple, so the first launch needs one extra step.
-          If macOS says the app “cannot be opened because the developer cannot be verified”:
+          Feedlight is signed with an Apple Developer ID and notarized by Apple, so it opens like any other app —
+          no security warnings, no extra steps.
         </p>
-        <ol>
-          <li>Click <strong>Cancel</strong> on the dialog.</li>
-          <li>Open <strong>System Settings → Privacy &amp; Security</strong>, scroll to the Security section, and click <strong>Open Anyway</strong> next to the Feedlight notice.</li>
-          <li>Confirm <strong>Open</strong>. macOS remembers this — you only do it once.</li>
-        </ol>
         <p class="callout">
-          Prefer the terminal? <code>xattr -dr com.apple.quarantine /Applications/Feedlight.app</code> clears the quarantine flag in one step.
+          Upgrading from 0.2.0 or earlier? The first time Feedlight reads an API key you saved before, macOS asks
+          for keychain access. Choose <strong>Always Allow</strong> and it won't ask again.
+        </p>
+
+        <!-- ════════════════════ UPDATES ════════════════════ -->
+        <h2 id="updates">Updates</h2>
+        <p>
+          Feedlight checks for a new version at most once a day. When one is available, a slim bar appears at the top
+          of the window: <strong>Update &amp; restart</strong> downloads it, verifies its signature, installs it, and
+          relaunches; <strong>Later</strong> hides the bar until the next launch.
+        </p>
+        <p>
+          In <a href="#settings">Settings → Updates</a> you can turn the daily check off, see which version you're on,
+          and press <strong>Check now</strong> at any time. If an update can't be installed, the bar offers a link to
+          download it manually from GitHub.
         </p>
 
         <!-- ════════════════════ QUICK START ════════════════════ -->
@@ -165,7 +177,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
         </ul>
 
         <figure>
-          <img src={`${base}/screenshots/main.png`} alt="The Feedlight timeline showing article cards, the sidebar, and the reader" loading="lazy" />
+          <img src={`${base}/screenshots/main.webp`} alt="The Feedlight timeline showing article cards, the sidebar, and the reader" loading="lazy" />
           <figcaption>The main window — sidebar of feeds and views on the left, article timeline in the center.</figcaption>
         </figure>
 
@@ -184,7 +196,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
         </ul>
 
         <figure>
-          <img src={`${base}/screenshots/add-feed.png`} alt="Adding a feed — paste a site or feed URL and, optionally, a folder" loading="lazy" />
+          <img src={`${base}/screenshots/add-feed.webp`} alt="Adding a feed — paste a site or feed URL and, optionally, a folder" loading="lazy" />
           <figcaption>Adding a feed — paste a site or feed URL and, optionally, a folder.</figcaption>
         </figure>
 
@@ -211,7 +223,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
           <strong>Subscribed</strong>. It's the fastest way to seed a fresh install with good sources.
         </p>
         <figure>
-          <img src={`${base}/screenshots/discover.png`} alt="Discover — a curated catalog of feeds grouped by topic" loading="lazy" />
+          <img src={`${base}/screenshots/discover.webp`} alt="Discover — a curated catalog of feeds grouped by topic" loading="lazy" />
           <figcaption>Discover — a curated catalog of feeds, one click to subscribe.</figcaption>
         </figure>
 
@@ -223,6 +235,19 @@ npm run tauri build    # production .dmg + .app</code></pre>
           (pick an existing folder, type a new one, or remove it from its folder). The same menu has
           <strong>Unsubscribe</strong>. Folders collapse and show a combined unread count; each feed shows its own
           unread pill and site favicon.
+        </p>
+
+        <!-- ════════════════════ TAGS ════════════════════ -->
+        <h2 id="tags">Tags</h2>
+        <p>Tags cut across folders, so one article can belong to several topics. They come from three places:</p>
+        <ul>
+          <li><strong>The feed itself</strong> — categories a feed publishes in its RSS become tags automatically.</li>
+          <li><strong>You</strong> — type into <strong>Add tag…</strong> under the reader header to tag the article you're reading.</li>
+          <li><strong>Feed defaults</strong> — in a feed's <strong>⋯</strong> menu, set <strong>Default tags</strong> to tag every new article from that feed.</li>
+        </ul>
+        <p>
+          The <strong>Tags</strong> section of the sidebar lists the tags in use with their counts. Click one to filter the
+          timeline, or type in <strong>Filter tags…</strong> to find one quickly.
         </p>
 
         <!-- ════════════════════ OPML ════════════════════ -->
@@ -242,15 +267,15 @@ npm run tauri build    # production .dmg + .app</code></pre>
         <ul>
           <li><strong>All Articles</strong> — everything from every feed, newest first.</li>
           <li><strong>Today</strong> — only articles published today, with its own unread count.</li>
-          <li><strong>Starred</strong> — articles you've starred for later.</li>
-          <li><strong>A single feed or folder</strong> — click any feed or folder name to filter.</li>
+          <li><strong>Saved</strong> — articles you've saved for later, together with ones saved from outside the timeline.</li>
+          <li><strong>A single feed, folder, or tag</strong> — click any feed, folder, or tag name to filter.</li>
         </ul>
         <p>Within the timeline you can:</p>
         <ul>
           <li><strong>Search</strong> — press <kbd>/</kbd> and type to full-text search across titles and content.</li>
           <li><strong>Switch density</strong> — magazine-style cards (with images and a hero lead story) or a compact list.</li>
           <li><strong>Resume reading</strong> — cards show a progress line; reopening an article scrolls back to where you left off.</li>
-          <li><strong>Mark read / star</strong> — per article, or <kbd>Shift</kbd>+<kbd>A</kbd> to mark everything visible as read.</li>
+          <li><strong>Mark read / save</strong> — per article, or <kbd>Shift</kbd>+<kbd>A</kbd> to mark everything visible as read.</li>
         </ul>
         <p>Articles are grouped under date headers, and the timeline loads more as you scroll. See <a href="#shortcuts">Keyboard shortcuts</a> to fly through it hands-free.</p>
 
@@ -264,17 +289,28 @@ npm run tauri build    # production .dmg + .app</code></pre>
         </p>
         <p>Click the <strong>Aa</strong> button in the reader header to customize the reading experience:</p>
         <ul>
-          <li><strong>Theme</strong> — Auto (follows the app theme), Light, Sepia, Slate, or Dark.</li>
           <li><strong>Font</strong> — Sans-serif, Serif, or Monospace.</li>
-          <li><strong>Font size</strong> — 12–22px.</li>
-          <li><strong>Width</strong> — column width.</li>
-          <li><strong>Spacing</strong> — line height.</li>
+          <li><strong>Font size</strong> — 14–28px.</li>
+          <li><strong>Width</strong> — Narrow, Medium, or Wide.</li>
+          <li><strong>Spacing</strong> — Compact, Normal, or Roomy.</li>
         </ul>
-        <p>Your choices are remembered. The <strong>open-in-browser</strong> button (top right) opens the original page in your default browser.</p>
+        <p>
+          Your choices are remembered. Light and dark follow your Mac's appearance. The <strong>open-in-browser</strong>
+          button (top right) opens the original page in your default browser, and the <strong>⌄</strong> button minimises
+          the reader to a floating mini-player so read-aloud keeps going while you browse.
+        </p>
         <figure>
-          <img src={`${base}/screenshots/reader.png`} alt="The Feedlight article reader pane" loading="lazy" />
-          <figcaption>The reader — clean typography, four themes, adjustable font and width.</figcaption>
+          <img src={`${base}/screenshots/reader.webp`} alt="The Feedlight article reader pane" loading="lazy" />
+          <figcaption>The reader — clean typography with adjustable font, size, width, and spacing.</figcaption>
         </figure>
+
+        <!-- ════════════════════ READ URL ════════════════════ -->
+        <h2 id="read-url">Read any URL or PDF</h2>
+        <p>
+          You don't have to subscribe to read something. Press <kbd>⌘</kbd>+<kbd>L</kbd> (or the link icon in the top bar),
+          paste any article URL, and it opens in the reader with all the same tools — highlights, read-aloud, and AI.
+          <strong>Choose a PDF…</strong> in the same window opens a local PDF instead.
+        </p>
 
         <!-- ════════════════════ HIGHLIGHTS ════════════════════ -->
         <h2 id="highlights">Highlights &amp; notes</h2>
@@ -294,8 +330,8 @@ npm run tauri build    # production .dmg + .app</code></pre>
           or <strong>Send to Obsidian</strong> (see <a href="#export">Obsidian export</a>).
         </p>
         <figure>
-          <img src={`${base}/screenshots/highlights.png`} alt="The reader selection toolbar — highlight, note, ask, and listen options" loading="lazy" />
-          <figcaption>Highlights — every saved passage and note, grouped by article.</figcaption>
+          <img src={`${base}/screenshots/highlights.webp`} alt="The reader selection toolbar — explain, ask, listen, highlight, note, and copy" loading="lazy" />
+          <figcaption>Select any passage to explain, ask, listen, highlight, add a note, or copy.</figcaption>
         </figure>
 
         <!-- ════════════════════ TTS ════════════════════ -->
@@ -319,7 +355,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
         </ol>
         <h3>Listen</h3>
         <p>
-          In the reader header, press <strong>Listen</strong> (the speaker icon). Controls let you <strong>Pause</strong>,
+          In the reader header, press <strong>Listen</strong> (the ▶ icon). Controls let you <strong>Pause</strong>,
           <strong>Stop</strong>, and cycle <strong>playback speed</strong>. Click any paragraph — or use the
           <strong>Listen</strong> button in the selection toolbar — to jump playback to that spot.
         </p>
@@ -380,7 +416,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
           <li><strong>Explain / Ask from a selection</strong> — select text and choose <strong>Explain</strong> for an instant explanation, or <strong>Ask</strong> to quote it into a question.</li>
         </ul>
         <figure>
-          <img src={`${base}/screenshots/summary.png`} alt="AI summary with key points" loading="lazy" />
+          <img src={`${base}/screenshots/summary.webp`} alt="AI summary with key points" loading="lazy" />
           <figcaption>AI summary and chat — with a Local provider, generated on your own machine.</figcaption>
         </figure>
 
@@ -393,7 +429,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
           <a href="#ai">AI features</a> to be enabled.
         </p>
         <figure>
-          <img src={`${base}/screenshots/digest.png`} alt="Today's Digest — an AI summary of the last 24 hours" loading="lazy" />
+          <img src={`${base}/screenshots/digest.webp`} alt="Today's Digest — an AI summary of the last 24 hours" loading="lazy" />
           <figcaption>Today's Digest — an at-a-glance summary of the last 24 hours, with sources below.</figcaption>
         </figure>
 
@@ -411,7 +447,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
         </ul>
         <p>You can unsubscribe straight from each flagged feed to declutter in seconds.</p>
         <figure>
-          <img src={`${base}/screenshots/analytics.png`} alt="Analytics — engagement metrics and feeds worth pruning" loading="lazy" />
+          <img src={`${base}/screenshots/analytics.webp`} alt="Analytics — engagement metrics and feeds worth pruning" loading="lazy" />
           <figcaption>Analytics — engagement metrics and feeds worth pruning.</figcaption>
         </figure>
 
@@ -432,17 +468,17 @@ npm run tauri build    # production .dmg + .app</code></pre>
 
         <!-- ════════════════════ SETTINGS ════════════════════ -->
         <h2 id="settings">Settings reference</h2>
-        <p>Open <strong>Settings</strong> from the gear icon in the top bar. Everything is optional except what you choose to use.</p>
+        <p>Open <strong>Settings</strong> from the bottom of the sidebar. Everything is optional except what you choose to use.</p>
         <div class="table-wrap">
           <table>
             <thead>
               <tr><th>Section</th><th>Setting</th><th>What it does</th></tr>
             </thead>
             <tbody>
-              <tr><td>Appearance</td><td>Theme</td><td>App-wide Light, Dark, or System (follows macOS). The reader keeps its own theme setting.</td></tr>
+              <tr><td>Feed Syncing</td><td>Refresh interval</td><td>How often feeds refresh in the background: every 15 minutes (the default) up to every 6 hours, or <strong>Manual only</strong>.</td></tr>
               <tr><td>YouTube</td><td>YouTube Data API Key</td><td>Lets you subscribe to <code>@handle</code> YouTube channels.</td></tr>
               <tr><td>Read Aloud</td><td>Voice engine</td><td>Choose <strong>System</strong> (free, offline), <strong>Google</strong> Cloud voices, or <strong>ElevenLabs</strong>.</td></tr>
-              <tr><td>Read Aloud</td><td>Google API Key</td><td>Paste a Google Cloud API key to use Google's voices.</td></tr>
+              <tr><td>Read Aloud</td><td>API Key</td><td>A Google Cloud or ElevenLabs key, for the engine you chose. Stored in the macOS keychain.</td></tr>
               <tr><td>Read Aloud</td><td>Voice</td><td>Pick any available voice for the engine you chose (Google defaults to <code>en-US-Neural2-F</code>).</td></tr>
               <tr><td>AI</td><td>Enable AI Features</td><td>Turns on summaries, key takeaways, article chat, and the digest.</td></tr>
               <tr><td>AI</td><td>Provider</td><td><strong>Local</strong> (your machine, private) or <strong>Gemini</strong> (Google, your API key).</td></tr>
@@ -451,14 +487,16 @@ npm run tauri build    # production .dmg + .app</code></pre>
               <tr><td>AI</td><td>API Key</td><td>Bearer token for an OpenAI-compatible server, or for Gemini. Shown only where a key applies; stored in the macOS keychain.</td></tr>
               <tr><td>AI</td><td>Model</td><td>Which model to use. <strong>Reload list</strong> reads what the server offers, <strong>Test</strong> verifies the connection.</td></tr>
               <tr><td>Export</td><td>Obsidian Vault Folder</td><td>Destination folder for <strong>Send to Obsidian</strong>.</td></tr>
+              <tr><td>Updates</td><td>Check for Updates Automatically</td><td>The once-a-day update check (on by default). <strong>Check now</strong> runs it on demand. See <a href="#updates">Updates</a>.</td></tr>
+              <tr><td>Danger Zone</td><td>Factory Reset</td><td>Erases all feeds, articles, and settings. Your feeds are backed up first.</td></tr>
             </tbody>
           </table>
         </div>
         <figure>
-          <img src={`${base}/screenshots/settings.png`} alt="The AI section of Settings — protocol, Local API URL, API key, and model picker" loading="lazy" />
+          <img src={`${base}/screenshots/settings.webp`} alt="The AI section of Settings — provider, protocol, Local API URL, and model picker" loading="lazy" />
           <figcaption>
-            Settings → AI — protocol, Local API URL, and model. The API key field appears only for the
-            OpenAI-compatible protocol.
+            Settings → AI — provider, protocol, Local API URL, and model. The API key field appears only for the
+            OpenAI-compatible protocol and Gemini.
           </figcaption>
         </figure>
 
@@ -473,10 +511,11 @@ npm run tauri build    # production .dmg + .app</code></pre>
               <tr><td><kbd>k</kbd></td><td>Previous item</td></tr>
               <tr><td><kbd>o</kbd> / <kbd>Enter</kbd></td><td>Open article pane</td></tr>
               <tr><td><kbd>m</kbd></td><td>Toggle read / unread</td></tr>
-              <tr><td><kbd>s</kbd></td><td>Toggle star</td></tr>
+              <tr><td><kbd>s</kbd></td><td>Toggle saved</td></tr>
               <tr><td><kbd>Shift</kbd>+<kbd>A</kbd></td><td>Mark all visible items as read</td></tr>
               <tr><td><kbd>/</kbd></td><td>Search</td></tr>
               <tr><td><kbd>Esc</kbd></td><td>Close article pane</td></tr>
+              <tr><td><kbd>⌘</kbd>+<kbd>L</kbd></td><td>Read any URL or PDF</td></tr>
               <tr><td><kbd>?</kbd></td><td>Show keyboard shortcuts</td></tr>
             </tbody>
           </table>
@@ -491,7 +530,8 @@ npm run tauri build    # production .dmg + .app</code></pre>
         </p>
         <p>Network requests only happen for things you'd expect:</p>
         <ul>
-          <li>Fetching the feeds and article pages you subscribe to (feeds also refresh automatically every 15 minutes in the background).</li>
+          <li>Fetching the feeds and article pages you subscribe to (feeds also refresh in the background — every 15 minutes by default, configurable in <a href="#settings">Settings → Feed Syncing</a>).</li>
+          <li>A once-a-day update check to GitHub (no personal data is sent; turn it off in <a href="#updates">Settings → Updates</a>).</li>
           <li>Loading site favicons.</li>
           <li>Resolving YouTube handles (only if you add a YouTube API key).</li>
           <li>Google Cloud TTS (only if you choose the Google voice engine).</li>
@@ -502,8 +542,8 @@ npm run tauri build    # production .dmg + .app</code></pre>
 
         <!-- ════════════════════ TROUBLESHOOTING ════════════════════ -->
         <h2 id="troubleshooting">Troubleshooting</h2>
-        <h3>“The app can't be opened because the developer cannot be verified.”</h3>
-        <p>This is expected for an unsigned app. Follow the <a href="#first-launch">First launch</a> steps to allow it.</p>
+        <h3>An update won't install.</h3>
+        <p>Press <strong>Download manually</strong> in the update bar, or get the latest <code>.dmg</code> from the <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer">releases page</a> and replace the app in Applications. Your feeds and settings are kept.</p>
 
         <h3>A feed won't add.</h3>
         <p>Make sure the URL is reachable in a browser. For sites without an obvious feed, try the site's home page and let auto-discovery find it, or search the site for an RSS link. For <code>@handle</code> YouTube URLs, you need a <a href="#youtube">YouTube API key</a>.</p>
@@ -542,7 +582,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
 
 <style is:global>
   /* Prose styling scoped to the docs content column. */
-  .docs { color: #c9cfc6; }
+  .docs { color: #d6cfc0; }
   .docs h2 {
     font-family: 'Epilogue', sans-serif;
     font-weight: 700;
@@ -564,12 +604,12 @@ npm run tauri build    # production .dmg + .app</code></pre>
     margin-bottom: 0.5rem;
     scroll-margin-top: 5.5rem;
   }
-  .docs p { margin-top: 1rem; line-height: 1.75; color: #aab3a6; }
-  .docs ul, .docs ol { margin-top: 1rem; padding-left: 1.25rem; line-height: 1.75; color: #aab3a6; }
+  .docs p { margin-top: 1rem; line-height: 1.75; color: #b5ad9c; }
+  .docs ul, .docs ol { margin-top: 1rem; padding-left: 1.25rem; line-height: 1.75; color: #b5ad9c; }
   .docs ul { list-style: disc; }
   .docs ol { list-style: decimal; }
   .docs li { margin-top: 0.4rem; }
-  .docs li::marker { color: #6b6353; }
+  .docs li::marker { color: #9a907c; }
   .docs strong { color: #e3e0d6; font-weight: 600; }
   .docs em { color: #fbd089; font-style: italic; }
   .docs a { color: #f6a623; text-decoration: underline; text-underline-offset: 2px; transition: color 0.15s; }
@@ -585,13 +625,13 @@ npm run tauri build    # production .dmg + .app</code></pre>
   }
   .docs pre {
     margin-top: 1rem;
-    background: #0a0f08;
+    background: #1a160f;
     border: 1px solid rgba(246, 166, 35, 0.12);
     border-radius: 8px;
     padding: 1rem 1.25rem;
     overflow-x: auto;
   }
-  .docs pre code { background: none; border: none; padding: 0; color: #c9cfc6; font-size: 0.82rem; line-height: 1.6; }
+  .docs pre code { background: none; border: none; padding: 0; color: #d6cfc0; font-size: 0.82rem; line-height: 1.6; }
   .docs kbd {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.78em;
@@ -609,7 +649,7 @@ npm run tauri build    # production .dmg + .app</code></pre>
     border: 1px solid rgba(246, 166, 35, 0.12);
     box-shadow: 0 20px 40px -20px rgba(0,0,0,0.7);
   }
-  .docs figcaption { margin-top: 0.6rem; font-size: 0.8rem; color: #6b6353; text-align: center; }
+  .docs figcaption { margin-top: 0.6rem; font-size: 0.8rem; color: #9a907c; text-align: center; }
   .docs .shot-placeholder {
     display: flex;
     flex-direction: column;
@@ -622,8 +662,8 @@ npm run tauri build    # production .dmg + .app</code></pre>
     border: 1px dashed rgba(246, 166, 35, 0.3);
     background:
       repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(246,166,35,0.025) 10px, rgba(246,166,35,0.025) 20px),
-      #0e150c;
-    color: #6b6353;
+      #1a160f;
+    color: #9a907c;
   }
   .docs .shot-placeholder svg { width: 2rem; height: 2rem; opacity: 0.5; }
   .docs .shot-placeholder .file {
@@ -649,6 +689,6 @@ npm run tauri build    # production .dmg + .app</code></pre>
     vertical-align: top;
   }
   .docs th { color: #f6a623; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
-  .docs td { color: #aab3a6; }
+  .docs td { color: #b5ad9c; }
   .docs hr { margin-top: 3rem; border: none; border-top: 1px solid rgba(246, 166, 35, 0.12); }
 </style>
